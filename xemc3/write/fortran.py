@@ -9,16 +9,16 @@ from ..core.load import (
     write_locations as coordinates,
     write_plates_mag as plates_mag,
     write_mapped_nice as mapped,
-    write_all_fortran as _write_all,
+    write_all_fortran as all,
 )
 
 
-class all(_types.ModuleType):
+class _all(_types.ModuleType):
     def __init__(self):
         super().__init__(__name__)
         self.__dict__.update(_sys.modules[__name__].__dict__)
 
 
-all.__call__ = _write_all
+_all.__call__ = all
 
-_sys.modules[__name__] = all()
+_sys.modules[__name__] = _all()

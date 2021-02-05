@@ -44,7 +44,16 @@ def _block_write(f, d, fmt, bs=10):
 
 
 def write_locations(ds, fn):
-    """Write spatial positions of grid points in EMC3 format."""
+    """
+    Write spatial positions of grid points in EMC3 format.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset with the EMC3 simulation data
+    fn : str
+        The filename to write to
+    """
     rs = ds.emc3["R_corners"]
     phis = ds.emc3["phi_corners"]
     zs = ds.emc3["z_corners"]
@@ -64,7 +73,21 @@ def write_locations(ds, fn):
 
 
 def read_magnetic_field(fn, ds):
-    """Read magnetic fieldstrength from grid"""
+    """
+    Read magnetic fieldstrength from grid
+
+    Parameters
+    ----------
+    fn : str
+        The filename to read from
+    ds : xr.Dataset
+        A xemc3 dataset required for the dimensions
+
+    Returns
+    -------
+    xr.Dataset
+        The magenetic field strength
+    """
     shape = ds.R_bounds.shape
     assert len(shape) == 6
     shape = [i + 1 for i in shape[:3]]
@@ -78,6 +101,16 @@ def read_magnetic_field(fn, ds):
 
 
 def write_magnetic_field(path, ds):
+    """
+    Write the magnetic field to a file
+
+    Parameters
+    ----------
+    path : str
+        The filename to write to
+    ds : xr.Dataset
+        The xemc3 dataset with the magnetic field
+    """
     bf = ds.emc3["bf_corners"].data
     bf = bf.transpose(2, 1, 0)
     with open(path, "w") as f:
@@ -85,7 +118,23 @@ def write_magnetic_field(path, ds):
 
 
 def read_locations(fn):
-    """Read spatial positions of grid points"""
+    """
+    Read spatial positions of grid points
+
+    Parameters
+    ----------
+    fn : str
+        The filename of the grid
+
+    Returns
+    -------
+    np.array
+        phi positions
+    np.array
+        radial positions
+    np.array
+        z position
+    """
     with open(fn) as f:
         nx, ny, nz = [int(i) for i in f.readline().split()]
         phidata = np.empty(nz)
@@ -110,6 +159,21 @@ def read_locations(fn):
 
 
 def read_plates_mag(fn, ds):
+    """
+    Read the magnetic plates
+
+    Parameters
+    ----------
+    fn : str
+        Location of the magnetic plates files
+    ds : xr.Dataset
+        xemc3 dataset
+
+    Returns
+    -------
+    xr.DataArray
+        The magnetic plates
+    """
     shape = [x.shape[0] for x in [ds.r, ds.theta, ds.phi]]
     ret = np.zeros(shape, dtype=bool)
     with open(fn) as f:
@@ -125,7 +189,20 @@ def read_plates_mag(fn, ds):
 
 
 def write_plates_mag(fn, ds):
-    da = ds["PLATES_MAG"]
+    """
+    Write the ``PLATES_MAG`` info to a file in the EMC3 format.
+
+    Parameters
+    ----------
+    fn : str
+        The file to write to
+    ds : xr.Dataset or xr.DataArray
+       either the PLATES_MAG dataarray or a dataset containing PLATES_MAG
+    """
+    if isinstance(ds, xr.Dataset):
+        da = ds["PLATES_MAG"]
+    else:
+        da = ds
     with open(fn, "w") as f:
         # iterate over r:
         for r, slice2d in enumerate(da.data):
@@ -157,7 +234,21 @@ def write_plates_mag(fn, ds):
 
 
 def read_mappings(fn, dims):
-    """Read the mappings data"""
+    """
+    Read the mappings data
+
+    Parameters
+    ----------
+    fn : str
+        The path of the file to be read
+    dims : tuple of int
+        The shape of the domain
+
+    Returns
+    -------
+    xr.DataArray
+        The mapping information
+    """
     with open(fn) as f:
         # dims =  [int(i) for i in f.readline().split()]
         infos = [int(i) for i in f.readline().split()]
@@ -491,6 +582,22 @@ def read_plates(cwd):
 
 
 def get_plates(cwd, cache=True):
+    """
+    Read the target fluxes from the EMC3_post procesing routine
+
+    Parameters
+    ----------
+    cwd : str
+        The directory in which the file is
+    cache : bool (optional)
+        Whether to check whether a netcdf file is present, and if not
+        create one. This can result in faster reading the next time.
+
+    Returns
+    -------
+    xr.Dataset
+        The target profiles
+    """
     if cache:
         try:
             if os.path.getmtime(cwd + "/TARGET_PROFILES.nc") > os.path.getmtime(
@@ -509,17 +616,20 @@ def read_mapped_nice(dir, var, mapping=None):
     """
     Read the variable var from the simulation in directory dir.
 
-    dir: string
+    Parameters
+    ----------
+    dir: str
         The path of the simulation directory
-
-    var: string
+    var: str
         The name of the variable to be read
-
     mapping: xr.DataArray or xr.Dataset or None (optional)
-        If present the mapping. If not present, the information is read from the simulation directory.
+        If present the mapping. If not present, the information is
+        read from the simulation directory.
 
-    Returns:
-        An xr.Dataset with at least var set.
+    Returns
+    -------
+    xr.Dataset
+        A dataset in wich at least ``var`` is set.
     """
     if mapping is None:
         mapping = get_locations(dir)
@@ -547,23 +657,28 @@ def read_mapped(
     """
     Read a file with the emc3 mapping.
 
-    fn: string
+    Parameters
+    ----------
+    fn: str
         The full path of the file to read
-
     mapping: xr.DataArray or xr.Dataset
-        The dataarray of the mesh mapping or a dataset containing the mapping
-
+        The dataarray of the mesh mapping or a dataset containing the
+        mapping
     skip_first: int (optional)
         Ignore the first n lines. Default 0
-
     ignore_broken: boolean (optional)
         if incomplete datasets at the end should be ignored. Default: False
-
     kinetic: boolen (optional)
-        The file contains also data for cells that are only evolved by EIRENE, rather then EMC3. Default: False
-
+        The file contains also data for cells that are only evolved by
+        EIRENE, rather then EMC3. Default: False
     dtype: datatype (optional)
-        The type of the data, e.g. float or int. Is passed to numpy. Default: float
+        The type of the data, e.g. float or int. Is passed to
+        numpy. Default: float
+
+    Returns
+    -------
+    list of xr.DataArray
+        The data that has been read from the file
     """
 
     if isinstance(mapping, xr.Dataset):
@@ -615,6 +730,22 @@ def read_mapped(
 
 
 def write_mapped_nice(ds, dir, fn=None, **args):
+    """
+    Write a file for EMC3 using the mapped format.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        A xemc3 dataset
+    dir : str
+        The directory to which to write the file
+    fn : str or None (optional)
+        In case of ``None`` all mapped files are written.
+        In the case of a str only that file is written.
+    args : dict (optional)
+        Can be used to overwrite options for writing. Defaults to the
+        options used for that file.
+    """
     if fn is None:
         for fn, meta in files.values():
             if meta["type"] == "mapped":
@@ -885,13 +1016,24 @@ def load_all(path, ignore_missing=None):
     """
     Load all data from a path and return as dataset
 
-    path : string
+    Parameters
+    ----------
+    path : str
          Directory that contains files to be read
-
     ignore_missing : None or bool
          True: ignore missing files.
          False: raise exceptions if a file is not found.
          None: use default option for that file.
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset with all the simulation data. Unless
+        ``ignore_missing=False`` has been set, some data might be
+        missing because it was not found. However
+        ``ignore_missing=False`` has the disadvantage that files added
+        in later locations will cause errors if the files are not
+        present.
     """
     ds = get_locations(path)
     for fn, opts in files.items():
@@ -923,7 +1065,16 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
 
 
 def write_all_fortran(ds, dir):
-    """Write all files to directory dir"""
+    """
+    Write all files to directory dir
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The xemc3 dataset
+    dir : str
+        The directory to write the files to
+    """
     write_locations(ds, f"{dir}/GRID_3D_DATA")
     for fn, opts in files.items():
         write_fort_file(ds, dir, fn, **opts)

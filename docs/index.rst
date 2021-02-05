@@ -8,7 +8,7 @@ Welcome to xemc3's documentation!
 =================================
 
 :py:mod:`xemc3` provides an interface for collecting the output data
-from a `EMC3`_ simulation into an xarray_ dataset, as well as accessor
+from a ``EMC3`` simulation into an xarray_ dataset, as well as accessor
 methods for common EMC3 analysis and plotting tasks.
 
 Currently only in alpha (until 1.0 released) so please report any
@@ -19,19 +19,18 @@ suggestions.
    :maxdepth: 2
    :caption: Contents:
 
-   loading_data
    xemc3
 
 Installation
 ------------
 
-With `pip`:
+With ``pip``:
 
 .. code-block:: bash
 
   pip install --user xemc3
 
-You can run the tests by running `pytest --pyargs xemc3`.
+You can run the tests by running ``pytest --pyargs xemc3``.
 
 xemc3 will install the required python packages when you run one of
 the above install commands if they are not already installed on your

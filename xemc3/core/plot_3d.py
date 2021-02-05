@@ -26,10 +26,46 @@ class divertor:
         vmin=None,
         only_lower=False,
         title=None,
-        phi_slices=None,
+        phi_slices=False,
         path1=None,
         path2=None,
     ):
+        """
+        Plot the first wall and the mapped plasma parameters.
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            The emc3 dataset of the mapped parameters
+        index : str
+            The index to plot
+        symmetry : boolean
+            Plot as well a copyied version of the data assuming
+            stellerator symmetry.
+        segments : int
+            Plot several copies of the the data, spread around
+            symmetrically.
+        power_cutoff : float or None
+            if not None, only plot target structures on which the
+            total power flux on the structure is larger then the
+            cutoff.
+        verbose : boolean
+            print informations during plotting
+        vmax : None or float
+            if not None set the upper limit of the colorbar
+        vmin : None or float
+            if not None set the lower limit of the colorbar
+        only_lower : boolean
+            only plot structures that are below :math:`z=0`
+        title : str
+            set a title for the plot
+        phi_slices : boolean
+            plot some additional debugging slices
+        path1 : None or str
+            Take a screenshot and save at location of str if not None
+        path2 : None or str
+            like path1 but screenshot is taken from different position
+        """
         if vmax is None:
             vmax = np.nanmax(ds[index])
         if vmin is None:
@@ -99,7 +135,10 @@ class divertor:
         if path1:
             array = np.array
             mlab.view(
-                -50, 78.87131880429496, 3.8, np.array([4.6, 0.17730785, -1.02087631]),
+                -50,
+                78.87131880429496,
+                3.8,
+                np.array([4.6, 0.17730785, -1.02087631]),
             )
             mlab.savefig(path1)  # , figure=self.fig)
             # print(mlab.screenshot())
@@ -143,6 +182,14 @@ class volume:
         print("__init__ finished")
 
     def plot(self, key):
+        """
+        Plot a some quantities in 3D
+
+        Parameters
+        ----------
+        key : str
+            The key to plot
+        """
         print("plot started")
         self.grid.point_data.scalars = np.ascontiguousarray(self.ds[key].data).ravel(
             order="F"

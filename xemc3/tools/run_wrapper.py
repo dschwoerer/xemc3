@@ -33,14 +33,14 @@ else:
 
 def getmpirun(default=DEFAULT_MPIRUN):
     """Return environment variable named MPIRUN, if it exists else return
-   a default mpirun command
+     a default mpirun command
 
-  Parameters
-  ----------
-  default : str, optional
-      An mpirun command to return if ``MPIRUN`` is not set in the environment
+    Parameters
+    ----------
+    default : str, optional
+        An mpirun command to return if ``MPIRUN`` is not set in the environment
 
-  """
+    """
     MPIRUN = os.getenv("MPIRUN")
 
     if MPIRUN is None or MPIRUN == "":

@@ -25,7 +25,7 @@ on_rtd = os.environ.get("READTHEDOCS") == "True"
 import xemc3
 
 project = "xemc3"
-copyright = "2020-2021, David Schwörer"
+copyright = "2018, Tom Nicholas, 2021, David Schwörer, IPP"
 author = "David Schwörer"
 
 # The short X.Y version
@@ -50,6 +50,24 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
 ]
+
+# Default for autodoc
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "show-inheritance": True,
+    "ignore-module-all": True,
+    "private_members": True,
+    #    "member-order": "bysource",
+    #    "special-members": "__init__",
+    #    "exclude-members": "__weakref__",
+    "imported-members": True,
+}
+
+# Napolean settings
+napoleon_google_docstring = False
+napoleon_numpy_docstring = True
+napoleon_include_init_with_doc = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
@@ -99,7 +117,8 @@ else:
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ["_static"]
+# html_static_path = ["_static"]
+html_static_path = []
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
