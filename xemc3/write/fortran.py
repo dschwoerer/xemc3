@@ -18,7 +18,10 @@ class _all(_types.ModuleType):
         super().__init__(__name__)
         self.__dict__.update(_sys.modules[__name__].__dict__)
 
+    def __call__(self, ds, dir):
+        return all(ds, dir)
 
-_all.__call__ = all
+
+_all.__call__.__doc__ = all.__doc__
 
 _sys.modules[__name__] = _all()

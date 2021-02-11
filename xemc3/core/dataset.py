@@ -2,6 +2,8 @@ import xarray as xr
 import itertools
 import os
 import numpy as np
+from . import load
+from . import utils
 
 
 @xr.register_dataset_accessor("emc3")
@@ -40,7 +42,7 @@ class EMC3DatasetAccessor:
                 except KeyError:
                     raise e
                 var = var_
-                transform = lambda x: _utils.from_interval(x, check=False)
+                transform = lambda x: utils.from_interval(x, check=False)
             else:
                 raise
         if "plate_ind" in dims:
@@ -72,7 +74,7 @@ class EMC3DatasetAccessor:
         transform = lambda x: x
         if var.endswith("_corners"):
             var = var[: -len("_corners")] + "_bounds"
-            transform = lambda x: _utils.to_interval(x)
+            transform = lambda x: utils.to_interval(x)
         ## Maybe also do the cropping? See merge code somewhere
         self.data[var] = transform(data)
         return self

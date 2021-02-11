@@ -12,17 +12,18 @@ class rrange2(object):
         self.update = int(update)
         for a in self.args:
             self.total *= a
+        self._has_returned = 0
         return None
 
     def __iter__(self):
         self.state = [0 for a in self.args]
-        self.state[0] = -1
+        if len(self.state) > 0:
+            self.state[0] = -1
         self.tstate = -1
         self.tnext = 0
         return self
 
     def __next__(self):
-        self.state[0] += 1
         self.tstate += 1
         if self.tstate == self.tnext:
             self.tnext += ((self.total - 1) // self.update) + 1
@@ -30,6 +31,12 @@ class rrange2(object):
                 f"{self.tstate * 100 / self.total:6.2f} % ... {time.time() - self.t0:.0f} s",
                 end="\r",
             )
+        try:
+            self.state[0] += 1
+        except IndexError:
+            if self.tstate == 0:
+                return tuple()
+            raise StopIteration
         for i in range(len(self.args)):
             if self.state[i] < self.args[i]:
                 return tuple(self.state)
@@ -57,6 +64,9 @@ def to_interval(dims, data=None):
     """Transforms a N-D i_1+1 x ... x i_N+1 mesh to an
     i_1 x ... x i_N x 2 x ... x 2 mesh of quads
     """
+    if isinstance(dims, tuple) and data is None:
+        dims, data = dims
+
     if data is None:
         data = dims
         in_dims = data.dims

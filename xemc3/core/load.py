@@ -225,11 +225,11 @@ def write_plates_mag(fn, ds):
                             last = v
                     if last:
                         ab.append(i)
-                    out = [0, r, theta, len(ab)] + ab
-                    out = [str(i) for i in out]
-                    outs = "   %s   %3s   %3s" % tuple(out[:3])
-                    outs += " ".join(["    %2s" % i for i in out[3:]])
-                    f.write(outs + "\n")
+                out = [0, r, theta, len(ab)] + ab
+                out = [str(i) for i in out]
+                outs = "   %s   %3s   %3s" % tuple(out[:3])
+                outs += " ".join(["    %2s" % i for i in out[3:]])
+                f.write(outs + "\n")
     return
 
 
@@ -251,7 +251,12 @@ def read_mappings(fn, dims):
     """
     with open(fn) as f:
         # dims =  [int(i) for i in f.readline().split()]
-        infos = [int(i) for i in f.readline().split()]
+        dat = f.readline()
+        try:
+            infos = [int(i) for i in dat.split()]
+        except:
+            print(dat)
+            raise
         # print(infos, prod(dims))
         t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
         # fortran indexing
@@ -268,8 +273,8 @@ def write_mappings(da, fn):
     """Write the mappings data to fortran"""
     with open(fn, "w") as f:
         infos = da.attrs["numcells"], da.attrs["plasmacells"], da.attrs["other"]
-        f.write("%12d %11d %11d\n")
-        _block_write(f, da.data.flatten(), " %11d", 6)
+        f.write("%12d %11d %11d\n" % infos)
+        _block_write(f, da.data.flatten(order="F") + 1, " %11d", 6)
 
 
 def get_locations(path, ds=None):
@@ -742,6 +747,8 @@ def write_mapped_nice(ds, dir, fn=None, **args):
     fn : str or None (optional)
         In case of ``None`` all mapped files are written.
         In the case of a str only that file is written.
+        Any missing data is ignored. Thus if a file is specified, but
+        the data hasn't been loaded this is ignored.
     args : dict (optional)
         Can be used to overwrite options for writing. Defaults to the
         options used for that file.
@@ -751,52 +758,145 @@ def write_mapped_nice(ds, dir, fn=None, **args):
             if meta["type"] == "mapped":
                 write_mapped_nice(ds, dir, fn, **args)
     else:
-        datas = []
-        meta = files[fn]
+        meta = files[fn].copy()
         meta.update(args)
         meta.pop("type", "ignore")
         ignore_missing = meta.pop("ignore_missing", True)
-        for var in meta.pop("vars"):
-            # Equivalent writing code:
-            # if "%" in keys[-1]:
-            #     key = keys[-1]
-            #     flexi = vars.pop(key)
-            #     for i in range(len(vars), len(datas)):
-            #         vars[key % i] = flexi
-            if "%" in var:
-                while True:
-                    i = len(datas)
-                    if var % i not in ds:
-                        break
-                    datas.append(ds[var % i])
-            else:
-                try:
-                    datas.append(ds[var])
-                except KeyError:
-                    if not ignore_missing:
-                        raise
+        try:
+            vars = get_vars_for_file(ds, meta.pop("vars"))
+        except KeyError:
+            if not ignore_missing:
+                raise
+            return
+        datas = [ds[k] for k, _ in vars]
+        for i, ops in enumerate([m for _, m in vars]):
+            if "scale" in ops:
+                at = datas[i].attrs
+                datas[i] = datas[i] / ops["scale"]
+                datas[i].attrs = at
+        if datas == []:
+            raise AssertionError(
+                f"Requested to write file {dir}/{fn} but required data not found."
+            )
         write_mapped(datas, ds["_plasma_map"], f"{dir}/{fn}", **meta)
 
 
-def write_mapped(datas, mapping, fn, kinetic=False, fmt=None):
+def get_vars_for_file(ds, fn):
+    """
+    Check if the variables of fn are loaded.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        An xemc3 dataset
+    fn : str or dict
+        A file name to check or the associated dictionary of mappings
+
+    Returns
+    -------
+    list of  tuple of str and dict
+        The variables that are from that file as well as a dict
+        containing additional info about the variable.
+
+    Raises
+    ------
+    KeyError
+        If the file has not been loaded
+    """
+    if isinstance(fn, dict):
+        vars = fn
+    else:
+        vars = files[fn]["vars"].copy()
+    keys = []
+    for var in vars:
+        # Equivalent writing code:
+        # if "%" in keys[-1]:
+        #     key = keys[-1]
+        #     flexi = vars.pop(key)
+        #     for i in range(len(vars), len(datas)):
+        #         vars[key % i] = flexi
+        if "%" in var:
+            while True:
+                i = len(keys)
+                if var % i not in ds:
+                    break
+                keys.append((var % i, vars[var]))
+        else:
+            keys.append((var, vars[var]))
+    if keys == []:
+        raise KeyError(f"Didn't find any key for {fn}")
+    for k, _ in keys:
+        if k not in ds:
+            raise KeyError(f"Key {k} not present in Dataset, only have {ds.keys()}")
+    return keys
+
+
+def write_mapped(
+    datas,
+    mapping,
+    fn,
+    skip_first=0,
+    ignore_broken=False,
+    kinetic=False,
+    dtype=None,
+    fmt=None,
+):
+    """
+    Write a some files using the EMC3 mapping.
+
+    Parameters
+    ----------
+    datas : list of xr.DataArray
+        The data to be written
+    mapping : xr.DataArray
+        The info about the EMC3 data mapping
+    fn : str
+        The filename to write to
+    skip_first : None or int
+        If not None, it needs to be the number of lines that are in
+        the `print_before` attribute.
+    ignore_broken : any
+        ignored.
+    kinetic : boolean
+        If true the data is defined also outside of the plasma region.
+    dtype : any
+        if not None, it needs to match the dtype of the data
+    fmt : None or str
+        The Format to be used for printing the data.
+    """
     if kinetic:
-        max = np.max(mapping.data) + 1
+        max = np.max(mapping.values) + 1
     else:
         max = np.max(mapping.attrs["plasmacells"])
     if not isinstance(datas, list):
         datas = [datas]
-    dtype = datas[0].data.dtype
-    assert all([d.data.dtype == dtype for d in datas])
-    out = np.zeros((len(datas), max), dtype=dtype)
-    mapdat = mapping.data
+    # if dtype:
+    #     if not dtype == datas[0].data.dtype:
+    #         raise AssertionError(
+    #             f"Expected dtype {dtype} but data has "
+    #             f"actually {datas[0].data.dtype} for "
+    #             f"file {fn}"
+    #         )
+    if skip_first is not None:
+        for d in datas:
+            if skip_first:
+                assert d.attrs["print_before"] != ""
+            else:
+                if "print_before" in d.attrs:
+                    assert d.attrs["print_before"] == ""
+    if dtype is None:
+        dtype = datas[0].values.dtype
+    # assert all([d.data.dtype == dtype for d in datas])
+    out = np.zeros((len(datas), max))
+    mapdat = mapping.values
+    assert mapdat.dtype == int
     for j, data in enumerate(datas):
-        datdat = data.data
+        datdat = data.values
         count = np.zeros(max)
         for ijk in rrange(mapdat.shape):
             mapid = mapdat[ijk]
             if mapid < max:
                 if not np.isnan(datdat[ijk]):  # and mapid:
-                    # raise ValueError(f"nan in {ijk} with {mapid}")
                     out[j, mapid] += datdat[ijk]
                     count[mapid] += 1
         out[j, :] /= count
@@ -812,7 +912,7 @@ def write_mapped(datas, mapping, fn, kinetic=False, fmt=None):
 
 
 files = {
-    "fort.70": dict(type="mapping"),
+    "fort.70": dict(type="mapping", vars={"_plasma_map": dict()}),
     "fort.31": dict(
         type="mapped",
         skip_first=1,
@@ -963,9 +1063,27 @@ files = {
     ),
 }
 
+if True:
+    _files_bak = files.copy()
+    for k in files:
+        _files_bak[k] = files[k].copy()
+        if isinstance(files[k], dict):
+            for l in files[k]:
+                try:
+                    _files_bak[k][l] = files[k][l].copy()
+                except:
+                    try:
+                        _files_bak[k][l] = files[k][l][:]
+                    except:
+                        pass
+else:
+    _files_bak = files
+
 
 def read_fort_file(ds, fn, type="mapped", **opts):
+    assert files == _files_bak
     if type == "mapping":
+        opts.pop("vars", False)
         ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
         if opts != {}:
             raise RuntimeError(
@@ -985,10 +1103,13 @@ def read_fort_file(ds, fn, type="mapped", **opts):
         datas = [read_plates_mag(fn, ds)]
     else:
         raise RuntimeError(f"Unexpected type {type}")
+    assert files == _files_bak
     if opts != {}:
         raise RuntimeError(
             "Unexpected arguments: " + ", ".join([f"{k}={v}" for k, v in opts.items()])
         )
+    vars = vars.copy()
+    assert files == _files_bak
     assert opts == {}
     keys = [k for k in vars]
     if "%" in keys[-1]:
@@ -997,18 +1118,22 @@ def read_fort_file(ds, fn, type="mapped", **opts):
         for i in range(len(vars), len(datas)):
             vars[key % i] = flexi
 
+    assert files == _files_bak
     if len(vars) != len(datas):
         raise RuntimeError(
             f"in file {fn} we found {len(datas)} fields but only {len(vars)} vars are given!"
         )
+    assert files == _files_bak
     for (var, varopts), data in zip(vars.items(), datas):
         ds[var] = data
+        varopts = varopts.copy()
         scale = varopts.pop("scale", 1)
         if scale != 1:
             ds[var].data *= scale
         attrs = varopts.pop("attrs", {})
-        ds[var].attrs = attrs
+        ds[var].attrs.update(attrs)
         assert varopts == {}
+    assert files == _files_bak
     return ds
 
 
@@ -1037,6 +1162,7 @@ def load_all(path, ignore_missing=None):
     """
     ds = get_locations(path)
     for fn, opts in files.items():
+        opts = opts.copy()
         try:
             ds = read_fort_file(ds, f"{path}/{fn}", **opts)
         except FileNotFoundError:
@@ -1056,7 +1182,9 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
     elif type == "full":
         vars = opts.pop("vars")
         assert len(vars) == 1
-        write_magnetic_field(f"{dir}/{fn}", ds[vars[0]])
+        for var in vars:
+            assert var == "bf_bounds"
+            write_magnetic_field(f"{dir}/{fn}", ds)
     elif type == "plates_mag":
         vars = opts.pop("vars")
         write_plates_mag(f"{dir}/{fn}", ds)
@@ -1077,7 +1205,13 @@ def write_all_fortran(ds, dir):
     """
     write_locations(ds, f"{dir}/GRID_3D_DATA")
     for fn, opts in files.items():
-        write_fort_file(ds, dir, fn, **opts)
+        try:
+
+            get_vars_for_file(ds, fn)
+        except KeyError:
+            pass
+        else:
+            write_fort_file(ds, dir, fn, **opts)
 
     # if False:
     #     ds["phi"] = read_mapped(path + "/POTENTIAL", map, skip_first=0, kinetic=False)[

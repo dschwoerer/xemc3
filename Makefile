@@ -18,13 +18,15 @@ publish: check
 	rm -rf dist
 	python3 -m pip install --user --upgrade setuptools wheel twine
 	python3 setup.py sdist
-	#python3 -m twine upload dist/eudist*.tar.gz
+	#python3 -m twine upload dist/xemc3*.tar.gz
 	python -m twine upload --repository testpypi dist/*
 
 doc:
 	sphinx-build docs/ html/
+	@echo Documentation is in file://$$(pwd)/html/index.html
 
 
 coverage:
 	coverage run -m pytest
-	coverage html --include=./*,xemc3/*,xemc3/*/*,xemc3/*/*/*
+	coverage html --include=./* --omit=xemc3/test/*
+	@echo Report is in file://$$(pwd)/htmlcov/index.html

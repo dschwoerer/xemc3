@@ -39,15 +39,21 @@ from .core.dataset import EMC3DatasetAccessor
 #         self.metadata = da.attrs.get("metadata")  # None if just grid file
 #         self.load = load
 try:
-    from importlib.metadata import version, PackageNotFoundError
+    from importlib.metadata import (
+        version as _version,
+        PackageNotFoundError as _PackageNotFoundError,
+    )
 except ModuleNotFoundError:
-    from importlib_metadata import version, PackageNotFoundError
+    from importlib_metadata import (
+        version as _version,
+        PackageNotFoundError as _PackageNotFoundError,
+    )
 try:
-    __version__ = version(__name__)
-except PackageNotFoundError:
-    from setuptools_scm import get_version
+    __version__ = _version(__name__)
+except _PackageNotFoundError:
+    from setuptools_scm import get_version as _get_version
 
-    __version__ = get_version(root="..", relative_to=__file__)
+    __version__ = _get_version(root="..", relative_to=__file__)
 
 
 if __name__ == "__main__":
