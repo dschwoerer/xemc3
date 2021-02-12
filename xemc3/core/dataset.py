@@ -88,7 +88,7 @@ class EMC3DatasetAccessor:
 
         The code also transforms to ``*_corner`` cases, if
         ``*_bounds`` is present. The bounds version is an array of
-        shape :math:`n\\times...\\timesm\\times2\\times...\\times2`
+        shape :math:`n\\times...\\times m\\times 2\\times...\\times 2`
         while the corner version is a :math:`n+1\\times...\\times m+1`
         dimensional array.
 

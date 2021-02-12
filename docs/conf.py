@@ -69,6 +69,12 @@ napoleon_google_docstring = False
 napoleon_numpy_docstring = True
 napoleon_include_init_with_doc = True
 
+# Mathjax settings
+if os.path.exists("/usr/share/javascript/mathjax/MathJax.js"):
+    mathjax_path = (
+        "/usr/share/javascript/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+    )
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
