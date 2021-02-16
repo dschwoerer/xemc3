@@ -28,9 +28,7 @@ jobs:
 
     - name: Run black
       run: |
-        pwd
-        ls
-        $HOME/.local/bin/black . (grep '^#.*python.*$' . -Ir|cut -d: -f1)
+        $HOME/.local/bin/black . $(grep '^#.*python.*$' . -Ir|cut -d: -f1)
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
