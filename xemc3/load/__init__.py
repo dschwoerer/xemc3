@@ -29,6 +29,7 @@ class _all(_types.ModuleType):
     def __call__(self, path, ignore_missing=None):
         return all(path, ignore_missing)
 
+
 _all.__call__.__doc__ = all.__doc__
 
 _sys.modules[__name__] = _all()
