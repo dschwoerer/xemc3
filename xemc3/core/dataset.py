@@ -21,11 +21,10 @@ class EMC3DatasetAccessor:
 
         Accessed by e.g. print(ds.bout).
         """
-        styled = partial(prettyformat, indent=4, compact=True)
         text = (
             "<xemc3.EMC3Dataset>\n"
             + "Contains:\n{}\n".format(str(self.data))
-            + "Metadata:\n{}\n".format(styled(self.metadata))
+            + "Metadata:\n{}\n".format(str(self.metadata))
         )
         return text
 
@@ -224,7 +223,7 @@ class EMC3DatasetAccessor:
         """
         if not isinstance(keys, list):
             keys = [keys]
-        return _load.write_mapped(
+        return load.write_mapped(
             [self.data[k] for k in keys], self.data._plasma_map, fn, kinetic
         )
 
@@ -253,7 +252,7 @@ class EMC3DatasetAccessor:
         list of xr.DataArray
             The list of the read quantities
         """
-        return _load.read_mapped(
+        return load.read_mapped(
             fn, self.data._plasma_map, skip_first, ignore_broken, kinetic
         )
 
@@ -325,8 +324,8 @@ class EMC3DatasetAccessor:
 
         if "plate_ind" in self.data.dims:
             # assert args == []
-            return _plot.divertor(self.data, key, *args, **kw)
-        vol = _plot.volume(self.data)
+            return plot_3d.divertor(self.data, key, *args, **kw)
+        vol = plot_3d.volume(self.data)
         return vol.plot(key, *args, **kw)
 
     def load(self, path):

@@ -54,19 +54,3 @@ except _PackageNotFoundError:
     from setuptools_scm import get_version as _get_version
 
     __version__ = _get_version(root="..", relative_to=__file__)
-
-
-if __name__ == "__main__":
-    import sys
-
-    plates = load_plates(sys.argv[1])
-    print(plates)
-    write_plates(sys.argv[1], plates)
-    read_plates(sys.argv[1])
-
-    raise RuntimeError
-    ds = getLocations(sys.argv[1])
-
-    ds["x"] = ds.R * np.cos(ds.phi)
-    ds["y"] = ds.R * np.sin(ds.phi)
-    print(ds)
