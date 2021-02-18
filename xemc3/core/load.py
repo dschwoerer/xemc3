@@ -1157,7 +1157,7 @@ def load_all(path, ignore_missing=None):
         ``ignore_missing=False`` has been set, some data might be
         missing because it was not found. However
         ``ignore_missing=False`` has the disadvantage that files added
-        in later locations will cause errors if the files are not
+        in later versions will cause errors if the files are not
         present.
     """
     ds = get_locations(path)
