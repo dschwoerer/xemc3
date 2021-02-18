@@ -4,7 +4,7 @@
 name: Python package
 
 on:
-  push
+  push:
   pull_request:
     branches: [ main ]
 
