@@ -12,7 +12,7 @@ setuptools_scm[toml]>=3.4
 # for tests
 pytest>=3.3.0
 hypothesis>=5.29
-mayavi
+mayavi >= 4.7
 matplotlib
 
 # for docs
