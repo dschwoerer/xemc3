@@ -2,11 +2,12 @@ from .utils import to_interval, timeit, prod, rrange
 from .utils import _fft
 import os
 import xarray as xr
-import numpy as np
+import numpy as np  # type: ignore
 import re
+import typing
 
 
-def _fromfile(f, *, count, dtype, **kwargs):
+def _fromfile(f: typing.TextIO, *, count: int, dtype: np.dtype, **kwargs) -> np.ndarray:
     ret = np.empty(count, dtype=dtype)
     pos = 0
     bad = re.compile(r"(\d)([+-]\d)")
@@ -35,7 +36,7 @@ def _fromfile(f, *, count, dtype, **kwargs):
     return ret
 
 
-def _block_write(f, d, fmt, bs=10):
+def _block_write(f: typing.TextIO, d: np.ndarray, fmt: str, bs: int = 10) -> None:
     d = d.flatten()
     l = (len(d) // bs) * bs
     np.savetxt(f, d[:l].reshape(-1, bs), fmt=fmt)
@@ -43,7 +44,7 @@ def _block_write(f, d, fmt, bs=10):
         np.savetxt(f, d[l:], fmt=fmt)
 
 
-def write_locations(ds, fn):
+def write_locations(ds: xr.Dataset, fn: str) -> None:
     """
     Write spatial positions of grid points in EMC3 format.
 
@@ -72,7 +73,7 @@ def write_locations(ds, fn):
             write(f, zs.isel(phi=i).data * 100)
 
 
-def read_magnetic_field(fn, ds):
+def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     """
     Read magnetic fieldstrength from grid
 
@@ -100,7 +101,7 @@ def read_magnetic_field(fn, ds):
     return to_interval(ds.R_bounds.dims[:3], raw)
 
 
-def write_magnetic_field(path, ds):
+def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
     """
     Write the magnetic field to a file
 
@@ -117,7 +118,7 @@ def write_magnetic_field(path, ds):
         _block_write(f, bf, "%7.4f")
 
 
-def read_locations(fn):
+def read_locations(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Read spatial positions of grid points
 
@@ -158,7 +159,7 @@ def read_locations(fn):
     return phidata, rdata, zdata
 
 
-def read_plates_mag(fn, ds):
+def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
     """
     Read the magnetic plates
 
@@ -178,17 +179,17 @@ def read_plates_mag(fn, ds):
     ret = np.zeros(shape, dtype=bool)
     with open(fn) as f:
         for line in f:
-            line = [int(x) for x in line.split()]
-            zone, r, theta, num = line[:4]
+            lines = [int(x) for x in line.split()]
+            zone, r, theta, num = lines[:4]
             assert zone == 0
             assert num % 2 == 0
             for t in range(num // 2):
-                a, b = line[4 + 2 * t : 6 + 2 * t]
+                a, b = lines[4 + 2 * t : 6 + 2 * t]
                 ret[r, theta, a : b + 1] = True
     return xr.DataArray(data=ret, dims=("r", "theta", "phi"))
 
 
-def write_plates_mag(fn, ds):
+def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
     """
     Write the ``PLATES_MAG`` info to a file in the EMC3 format.
 
@@ -226,14 +227,14 @@ def write_plates_mag(fn, ds):
                     if last:
                         ab.append(i)
                 out = [0, r, theta, len(ab)] + ab
-                out = [str(i) for i in out]
+                outi = [str(i) for i in out]
                 outs = "   %s   %3s   %3s" % tuple(out[:3])
-                outs += " ".join(["    %2s" % i for i in out[3:]])
+                outs += " ".join(["    %2s" % i for i in outi[3:]])
                 f.write(outs + "\n")
     return
 
 
-def read_mappings(fn, dims):
+def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     """
     Read the mappings data
 
@@ -269,7 +270,7 @@ def read_mappings(fn, dims):
     return da
 
 
-def write_mappings(da, fn):
+def write_mappings(da: xr.DataArray, fn: str) -> None:
     """Write the mappings data to fortran"""
     with open(fn, "w") as f:
         infos = da.attrs["numcells"], da.attrs["plasmacells"], da.attrs["other"]
@@ -277,9 +278,10 @@ def write_mappings(da, fn):
         _block_write(f, da.data.flatten(order="F") + 1, " %11d", 6)
 
 
-def get_locations(path, ds=None):
+def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     if ds is None:
         ds = xr.Dataset()
+    ds: xr.Dataset
     phi, r, z = read_locations(path + "/GRID_3D_DATA")
     ds = ds.assign_coords(
         {
@@ -293,7 +295,7 @@ def get_locations(path, ds=None):
     return ds
 
 
-def get_locations_old(path):
+def get_locations_old(path: str):
     phi, r, z = read_locations(path + "/GRID_3D_DATA")
 
     ds = xr.Dataset()
@@ -305,7 +307,7 @@ def get_locations_old(path):
     return ds
 
 
-def scrape(f, *, ignore=None, verbose=False):
+def scrape(f: typing.TextIO, *, ignore=None, verbose=False) -> str:
     """read next data line from configuration file (skip lines with leading *)
     f : fileobject to read from
     ignore : (str or None) if any of the characters are given,
@@ -328,13 +330,13 @@ def scrape(f, *, ignore=None, verbose=False):
         return s
 
 
-def _assert_eof(f, fn):
+def _assert_eof(f: typing.TextIO, fn: str) -> None:
     test = _fromfile(f, dtype=float, count=2, sep=" ")
     if len(test):
         raise RuntimeError(f"Expected EOF, but found more data in {fn}")
 
 
-def read_plate(cwd, fn=""):
+def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
     with open(cwd + fn) as f:
         # first line is a comment ...
         line = next(f)
@@ -367,24 +369,24 @@ def read_plate(cwd, fn=""):
 plates_labels = ["f_n", "f_E", "avg_n", "avg_Te", "avg_Ti"]
 
 
-def read_plates_raw(cwd, fn):
+def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
     with open(cwd + fn) as f:
-        s = scrape(f, ignore="!")
-        _, num_plates = [int(i) for i in s.split()]
+        s = scrape(f, ignore="!").split()
+        _, num_plates = [int(i) for i in s]
         plates = []
         for plate in range(num_plates):
-            s = scrape(f, ignore="!")
+            s = scrape(f, ignore="!").split()
             try:
-                _, geom = s.split()
+                _, geom = s
             except:
-                print(plate, ":", s.split())
+                print(plate, ":", s)
                 raise
             r, z, phi = read_plate(cwd, geom)
             nx, ny = r.shape
             nx -= 1
             ny -= 1
-            s = scrape(f, ignore="!")
-            total = np.array([float(i) for i in s.split()])
+            s = scrape(f, ignore="!").split()
+            total = np.array([float(i) for i in s])
             s = scrape(f, ignore="!").split()
             if len(s) == 3:
                 items, yref, xref = [int(i) for i in s]
@@ -482,7 +484,7 @@ def read_plates_raw(cwd, fn):
                 "z_bounds": corrs[1],
                 "phi_bounds": corrs[2],
             }
-            ds = xr.Dataset(coords=coords)
+            ds = xr.Dataset(coords=coords)  # type: ignore
             ds.coords["R_bounds"].attrs["units"] = "m"
             ds.coords["z_bounds"].attrs["units"] = "m"
             ds.coords["phi_bounds"].attrs["units"] = "radian"
@@ -522,7 +524,7 @@ def read_plates_raw(cwd, fn):
     return plates
 
 
-def plates_raw_to_ds(plates):
+def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
     dims = {d: 0 for d in plates[0].dims}
     for plate in plates:
         for k, v in plate.dims.items():
@@ -539,6 +541,7 @@ def plates_raw_to_ds(plates):
             if plate.dims[k] != v:
                 matching[k] = False
         if not matching[k]:
+            assert isinstance(k, str)
             ds[k + "_dims"] = ("plate_ind", org_dims)
 
     dims["plate_ind"] = len(plates)
@@ -562,14 +565,14 @@ def plates_raw_to_ds(plates):
     return ds
 
 
-def load_plates(cwd):
+def load_plates(cwd: str) -> xr.Dataset:
     with timeit("\nReading raw: %f"):
         plates = read_plates_raw(cwd, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
         return plates_raw_to_ds(plates)
 
 
-def write_plates(cwd, plates):
+def write_plates(cwd: str, plates: xr.Dataset) -> None:
     with timeit("Writing ncs: %f"):
         # Note we really should compress to get rid of the NaN's we added
         plates.to_netcdf(
@@ -581,12 +584,12 @@ def write_plates(cwd, plates):
         )
 
 
-def read_plates(cwd):
+def read_plates(cwd: str) -> xr.Dataset:
     # with timeit("Reading ncs: %f"):
     return xr.open_dataset(f"{cwd}/TARGET_PROFILES.nc")
 
 
-def get_plates(cwd, cache=True):
+def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
     """
     Read the target fluxes from the EMC3_post procesing routine
 
@@ -617,7 +620,9 @@ def get_plates(cwd, cache=True):
     return load_plates(cwd)
 
 
-def read_mapped_nice(dir, var, mapping=None):
+def read_mapped_nice(
+    dir: str, var: str, mapping: typing.Union[None, xr.Dataset, xr.DataArray] = None
+) -> xr.Dataset:
     """
     Read the variable var from the simulation in directory dir.
 
@@ -657,8 +662,13 @@ def read_mapped_nice(dir, var, mapping=None):
 
 
 def read_mapped(
-    fn, mapping, skip_first=0, ignore_broken=False, kinetic=False, dtype=float
-):
+    fn: str,
+    mapping: typing.Union[xr.Dataset, xr.DataArray],
+    skip_first: int = 0,
+    ignore_broken: bool = False,
+    kinetic: bool = False,
+    dtype: np.dtype = float,
+) -> typing.Sequence[xr.DataArray]:
     """
     Read a file with the emc3 mapping.
 
@@ -729,12 +739,12 @@ def read_mapped(
 
     das = [to_da(raw) for raw in raws]
     if skip_first:
-        for f, da in zip(firsts, das):
-            da.attrs["print_before"] = f
+        for first, da in zip(firsts, das):
+            da.attrs["print_before"] = first
     return das
 
 
-def write_mapped_nice(ds, dir, fn=None, **args):
+def write_mapped_nice(ds: xr.Dataset, dir: str, fn: str = None, **args) -> None:
     """
     Write a file for EMC3 using the mapped format.
 
@@ -753,12 +763,15 @@ def write_mapped_nice(ds, dir, fn=None, **args):
         Can be used to overwrite options for writing. Defaults to the
         options used for that file.
     """
+    meta: typing.Dict[str, typing.Any]
     if fn is None:
-        for fn, meta in files.values():
+        for fn, meta in files.values():  # type: ignore
+            assert isinstance(meta, dict)
             if meta["type"] == "mapped":
                 write_mapped_nice(ds, dir, fn, **args)
     else:
-        meta = files[fn].copy()
+        meta = files[fn]
+        meta = meta.copy()
         meta.update(args)
         meta.pop("type", "ignore")
         ignore_missing = meta.pop("ignore_missing", True)
@@ -781,7 +794,9 @@ def write_mapped_nice(ds, dir, fn=None, **args):
         write_mapped(datas, ds["_plasma_map"], f"{dir}/{fn}", **meta)
 
 
-def get_vars_for_file(ds, fn):
+def get_vars_for_file(
+    ds: xr.Dataset, fn: typing.Union[str, dict]
+) -> typing.List[typing.Tuple[str, dict]]:
     """
     Check if the variables of fn are loaded.
 
@@ -803,11 +818,12 @@ def get_vars_for_file(ds, fn):
     KeyError
         If the file has not been loaded
     """
+    vars: dict
     if isinstance(fn, dict):
         vars = fn
     else:
         vars = files[fn]["vars"].copy()
-    keys = []
+    keys: typing.List[typing.Tuple[str, dict]] = []
     for var in vars:
         # Equivalent writing code:
         # if "%" in keys[-1]:
@@ -911,7 +927,7 @@ def write_mapped(
             _block_write(f, i, fmt=tfmt, bs=6)
 
 
-files = {
+files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "fort.70": dict(type="mapping", vars={"_plasma_map": dict()}),
     "fort.31": dict(
         type="mapped",

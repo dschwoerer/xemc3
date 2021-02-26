@@ -1,9 +1,9 @@
 import xarray as xr
 import itertools
 import os
-import numpy as np
-from . import load
+import numpy as np  # type: ignore
 from . import utils
+from . import load
 
 
 @xr.register_dataset_accessor("emc3")
@@ -13,7 +13,6 @@ class EMC3DatasetAccessor:
     def __init__(self, ds):
         self.data = ds
         self.metadata = ds.attrs.get("metadata")  # None if just grid file
-        self.load = load
 
     def __str__(self):
         """
@@ -186,7 +185,7 @@ class EMC3DatasetAccessor:
 
     def plot_div(self, index, **kwargs):
         """Plot divertor data."""
-        from .core.plot_3d import divertor
+        from .plot_3d import divertor
 
         return divertor(self.data, index, **kwargs)
 
@@ -290,7 +289,7 @@ class EMC3DatasetAccessor:
         matplotlib.collections.QuadMesh
             The return value from matplotlib.pyplot.pcolormesh is returned.
         """
-        from .core import plot_2d
+        from . import plot_2d
 
         return plot_2d.plot_rz(self.data, key, phi, **kwargs)
 
@@ -320,7 +319,7 @@ class EMC3DatasetAccessor:
         if len(da.dims) < 3:
             return da.plot(*args, **kw)
         # For 3D:
-        from core import plot_3d
+        from . import plot_3d
 
         if "plate_ind" in self.data.dims:
             # assert args == []

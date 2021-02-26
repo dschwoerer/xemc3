@@ -66,5 +66,5 @@ def plot_rz(
         ax.set_xlim(Rmin, Rmax)
     if zmin is not None or zmax is not None:
         ax.set_ylim(zmin, zmax)
-    p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[0]))
+    p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[-1]))
     return p
