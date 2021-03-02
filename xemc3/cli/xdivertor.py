@@ -25,7 +25,18 @@ def get_key(name):
     return {v: k for k, v in long_names.items()}[name]
 
 
-def plot(cwd, plates, index):
+def plot(cwd, args):
+    while cwd[-1] == "/":
+        cwd = cwd[:-1]
+    cwd += "/"
+    plates = xemc3.load.plates(cwd)
+    key = args.key
+    if key not in plates:
+        key = get_key(key)
+    if key == "f_E":
+        plates[key].data /= 1e6
+        plates[key].attrs["units"] = "M" + plates[key].attrs["units"]
+
     if args.range == "":
         args.range = ":"
     vmin, vmax = [
@@ -49,7 +60,7 @@ def plot(cwd, plates, index):
         plt2 = cwd + "divertor_zoomed.png"
 
     plt = plates.emc3.plot_div(
-        index,
+        key,
         symmetry=args.plotsym,
         segments=segments,
         vmax=vmax,
@@ -118,17 +129,7 @@ def main():
         args = parser.parse_args()
 
     for cwd in args.path:
-        while cwd[-1] == "/":
-            cwd = cwd[:-1]
-        cwd += "/"
-        plates = xemc3.load.plates(cwd)
-        key = args.key
-        if key not in plates:
-            key = get_key(key)
-        if key == "f_E":
-            plates[key].data /= 1e6
-            plates[key].attrs["units"] = "M" + plates[key].attrs["units"]
-        plot(cwd, plates, index=key)
+        plot(cwd, args)
 
 
 if __name__ == "__main__":

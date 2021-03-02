@@ -26,7 +26,7 @@ def append_time(d: str, verbose: bool = False) -> None:
             print(" writing ...", end="")
             sys.stdout.flush()
         ds.emc3.to_netcdf(d + ".nc")
-    except:
+    except:  # noqa: E722
         if old is not None:
             os.replace(d + ".old.nc", d + ".nc")
         raise
@@ -55,3 +55,7 @@ def main() -> None:
 
     for d in args.path:
         append_time(d, not args.quiet)
+
+
+if __name__ == "__main__":
+    main()

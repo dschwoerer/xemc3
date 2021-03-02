@@ -2,7 +2,7 @@ import xemc3
 from xemc3.cli.append_time import append_time as append
 import gen_ds as g
 import tempfile
-import numpy as np
+import xarray as xr
 from hypothesis import given, settings, assume, strategies as st
 from test_write_load import assert_ds_are_equal
 
@@ -17,7 +17,6 @@ def disabled_test_average(shape, v12, rep):
     v1, v2 = v12
     assume(len(v2))
     org = g.gen_rand(shape, v1)
-    dall = []
     orgs = [org]
     read = []
     with tempfile.TemporaryDirectory() as dir:

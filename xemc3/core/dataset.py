@@ -1,9 +1,15 @@
 import xarray as xr
-import itertools
-import os
 import numpy as np  # type: ignore
 from . import utils
 from . import load
+
+
+def identity(x):
+    return x
+
+
+def from_interval_no_checks(x):
+    return utils.from_interval(x, check=False)
 
 
 @xr.register_dataset_accessor("emc3")
@@ -29,7 +35,7 @@ class EMC3DatasetAccessor:
 
     def _get(self, var):
         """Load a single var."""
-        transform = lambda x: x
+        transform = identity
         try:
             dims = self.data[var].dims
         except KeyError as e:
@@ -40,7 +46,7 @@ class EMC3DatasetAccessor:
                 except KeyError:
                     raise e
                 var = var_
-                transform = lambda x: utils.from_interval(x, check=False)
+                transform = from_interval_no_checks
             else:
                 raise
         if "plate_ind" in dims:
@@ -54,7 +60,7 @@ class EMC3DatasetAccessor:
                     crop.append(None)
             ret = []
             for i in range(dims["plate_ind"]):
-                slcr = [slice(None) if j == None else slice(None, j[i]) for j in crop]
+                slcr = [slice(None) if j is None else slice(None, j[i]) for j in crop]
                 data = self.data.isel(plate_ind=i).data[tuple(slcr)]
                 ret.append(transform(data))
             return ret
@@ -69,11 +75,11 @@ class EMC3DatasetAccessor:
 
     def _set(self, var, data):
         """Set a single variable."""
-        transform = lambda x: x
+        transform = identity
         if var.endswith("_corners"):
             var = var[: -len("_corners")] + "_bounds"
-            transform = lambda x: utils.to_interval(x)
-        ## Maybe also do the cropping? See merge code somewhere
+            transform = utils.to_interval
+        # Maybe also do the cropping? See merge code somewhere
         self.data[var] = transform(data)
         return self
 

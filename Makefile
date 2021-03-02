@@ -1,13 +1,15 @@
 .PHONY: build check
 PY ?= python3
 
-
-check:
+check: flake
 	python -m pytest xemc3/
 
-recheck:
+recheck: flake
 	python -m pytest xemc3 --last-failed --new-first
 
+flake:
+	flake8 xemc3 --count --select=E9,F63,F7,F82 --show-source --statistics
+	flake8 xemc3 --count --exit-zero --max-complexity=10 --ignore E203 --max-line-length=127 --statistics
 format:
 	black .
 

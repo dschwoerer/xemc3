@@ -8,9 +8,6 @@ of temperatures that are in eV.
 
 __all__ = ["load", "utils", "write"]
 
-from .core import load as _load
-from .core import utils as _utils
-
 from . import load
 
 # assert callable(load)

@@ -2,7 +2,7 @@ import xemc3
 import gen_ds
 import tempfile
 import numpy as np
-from hypothesis import settings, given, strategies as st
+from hypothesis import settings, given
 
 
 def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
@@ -14,15 +14,14 @@ def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
     if not set(d1k) == set(d2k):
         raise AssertionError(f"{d1.keys()} != {d2.keys()}")
     for k in d1:
-        data_org = d1[k].data
-        data_load = d2[k].data
-        slc = np.isfinite(data_org)
+        slc = np.isfinite(d1[k].data)
         if not np.isclose(d1[k].data[slc], d2[k].data[slc], rtol=rtol).all():
             raise AssertionError(
                 f"""var {k} is changed.
-Before: {d1[k].data}
 
-After: {d2[k].data}
+Before: {d1[k].shape}: {d1[k].data.flatten()}
+
+After: {d2[k].shape}: {d2[k].data.flatten()}
 
 np.isclose: {np.isclose(d1[k], d2[k],rtol=rtol).flatten()}"""
             )

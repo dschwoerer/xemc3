@@ -1,7 +1,6 @@
 import numpy as np
 import mayavi.mlab as mlab
 from .utils import rrange
-import os
 import sys
 import xarray as xr
 from tvtk.api import tvtk

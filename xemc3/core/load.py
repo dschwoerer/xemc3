@@ -1,5 +1,4 @@
 from .utils import to_interval, timeit, prod, rrange
-from .utils import _fft
 import os
 import xarray as xr
 import numpy as np  # type: ignore
@@ -253,11 +252,7 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     with open(fn) as f:
         # dims =  [int(i) for i in f.readline().split()]
         dat = f.readline()
-        try:
-            infos = [int(i) for i in dat.split()]
-        except:
-            print(dat)
-            raise
+        infos = [int(i) for i in dat.split()]
         # print(infos, prod(dims))
         t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
         # fortran indexing
@@ -339,7 +334,7 @@ def _assert_eof(f: typing.TextIO, fn: str) -> None:
 def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
     with open(cwd + fn) as f:
         # first line is a comment ...
-        line = next(f)
+        _ = next(f)
         setup = next(f).split()
         if len(setup) != 5:
             print(setup)
@@ -360,7 +355,7 @@ def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
                     except ValueError:
                         s = s.split("!")[0]
                         r[x, y], z[x, y] = [float(i) / 100 for i in s.split()]
-                except:
+                except ValueError:
                     raise ValueError(f"Error with {s} in {cwd+fn}")
         _assert_eof(f, cwd + fn)
         return (r, z, phi)
@@ -1079,7 +1074,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     ),
 }
 
-if True:
+if False:
     _files_bak = files.copy()
     for k in files:
         _files_bak[k] = files[k].copy()

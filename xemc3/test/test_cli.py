@@ -1,9 +1,7 @@
 import xemc3
-from xemc3.cli.append_time import append_time as append
 import gen_ds as g
 import tempfile
-import numpy as np
-from hypothesis import given, settings, assume, strategies as st
+from hypothesis import given, settings, strategies as st
 from test_write_load import assert_ds_are_equal
 from subprocess import call as call_unsafe
 import xarray as xr
@@ -22,7 +20,11 @@ def call(cmd: str) -> None:
     g.hypo_vars12(),
     st.integers(min_value=1, max_value=3),
 )
-def test_append_ds(shape, v12, rep):
+def test_append_ds(*args):
+    do_test_append_ds(*args)
+
+
+def do_test_append_ds(shape, v12, rep):
     v1, v2 = v12
     assert len(v2)
     orgs = [g.gen_rand(shape, v1)]
@@ -37,7 +39,7 @@ def test_append_ds(shape, v12, rep):
             call("append_time.py " + dir)
         nc = dir + ".nc"
         read = xr.open_dataset(nc)
-        for i, orgs in enumerate(orgs):
+        for i, org in enumerate(orgs):
             assert_ds_are_equal(org, read.isel(time=i), True, 1e-2, 1e-2)
         del read
 
@@ -65,4 +67,4 @@ def test_to_netcdf_ds(shape, var, rep):
 
 
 if __name__ == "__main__":
-    test_to_netcdf_ds()
+    do_test_append_ds((2, 2, 2), ([["LG_CELL", 1]], [["LG_CELL", 1]]), 1)

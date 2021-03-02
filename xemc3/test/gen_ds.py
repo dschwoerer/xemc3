@@ -3,18 +3,9 @@ import xarray as xr
 import numpy as np
 from xemc3.core import utils, load
 
-from hypothesis import given, assume, settings
-import hypothesis.strategies as st
+from hypothesis import assume, strategies as st
 
 dims = "r", "theta", "phi"
-
-
-# def hypothesis_shape(max=1e3):
-#     return given(
-#         strat.lists(
-#             strat.integers(min_value=1, max_value=max), min_size=3, max_size=3
-#         ).filter(lambda x: x[0] * x[1] * x[2] < max)
-#     )
 
 setting = dict(deadline=None, max_examples=10)
 
@@ -174,10 +165,10 @@ def gen_updated(org: xr.Dataset, var) -> xr.Dataset:
     for k in dt:
         if k in (
             "_plasma_map",
-            "bf_corners",
-            "R_corners",
-            "z_corners",
-            "phi_corners",
+            "bf_bounds",
+            "R_bounds",
+            "z_bounds",
+            "phi_bounds",
         ):
             continue
         d2[k] = dt[k]
