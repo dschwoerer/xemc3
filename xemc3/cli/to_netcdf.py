@@ -5,7 +5,22 @@ import xemc3
 import sys
 
 
-def main():
+def to_netcdf(d: str, quiet: bool = True) -> None:
+    while d[-1] == "/":
+        d = d[:-1]
+    if not quiet:
+        print(f"Loading {d} ...", end="")
+        sys.stdout.flush()
+    ds = xemc3.load(d)
+    if not quiet:
+        print(" writing ...", end="")
+        sys.stdout.flush()
+    ds.emc3.to_netcdf(d + ".nc")
+    if not quiet:
+        print(" done")
+
+
+def main() -> None:
     parser = ArgumentParser(
         "Load the data from EMC3 simulations and store as netcdf file. "
         "The data is written for each simulation to a netcdf file."
@@ -19,18 +34,7 @@ def main():
     args = parser.parse_args()
 
     for d in args.path:
-        while d[-1] == "/":
-            d = d[:-1]
-        if not args.quiet:
-            print(f"Loading {d} ...", end="")
-            sys.stdout.flush()
-        ds = xemc3.load(d)
-        if not args.quiet:
-            print(" writing ...", end="")
-            sys.stdout.flush()
-        ds.emc3.to_netcdf(d + ".nc")
-        if not args.quiet:
-            print(" done")
+        to_netcdf(d, args.quiet)
 
 
 if __name__ == "__main__":

@@ -341,3 +341,15 @@ class EMC3DatasetAccessor:
             The xemc3 dataset with the simulation data
         """
         return load(path)
+
+    def time_average(self) -> xr.Dataset:
+        """
+        Average in time.
+
+        Workaround for https://github.com/pydata/xarray/issues/4885
+        """
+        ds = self.data.copy()
+        for k in ds:
+            if "time" in ds[k].dims:
+                ds[k] = ds[k].mean(dim="time")
+        return ds

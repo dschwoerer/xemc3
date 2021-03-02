@@ -5,6 +5,9 @@ PY ?= python3
 check:
 	python -m pytest xemc3/
 
+recheck:
+	python -m pytest xemc3 --last-failed --new-first
+
 format:
 	black .
 

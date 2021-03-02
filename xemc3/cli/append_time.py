@@ -1,12 +1,42 @@
 #!/usr/bin/env python3
 
+from argparse import ArgumentParser
 import xarray as xr
 import xemc3
 import sys
 import os
 
 
-def main():
+def append_time(d: str, verbose: bool = False) -> None:
+    while d[-1] == "/":
+        d = d[:-1]
+    try:
+        os.replace(d + ".nc", d + ".old.nc")
+        old = xr.open_dataset(d + ".old.nc")
+    except FileNotFoundError:
+        old = None
+    try:
+        if verbose:
+            print(f"Loading {d} ...", end="")
+            sys.stdout.flush()
+        ds = xemc3.load(d)
+        if old is not None:
+            ds = xr.concat([old, ds], "time", "different")
+        if verbose:
+            print(" writing ...", end="")
+            sys.stdout.flush()
+        ds.emc3.to_netcdf(d + ".nc")
+    except:
+        if old is not None:
+            os.replace(d + ".old.nc", d + ".nc")
+        raise
+    if old is not None:
+        os.remove(d + ".old.nc")
+    if verbose:
+        print(" done")
+
+
+def main() -> None:
     parser = ArgumentParser(
         """
         Load the data from EMC3 simulations and store as netcdf file. The
@@ -24,29 +54,4 @@ def main():
     args = parser.parse_args()
 
     for d in args.path:
-        while d[-1] == "/":
-            d = d[:-1]
-        try:
-            os.replace(d + ".nc", d + ".old.nc")
-            old = xr.open_dataset(d + ".old.nc")
-        except FileNotFoundError:
-            old = None
-        try:
-            if not args.quiet:
-                print(f"Loading {d} ...", end="")
-                sys.stdout.flush()
-            ds = xemc3.load(d)
-            if old is not None:
-                ds = xr.concat([old, ds], "time", "different")
-            if not args.quiet:
-                print(" writing ...", end="")
-                sys.stdout.flush()
-            ds.emc3.to_netcdf(d + ".nc")
-        except:
-            if old is not None:
-                os.replace(d + ".old.nc", d + ".nc")
-            raise
-        if old is not None:
-            os.remove(d + ".old.nc")
-        if not args.quiet:
-            print(" done")
+        append_time(d, not args.quiet)

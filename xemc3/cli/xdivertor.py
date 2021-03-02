@@ -66,7 +66,8 @@ def plot(cwd, plates, index):
     if args.gui:
         plt.show()
 
-def main()
+
+def main():
     parser = ArgumentParser("Plot the heatflux on the divertor")
     parser.add_argument(
         "-c",
@@ -75,9 +76,14 @@ def main()
         help="Show only tile with high target power flux",
     )
     parser.add_argument(
-        "-s", "--plotsym", action="store_true", help="Plot assuming stellarator symmetry"
+        "-s",
+        "--plotsym",
+        action="store_true",
+        help="Plot assuming stellarator symmetry",
     )
-    parser.add_argument("-a", "--plotall", action="store_true", help="Plot all 5 segments")
+    parser.add_argument(
+        "-a", "--plotall", action="store_true", help="Plot all 5 segments"
+    )
     parser.add_argument(
         "-l", "--plotlower", action="store_true", help="Plot only the lower half"
     )
@@ -123,6 +129,7 @@ def main()
             plates[key].data /= 1e6
             plates[key].attrs["units"] = "M" + plates[key].attrs["units"]
         plot(cwd, plates, index=key)
+
 
 if __name__ == "__main__":
     main()
