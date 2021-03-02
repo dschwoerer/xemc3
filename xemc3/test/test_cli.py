@@ -20,8 +20,8 @@ def call(cmd: str) -> None:
     g.hypo_vars12(),
     st.integers(min_value=1, max_value=3),
 )
-def test_append_ds(*args):
-    do_test_append_ds(*args)
+def test_append_ds(shape, v12, rep):
+    do_test_append_ds(shape, v12, rep)
 
 
 def do_test_append_ds(shape, v12, rep):
