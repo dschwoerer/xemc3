@@ -1,9 +1,15 @@
 import xarray as xr
-import itertools
-import os
-import numpy as np
-from . import load
+import numpy as np  # type: ignore
 from . import utils
+from . import load
+
+
+def identity(x):
+    return x
+
+
+def from_interval_no_checks(x):
+    return utils.from_interval(x, check=False)
 
 
 @xr.register_dataset_accessor("emc3")
@@ -13,7 +19,6 @@ class EMC3DatasetAccessor:
     def __init__(self, ds):
         self.data = ds
         self.metadata = ds.attrs.get("metadata")  # None if just grid file
-        self.load = load
 
     def __str__(self):
         """
@@ -21,17 +26,16 @@ class EMC3DatasetAccessor:
 
         Accessed by e.g. print(ds.bout).
         """
-        styled = partial(prettyformat, indent=4, compact=True)
         text = (
             "<xemc3.EMC3Dataset>\n"
             + "Contains:\n{}\n".format(str(self.data))
-            + "Metadata:\n{}\n".format(styled(self.metadata))
+            + "Metadata:\n{}\n".format(str(self.metadata))
         )
         return text
 
     def _get(self, var):
         """Load a single var."""
-        transform = lambda x: x
+        transform = identity
         try:
             dims = self.data[var].dims
         except KeyError as e:
@@ -42,7 +46,7 @@ class EMC3DatasetAccessor:
                 except KeyError:
                     raise e
                 var = var_
-                transform = lambda x: utils.from_interval(x, check=False)
+                transform = from_interval_no_checks
             else:
                 raise
         if "plate_ind" in dims:
@@ -56,7 +60,7 @@ class EMC3DatasetAccessor:
                     crop.append(None)
             ret = []
             for i in range(dims["plate_ind"]):
-                slcr = [slice(None) if j == None else slice(None, j[i]) for j in crop]
+                slcr = [slice(None) if j is None else slice(None, j[i]) for j in crop]
                 data = self.data.isel(plate_ind=i).data[tuple(slcr)]
                 ret.append(transform(data))
             return ret
@@ -71,11 +75,11 @@ class EMC3DatasetAccessor:
 
     def _set(self, var, data):
         """Set a single variable."""
-        transform = lambda x: x
+        transform = identity
         if var.endswith("_corners"):
             var = var[: -len("_corners")] + "_bounds"
-            transform = lambda x: utils.to_interval(x)
-        ## Maybe also do the cropping? See merge code somewhere
+            transform = utils.to_interval
+        # Maybe also do the cropping? See merge code somewhere
         self.data[var] = transform(data)
         return self
 
@@ -187,7 +191,7 @@ class EMC3DatasetAccessor:
 
     def plot_div(self, index, **kwargs):
         """Plot divertor data."""
-        from .core.plot_3d import divertor
+        from .plot_3d import divertor
 
         return divertor(self.data, index, **kwargs)
 
@@ -224,7 +228,7 @@ class EMC3DatasetAccessor:
         """
         if not isinstance(keys, list):
             keys = [keys]
-        return _load.write_mapped(
+        return load.write_mapped(
             [self.data[k] for k in keys], self.data._plasma_map, fn, kinetic
         )
 
@@ -253,7 +257,7 @@ class EMC3DatasetAccessor:
         list of xr.DataArray
             The list of the read quantities
         """
-        return _load.read_mapped(
+        return load.read_mapped(
             fn, self.data._plasma_map, skip_first, ignore_broken, kinetic
         )
 
@@ -291,7 +295,7 @@ class EMC3DatasetAccessor:
         matplotlib.collections.QuadMesh
             The return value from matplotlib.pyplot.pcolormesh is returned.
         """
-        from .core import plot_2d
+        from . import plot_2d
 
         return plot_2d.plot_rz(self.data, key, phi, **kwargs)
 
@@ -321,12 +325,12 @@ class EMC3DatasetAccessor:
         if len(da.dims) < 3:
             return da.plot(*args, **kw)
         # For 3D:
-        from core import plot_3d
+        from . import plot_3d
 
         if "plate_ind" in self.data.dims:
             # assert args == []
-            return _plot.divertor(self.data, key, *args, **kw)
-        vol = _plot.volume(self.data)
+            return plot_3d.divertor(self.data, key, *args, **kw)
+        vol = plot_3d.volume(self.data)
         return vol.plot(key, *args, **kw)
 
     def load(self, path):
@@ -343,3 +347,15 @@ class EMC3DatasetAccessor:
             The xemc3 dataset with the simulation data
         """
         return load(path)
+
+    def time_average(self) -> xr.Dataset:
+        """
+        Average in time.
+
+        Workaround for https://github.com/pydata/xarray/issues/4885
+        """
+        ds = self.data.copy()
+        for k in ds:
+            if "time" in ds[k].dims:
+                ds[k] = ds[k].mean(dim="time")
+        return ds

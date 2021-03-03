@@ -2,9 +2,7 @@ import xemc3
 import gen_ds
 import tempfile
 import numpy as np
-from xemc3.core.utils import prod
-from hypothesis import given, assume, settings
-import hypothesis.strategies as strat
+from hypothesis import settings, given
 
 
 def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
@@ -16,15 +14,14 @@ def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
     if not set(d1k) == set(d2k):
         raise AssertionError(f"{d1.keys()} != {d2.keys()}")
     for k in d1:
-        data_org = d1[k].data
-        data_load = d2[k].data
-        slc = np.isfinite(data_org)
+        slc = np.isfinite(d1[k].data)
         if not np.isclose(d1[k].data[slc], d2[k].data[slc], rtol=rtol).all():
             raise AssertionError(
                 f"""var {k} is changed.
-Before: {d1[k].data}
 
-After: {d2[k].data}
+Before: {d1[k].shape}: {d1[k].data.flatten()}
+
+After: {d2[k].shape}: {d2[k].data.flatten()}
 
 np.isclose: {np.isclose(d1[k], d2[k],rtol=rtol).flatten()}"""
             )
@@ -35,10 +32,12 @@ np.isclose: {np.isclose(d1[k], d2[k],rtol=rtol).flatten()}"""
                 )
 
 
-@settings(deadline=None)
-@given(strat.lists(strat.integers(min_value=1), min_size=3, max_size=3))
+setting = gen_ds.setting
+
+
+@settings(**setting)
+@given(gen_ds.hypo_shape())
 def test_write_load_simple(shape):
-    assume(prod(shape) < 1e3)
     ds = gen_ds.gen_ds(shape)
     with tempfile.TemporaryDirectory() as dir:
         # print(ds)
@@ -53,11 +52,27 @@ def test_write_load_simple(shape):
         assert_ds_are_equal(dl, dn, True, 1e-4)
 
 
-@settings(deadline=None)
-@given(strat.lists(strat.integers(min_value=1, max_value=100), min_size=3, max_size=3))
+@settings(**setting)
+@given(gen_ds.hypo_shape(200))
 def test_write_load_full(shape):
-    assume(prod(shape) < 1e3)
     ds = gen_ds.gen_full(shape)
+    # if True:
+    #    dir = "xemc3/test/test"
+    with tempfile.TemporaryDirectory() as dir:
+        xemc3.write.fortran(ds, dir)
+        dl = xemc3.load(dir)
+        assert_ds_are_equal(ds, dl, True, 1e-2, 1e-2)
+    with tempfile.TemporaryDirectory() as dir:
+        xemc3.write.fortran.all(dl, dir)
+        dn = xemc3.load.all(dir)
+        # print(xemc3.core.load.files)
+        assert_ds_are_equal(dl, dn, True, 1e-4)
+
+
+@settings(**setting)
+@given(gen_ds.hypo_shape(200), gen_ds.hypo_vars())
+def test_write_load_some(shape, vars):
+    ds = gen_ds.gen_rand(shape, vars)
     # if True:
     #    dir = "xemc3/test/test"
     with tempfile.TemporaryDirectory() as dir:

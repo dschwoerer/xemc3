@@ -1,10 +1,10 @@
 name: black
 
-on:
-  pull_request:
-  push:
-    branches:
-      - "test"
+on: [push, pull_request]
+
+defaults:
+  run:
+    shell: bash
 
 jobs:
   black:
@@ -28,8 +28,8 @@ jobs:
 
     - name: Run black
       run: |
-        $HOME/.local/bin/black . $(grep '^#.*python.*$' . -Ir|cut -d: -f1)
+        $HOME/.local/bin/black . $(grep '^#!.*/bin/.*python.*$' . -Ir|cut -d: -f1)
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: Apply black changes
+        commit_message: "[skip ci] Apply black changes"
