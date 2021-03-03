@@ -35,4 +35,5 @@ jobs:
         flake8 xemc3 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
+        sed -e "s/examples=10/examples=30/" -i xemc3/test/gen_ds.py
         PYTHONPATH=$(pwd):$PYTHONPATH pytest

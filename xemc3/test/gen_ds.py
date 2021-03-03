@@ -23,6 +23,8 @@ def hypo_shape(draw, max=1000):
 def hypo_vars(draw):
     files = []
     for v in load.files:
+        if v in ("BFIELD_STRENGTH", "fort.70"):
+            continue
         if draw(st.booleans()):
             t = [v]
             for k in load.files[v]["vars"]:
@@ -34,14 +36,7 @@ def hypo_vars(draw):
 
 @st.composite
 def hypo_vars12(draw):
-    files = []
-    for v in load.files:
-        if draw(st.booleans()):
-            t = [v, None]
-            for k in load.files[v]["vars"]:
-                if "%" in k:
-                    t[-1] = draw(st.integers(min_value=1, max_value=20))
-            files.append(t)
+    files = draw(hypo_vars())
     files2 = [f for f in files if draw(st.booleans())]
     assume(len(files2))
     return files, files2
