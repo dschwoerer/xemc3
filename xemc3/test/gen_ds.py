@@ -37,7 +37,11 @@ def hypo_vars(draw):
 @st.composite
 def hypo_vars12(draw):
     files = draw(hypo_vars())
-    files2 = [f for f in files if draw(st.booleans())]
+    # Skip some random files
+    # Also always skip PLATES_MAG:
+    #   * it shouldn't change in a simulation
+    #   * it is likely to be the same twice, thus resulting in a test failure
+    files2 = [f for f in files if draw(st.booleans()) and f[0] != "PLATES_MAG"]
     assume(len(files2))
     return files, files2
 
