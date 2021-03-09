@@ -1,5 +1,5 @@
 import xarray as xr
-import numpy as np  # type: ignore
+import numpy as np
 from . import utils
 from . import load
 
@@ -16,7 +16,7 @@ def from_interval_no_checks(x):
 class EMC3DatasetAccessor:
     """Additional functions for working with EMC3 data."""
 
-    def __init__(self, ds):
+    def __init__(self, ds: xr.Dataset):
         self.data = ds
         self.metadata = ds.attrs.get("metadata")  # None if just grid file
 

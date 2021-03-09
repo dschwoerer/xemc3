@@ -14,7 +14,7 @@ def call(cmd: str) -> None:
         raise RuntimeError(f"Nonzero return code {out}")
 
 
-@settings(**g.setting)
+@settings(**g.setting)  # type: ignore
 @given(
     g.hypo_shape(10),
     g.hypo_vars12(),
@@ -44,7 +44,7 @@ def do_test_append_ds(shape, v12, rep):
         del read
 
 
-@settings(**g.setting)
+@settings(**g.setting)  # type: ignore
 @given(
     g.hypo_shape(30),
     g.hypo_vars(),

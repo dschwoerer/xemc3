@@ -35,7 +35,7 @@ np.isclose: {np.isclose(d1[k], d2[k],rtol=rtol).flatten()}"""
 setting = gen_ds.setting
 
 
-@settings(**setting)
+@settings(**setting)  # type: ignore
 @given(gen_ds.hypo_shape())
 def test_write_load_simple(shape):
     ds = gen_ds.gen_ds(shape)
@@ -52,7 +52,7 @@ def test_write_load_simple(shape):
         assert_ds_are_equal(dl, dn, True, 1e-4)
 
 
-@settings(**setting)
+@settings(**setting)  # type: ignore
 @given(gen_ds.hypo_shape(200))
 def test_write_load_full(shape):
     ds = gen_ds.gen_full(shape)
@@ -69,7 +69,7 @@ def test_write_load_full(shape):
         assert_ds_are_equal(dl, dn, True, 1e-4)
 
 
-@settings(**setting)
+@settings(**setting)  # type: ignore
 @given(gen_ds.hypo_shape(200), gen_ds.hypo_vars())
 def test_write_load_some(shape, vars):
     ds = gen_ds.gen_rand(shape, vars)

@@ -4,7 +4,7 @@ from hypothesis import given, assume
 import hypothesis.strategies as strat
 
 
-@given(strat.lists(strat.integers(min_value=1, max_value=1e4)))
+@given(strat.lists(strat.integers(min_value=1, max_value=10000)))
 def test_rrange(shape):
     assume(utils.prod(shape) < 1e5)
     dat = np.zeros(shape, dtype=int)

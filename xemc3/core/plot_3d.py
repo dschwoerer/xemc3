@@ -1,9 +1,9 @@
 import numpy as np
-import mayavi.mlab as mlab
+import mayavi.mlab as mlab  # type: ignore
 from .utils import rrange
 import sys
 import xarray as xr
-from tvtk.api import tvtk
+from tvtk.api import tvtk  # type: ignore
 
 
 def _pprint(*a, **k):

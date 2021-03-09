@@ -19,7 +19,7 @@ def append_time(d: str, verbose: bool = False) -> None:
         if verbose:
             print(f"Loading {d} ...", end="")
             sys.stdout.flush()
-        ds = xemc3.load(d)
+        ds = xemc3.load.all(d)
         if old is not None:
             ds = xr.concat([old, ds], "time", "different")
         if verbose:

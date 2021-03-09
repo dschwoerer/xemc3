@@ -60,7 +60,7 @@ def prod(args):
     return ret
 
 
-def to_interval(dims, data=None):
+def to_interval(dims, data=None) -> xr.DataArray:
     """Transforms a N-D i_1+1 x ... x i_N+1 mesh to an
     i_1 x ... x i_N x 2 x ... x 2 mesh of quads
     """
@@ -145,10 +145,10 @@ class timeit2:
 
 
 def _fft(data):
-    from scipy.fftpack import fft
+    from scipy.fftpack import fft  # type: ignore
 
     fr = fft(data)
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # type: ignore
 
     plt.plot(np.abs(fr))
     # print(abs(fr.)

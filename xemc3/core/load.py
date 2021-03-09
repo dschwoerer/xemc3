@@ -1,13 +1,21 @@
 from .utils import to_interval, timeit, prod, rrange
 import os
 import xarray as xr
-import numpy as np  # type: ignore
+import numpy as np
 import re
 import typing
 
+try:
+    from numpy.typing import DTypeLike
+except ImportError:
+    # Workaround for python 3.6
+    DTypeLike = typing.Type  # type: ignore
 
-def _fromfile(f: typing.TextIO, *, count: int, dtype: np.dtype, **kwargs) -> np.ndarray:
-    ret = np.empty(count, dtype=dtype)
+
+def _fromfile(
+    f: typing.TextIO, *, count: int, dtype: DTypeLike, **kwargs
+) -> np.ndarray:
+    ret = np.empty(count, dtype=dtype)  # type: np.ndarray
     pos = 0
     bad = re.compile(r"(\d)([+-]\d)")
 
@@ -31,7 +39,8 @@ def _fromfile(f: typing.TextIO, *, count: int, dtype: np.dtype, **kwargs) -> np.
         if ln == 0 or count <= pos:
             break
     if count != pos:
-        return ret[:pos]
+        ret = ret[:pos]
+        return ret
     return ret
 
 
@@ -276,7 +285,7 @@ def write_mappings(da: xr.DataArray, fn: str) -> None:
 def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     if ds is None:
         ds = xr.Dataset()
-    ds: xr.Dataset
+    assert isinstance(ds, xr.Dataset)
     phi, r, z = read_locations(path + "/GRID_3D_DATA")
     ds = ds.assign_coords(
         {
@@ -287,6 +296,7 @@ def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     )
     ds.emc3.unit("R_bounds", "m")
     ds.emc3.unit("z_bounds", "m")
+    assert isinstance(ds, xr.Dataset)
     return ds
 
 
@@ -581,7 +591,9 @@ def write_plates(cwd: str, plates: xr.Dataset) -> None:
 
 def read_plates(cwd: str) -> xr.Dataset:
     # with timeit("Reading ncs: %f"):
-    return xr.open_dataset(f"{cwd}/TARGET_PROFILES.nc")
+    ds = xr.open_dataset(f"{cwd}/TARGET_PROFILES.nc")
+    assert isinstance(ds, xr.Dataset)
+    return ds
 
 
 def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
@@ -662,7 +674,7 @@ def read_mapped(
     skip_first: int = 0,
     ignore_broken: bool = False,
     kinetic: bool = False,
-    dtype: np.dtype = float,
+    dtype: DTypeLike = float,
 ) -> typing.Sequence[xr.DataArray]:
     """
     Read a file with the emc3 mapping.
@@ -1091,7 +1103,7 @@ else:
     _files_bak = files
 
 
-def read_fort_file(ds, fn, type="mapped", **opts):
+def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.Dataset:
     assert files == _files_bak
     if type == "mapping":
         opts.pop("vars", False)

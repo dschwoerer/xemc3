@@ -140,7 +140,7 @@ def determineNumberOfCPUs():
 
     # jython
     try:
-        from java.lang import Runtime
+        from java.lang import Runtime  # type: ignore
 
         runtime = Runtime.getRuntime()
         res = runtime.availableProcessors()

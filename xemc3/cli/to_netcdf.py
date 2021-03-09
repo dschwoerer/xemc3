@@ -11,7 +11,7 @@ def to_netcdf(d: str, quiet: bool = True) -> None:
     if not quiet:
         print(f"Loading {d} ...", end="")
         sys.stdout.flush()
-    ds = xemc3.load(d)
+    ds = xemc3.load.all(d)
     if not quiet:
         print(" writing ...", end="")
         sys.stdout.flush()
