@@ -32,6 +32,6 @@ doc:
 
 
 coverage:
-	coverage run -m pytest
+	coverage run -m pytest xemc3
 	coverage html --include=./* --omit=xemc3/test/*
 	@echo Report is in file://$$(pwd)/htmlcov/index.html

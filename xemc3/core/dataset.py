@@ -1,5 +1,7 @@
 import xarray as xr
 import numpy as np
+from typing import Mapping, Hashable, Any, Dict, Optional
+
 from . import utils
 from . import load
 
@@ -358,4 +360,75 @@ class EMC3DatasetAccessor:
         for k in ds:
             if "time" in ds[k].dims:
                 ds[k] = ds[k].mean(dim="time")
+        return ds
+
+    def isel(
+        self,
+        indexers: Mapping[str, Any] = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        **indexers_kwargs: Any,
+    ) -> xr.Dataset:
+        ds = self.data
+        indexers = utils.merge_indexers(indexers, indexers_kwargs)
+        mine = {}
+        xas = {}
+        for k, v in indexers.items():
+            if "delta_" + k in ds.dims and k in ds.dims:
+                mine[k] = v
+            else:
+                xas[k] = v
+        ds = ds.isel(drop=drop, missing_dims=missing_dims, **xas)
+        for k, v in mine.items():
+            dk = "delta_" + k
+            if v == len(ds[k]):
+                ds = ds.isel({k: int(v) - 1, dk: 1})
+            elif v == int(v):
+                ds = ds.isel({k: int(v), dk: 0})
+            else:
+                vi = int(v)
+                fac = v - vi
+                ds = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
+                    dim=dk
+                )
+        return ds
+
+    def sel(
+        self,
+        indexers: Mapping[str, Any] = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        **indexers_kwargs: Any,
+    ) -> xr.Dataset:
+        ds = self.data
+        indexers = utils.merge_indexers(indexers, indexers_kwargs)
+        forisel = {}
+        for k in indexers.keys():
+            val = indexers[k]
+            if "delta_" + k in ds.dims and k + "_bounds" in ds:
+                assert k in ds.dims
+                assert (
+                    len(ds[k + "_bounds"].dims) == 2
+                ), "Only 1D bounds are currently supported. Maybe try isel."
+                dat = ds[k + "_bounds"]
+                if dat.dims == (k, "delta_" + k):
+                    pass
+                elif dat.T.dims == (k, "delta_" + k):
+                    dat = dat.T
+                else:
+                    raise RuntimeError(
+                        f"Unexpected dimensions for {k}_bounds - expected {k} and delta_{k} but got {dat.dims}"
+                    )
+                for i in range(len(dat)):
+                    if dat[i, 0] <= val <= dat[i, 1]:
+                        break
+                else:
+                    raise RuntimeError(f"Didn't find {val} in {k}_bounds")
+                ddat = dat[i, 1] - dat[i, 0]
+                fac = (val - dat[i, 0]) / (dat[i, 1] - dat[i, 0])
+                forisel[k] = i + fac
+            else:
+                forisel[k] = val
+        ds = ds.emc3.isel(forisel)
+        assert isinstance(ds, xr.Dataset)
         return ds

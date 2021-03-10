@@ -2,6 +2,7 @@ import itertools
 import time
 import numpy as np
 import xarray as xr
+from typing import Mapping, Hashable, Any, Dict, Optional
 
 
 class rrange2(object):
@@ -142,6 +143,21 @@ class timeit2:
         global T0, last
         print(self.info % (t0 - T0, t1 - T0, t1 - t0, t0 - last))
         last = t1
+
+
+def merge_indexers(
+    indexers: Optional[Mapping[str, Any]], indexers_kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
+    if indexers is None:
+        return indexers_kwargs.copy()
+    for k in indexers.keys():
+        if k in indexers_kwargs:
+            raise AssertionError(
+                f"{k} is provided as kwargs and in indexers - only provide the key once"
+            )
+    indexers_kwargs = indexers_kwargs.copy()
+    indexers_kwargs.update(indexers)
+    return indexers_kwargs
 
 
 def _fft(data):
