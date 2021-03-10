@@ -1,0 +1,43 @@
+*~
+__pycache__
+\#*\#
+core.*
+*maybe*
+
+# plot files
+*.html
+*png
+*.pdf
+*.mkv
+
+*tmp
+*.nc
+*.nc.*
+*.ESMF_LogFile
+old
+*.fort
+
+# cython files
+data/
+build/
+*.c
+*.so
+debug
+*.mp4
+*.gif
+/tjob.*
+
+dist/
+
+htmlcov/
+
+# Doc dir
+html/
+/xemc3.egg-info/PKG-INFO
+/xemc3/_version.py
+/xemc3/test/test/
+/xemc3.egg-info
+/versions-manifest.json
+/.coverage
+/.eggs
+/.hypothesis/
