@@ -1,15 +1,15 @@
 import xemc3
-import gen_ds as g
+from . import gen_ds as g
 import tempfile
 from hypothesis import given, settings, strategies as st
-from test_write_load import assert_ds_are_equal
+from .test_write_load import assert_ds_are_equal
 from subprocess import call as call_unsafe
 import xarray as xr
 import os
 
 
 def call(cmd: str) -> None:
-    out = call_unsafe("python3 xemc3/cli/" + cmd, shell=True)
+    out = call_unsafe("python3 -m xemc3.cli." + cmd, shell=True)
     if out:
         raise RuntimeError(f"Nonzero return code {out}")
 
@@ -36,7 +36,7 @@ def do_test_append_ds(shape, v12, rep):
         os.mkdir(dir)
         for org in orgs:
             xemc3.write.fortran(org, dir)
-            call("append_time.py " + dir)
+            call("append_time " + dir)
         nc = dir + ".nc"
         read = xr.open_dataset(nc)
         for i, org in enumerate(orgs):
@@ -58,7 +58,7 @@ def test_to_netcdf_ds(shape, var, rep):
         for i in range(rep):
             org = g.gen_rand(shape, var)
             xemc3.write.fortran(org, dir)
-            call("to_netcdf.py " + dir)
+            call("to_netcdf " + dir)
             nc = dir + ".nc"
             read = xr.open_dataset(nc)
             assert_ds_are_equal(org, read, True, 1e-2, 1e-2)

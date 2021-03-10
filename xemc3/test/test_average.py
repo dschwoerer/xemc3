@@ -1,10 +1,10 @@
-import xemc3
-from xemc3.cli.append_time import append_time as append
-import gen_ds as g
+from .. import write, load
+from ..cli.append_time import append_time as append
+from . import gen_ds as g
 import tempfile
 import xarray as xr
 from hypothesis import given, settings, assume, strategies as st
-from test_write_load import assert_ds_are_equal
+from .test_write_load import assert_ds_are_equal
 
 
 @settings(deadline=None)
@@ -20,19 +20,18 @@ def disabled_test_average(shape, v12, rep):
     orgs = [org]
     read = []
     with tempfile.TemporaryDirectory() as dir:
-        xemc3.write.fortran(org, dir)
+        write.fortran(org, dir)
         append(dir)
         for i in range(rep):
             d2 = g.gen_updated(org, v2)
             orgs.append(d2)
-            xemc3.write.fortran(d2, dir)
+            write.fortran(d2, dir)
             append(dir)
         read = xr.open_dataset(f"{dir}.nc")
         for i, o in enumerate(orgs):
             assert_ds_are_equal(o, read.isel(time=i), True, 1e-2, 1e-2)
 
         with tempfile.TemporaryDirectory() as dir2:
-            xemc3.write.fortran(read.emc3.average_time(), dir2)
-            dn = xemc3.load.all(dir2)
-        # print(xemc3.core.load.files)
+            write.fortran(read.emc3.average_time(), dir2)
+            dn = load.all(dir2)
         assert_ds_are_equal(read.emc3.average_time(), dn, True, 1e-4)

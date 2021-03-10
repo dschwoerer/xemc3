@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import xarray as xr
 import numpy as np
-from xemc3.core import utils, load
+from ..core import utils, load, dataset
 
 from hypothesis import assume, strategies as st
 

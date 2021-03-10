@@ -1,5 +1,5 @@
 import xemc3
-import gen_ds
+from . import gen_ds
 import tempfile
 import numpy as np
 from hypothesis import settings, given

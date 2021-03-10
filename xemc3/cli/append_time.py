@@ -2,7 +2,8 @@
 
 from argparse import ArgumentParser
 import xarray as xr
-import xemc3
+from ..core.load import load_all
+from ..core import dataset
 import sys
 import os
 
@@ -19,14 +20,14 @@ def append_time(d: str, verbose: bool = False) -> None:
         if verbose:
             print(f"Loading {d} ...", end="")
             sys.stdout.flush()
-        ds = xemc3.load.all(d)
+        ds = load_all(d)
         if old is not None:
             ds = xr.concat([old, ds], "time", "different")
         if verbose:
             print(" writing ...", end="")
             sys.stdout.flush()
         ds.emc3.to_netcdf(d + ".nc")
-    except:  # noqa: E722
+    except Exception:
         if old is not None:
             os.replace(d + ".old.nc", d + ".nc")
         raise
