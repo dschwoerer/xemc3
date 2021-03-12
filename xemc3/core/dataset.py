@@ -231,7 +231,7 @@ class EMC3DatasetAccessor:
         if not isinstance(keys, list):
             keys = [keys]
         return load.write_mapped(
-            [self.data[k] for k in keys], self.data._plasma_map, fn, kinetic
+            [self.data[k] for k in keys], self.data._plasma_map, fn, kinetic=kinetic
         )
 
     def from_fort(self, fn, skip_first=0, ignore_broken=False, kinetic=False):
