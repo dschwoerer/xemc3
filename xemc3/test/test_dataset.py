@@ -1,4 +1,4 @@
-from xemc3.core import dataset
+from ..core import dataset
 import xarray as xr
 import numpy as np
 
@@ -77,5 +77,55 @@ def test_isel_multi():
         assert dss["x"] == int(i) * xf
 
 
+def test_isel_multi2():
+    ds = xr.Dataset()
+    rf = 2
+    zf = 5
+    xf = 3
+    rr = np.linspace(0, 4 * rf, 5)
+    zr = np.linspace(0, 7 * zf, 8)
+    ds_ = ds.copy()
+    ds_.emc3["r_corners"] = ("r", "z"), (rr[:, None] + zr[None, :])
+    ds = ds.assign_coords({"r_bounds": ds_["r_bounds"]})
+    ds.emc3["x"] = "r", np.linspace(0, 3 * xf, 4)
+    ds.emc3["y"] = "z", np.linspace(0, 6 * xf, 7)
+    # ds.emc3["k"] = ("r","z"), np.linspace(0, 6 * xf, 7)
+
+    for i in range(5):
+        dss = ds.emc3.isel(r=i)
+        assert all(dss.emc3["r_corners"] == i * rf + zr)
+        assert dss["x"] == min(i, 3) * xf
+        assert all(dss["y"] == ds["y"])
+    for j in range(8):
+        dss = ds.emc3.isel(z=j)
+        assert all(dss.emc3["r_corners"] == j * zf + rr)
+    for i in np.random.random(10) * 4:
+        dss = ds.emc3.isel(r=i)
+        assert np.allclose(dss.emc3["r_corners"], i * rf + zr)
+        assert dss["x"] == int(i) * xf
+
+
+def test_sel_multi2():
+    ds = xr.Dataset()
+    rf = 2
+    zf = 5
+    xf = 3
+    rr = np.linspace(0, 4 * rf, 5)
+    zr = np.linspace(0, 7 * zf, 8)
+    ds_ = ds.copy()
+    ds_.emc3["r_corners"] = ("r", "z"), (rr[:, None] + zr[None, :])
+    ds = ds.assign_coords({"r_bounds": ds_["r_bounds"]})
+    ds.emc3["x"] = "r", np.linspace(0, 3 * xf, 4)
+    ds.emc3["z_corners"] = "z", zr
+    # ds.emc3["k"] = ("r","z"), np.linspace(0, 6 * xf, 7)
+
+    for j in range(8):
+        dss = ds.emc3.sel(z=j * zf)
+        assert all(dss.emc3["r_corners"] == j * zf + rr)
+    for i in np.random.random(10) * 7:
+        dss = ds.emc3.sel(z=i * zf)
+        assert np.allclose(dss.emc3["r_corners"], i * zf + rr)
+
+
 if __name__ == "__main__":
-    test_isel_multi()
+    test_sel_multi2()

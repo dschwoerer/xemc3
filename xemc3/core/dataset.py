@@ -388,9 +388,14 @@ class EMC3DatasetAccessor:
             else:
                 vi = int(v)
                 fac = v - vi
-                ds = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
+                ds_ = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
                     dim=dk
                 )
+                for co in ds.coords:
+                    ds_[co] = (
+                        ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
+                    ).sum(dim=dk)
+                ds = ds_
         return ds
 
     def sel(
