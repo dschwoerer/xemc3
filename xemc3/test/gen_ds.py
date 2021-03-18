@@ -188,6 +188,41 @@ def gen_mapping(shape):
     return da
 
 
+class rotating_circle(object):
+    def __init__(self, period, iota=1, sym=False):
+        self.period = period
+        self.iota = iota
+        self.sym = sym
+        self.R = 5
+        self.r = 1
+
+    def gends(self, shape):
+        phi = np.linspace(0, np.pi * 2 / self.period, shape[2] + 1)  # [None, None, :]
+        theta = np.linspace(0, np.pi * 2, shape[1] + 1)[None, :, None]
+
+        r = np.linspace(0, self.r, shape[0] + 1)[:, None, None]
+        r, p, z = self.rpt_to_rpz(r, phi, theta)
+
+        ds = xr.Dataset()
+        ds["_plasma_map"] = gen_mapping(shape)
+        ds.emc3["bf_corners"] = gen_bf(shape)
+        ds.emc3["R_corners"] = dims, r
+        ds.emc3["z_corners"] = dims, z
+        ds.emc3["phi_corners"] = ("phi",), p
+        return ds
+
+    def rpt_to_rpz(self, r, p, t):
+        angle = t + self.iota * p
+        r_corner = self.R + r * np.sin(angle)
+        z_corner = r * np.cos(angle)
+        return r_corner, p, z_corner
+
+    def rpz_to_xyz(self, r, p, z):
+        x = r * np.cos(p)
+        y = r * np.sin(p)
+        return x, y, z
+
+
 if __name__ == "__main__":
     print(load.files["LG_CELL"])
     ds = gen_full((3, 4, 5))

@@ -1,6 +1,7 @@
 from ..core import dataset
 import xarray as xr
 import numpy as np
+from . import gen_ds
 
 
 def test_sel():
@@ -127,5 +128,106 @@ def test_sel_multi2():
         assert np.allclose(dss.emc3["r_corners"], i * zf + rr)
 
 
+class Test_eval_at_rpz(object):
+    def setup(self):
+        self.shape = (2, 20, 4)
+        self.geom = gen_ds.rotating_circle(5)
+        self.ds = self.geom.gends(self.shape)
+        self.dims = self.ds["_plasma_map"].dims
+        self.dphi = 2 * np.pi / self.shape[2] / 5
+
+    def rand_rpt(self, i):
+        slc = [slice(None)]
+        if isinstance(i, np.ndarray):
+            slc += [None] * len(i.shape)
+        else:
+            slc += [None]
+        tmp = (
+            np.random.random((3, i))
+            * np.array([self.geom.r * 0.9, np.pi * 2, np.pi * 2])[tuple(slc)]
+        )
+        r, p, t = tmp
+        return r, p, t
+
+    def rand(self, i):
+        return self.geom.rpt_to_rpz(*self.rand_rpt(i))
+
+    def phi_test_value(self, a, b):
+        dphi = self.dphi
+        phi = np.linspace(dphi / 2, 2 * np.pi / 5 - dphi / 2, self.shape[2])
+        self.ds["var"] = self.dims, np.zeros(self.shape) + phi
+        for r, p, z in [self.rand(a) for _ in range(b)]:
+            exp = (np.round((p - dphi / 2) / dphi) % self.shape[2]) * dphi + dphi / 2
+            got = self.ds.emc3.evaluate_at_rpz(r, p, z, "var", updownsym=self.geom.sym)[
+                "var"
+            ]
+            assert np.allclose(
+                exp,
+                got,
+            )
+
+    def phi_test_index(self, a, b):
+        dphi = self.dphi
+        for r, p, z in [self.rand(a) for _ in range(b)]:
+            assert np.allclose(
+                np.round((p - dphi / 2) / dphi) % self.shape[2],
+                self.ds.emc3.evaluate_at_rpz(r, p, z, updownsym=self.geom.sym)[
+                    "phi_index"
+                ],
+            )
+
+    def test_phi_single1(self):
+        self.setup()
+        self.phi_test_value(1, 20)
+
+    def test_phi_single2(self):
+        self.setup()
+        self.phi_test_index(1, 20)
+
+    def test_phi_some1(self):
+        self.setup()
+        self.phi_test_value(2, 5)
+
+    def test_phi_some2(self):
+        self.setup()
+        self.phi_test_value(5, 1)
+
+    def test_phi_some3(self):
+        self.setup()
+        self.phi_test_index(4, 1)
+
+    def r_test_value(self, a, b):
+        dr = self.geom.r / self.shape[0]
+        r = np.linspace(dr / 2, self.geom.r - dr / 2, self.shape[0])
+        self.ds["var"] = self.dims, np.zeros(self.shape) + r[:, None, None]
+        for r, p, t in [self.rand_rpt(a) for _ in range(b)]:
+            expl = (np.round((r - dr * 0.51) / dr)) * dr + dr * 0.49
+            exp = (
+                np.round((r / np.cos(np.pi / self.shape[1]) - dr * 0.49) / dr)
+            ) * dr + dr * 0.51
+            R, p, z = self.geom.rpt_to_rpz(r, p, t)
+            got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
+                "var"
+            ].data
+            if a == 1:
+                isgood = expl < got < exp
+            else:
+                isgood = all([a < b < c for a, b, c in zip(expl, got, exp)])
+            if not isgood:
+                print(expl, got, exp)
+                print(R, p, z)
+                print(r, p, t)
+                assert False
+
+    def test_r_single(self):
+        self.setup()
+        self.r_test_value(1, 20)
+
+    def test_r_some(self):
+        self.setup()
+        self.r_test_value(2, 3)
+        self.r_test_value(3, 4)
+
+
 if __name__ == "__main__":
-    test_sel_multi2()
+    Test_eval_at_rpz().test_r_single()
