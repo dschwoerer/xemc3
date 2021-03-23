@@ -1,6 +1,7 @@
 import numpy as np
 import mayavi.mlab as mlab  # type: ignore
 from .utils import rrange
+import itertools
 import sys
 import xarray as xr
 from tvtk.api import tvtk  # type: ignore
@@ -164,23 +165,82 @@ class divertor:
 
 
 class volume:
-    def __init__(self, ds):
+    def __init__(self, ds, updownsym=False, periodicity=1):
         print("__init__ started")
+        print(updownsym, periodicity)
         self.ds = ds
-        vol_dims = [ds.r.shape, ds.theta.shape, ds.phi.shape]
+        self.sym = updownsym
+        self.period = periodicity
+        vol_dims = [i[0] for i in [ds.r.shape, ds.theta.shape, ds.phi.shape]]
+        # vol_dims[2] *= periodicity
+        # if updownsym:
+        #    vol_dims[2] *= 2
         print(vol_dims)
-        self.dims = [i[0] + 1 for i in vol_dims]
-        sgrid = tvtk.StructuredGrid(dimensions=self.dims)
-        ds["x_bounds"] = ds["R_bounds"] * np.cos(ds["phi_bounds"])
-        ds["y_bounds"] = ds["R_bounds"] * np.sin(ds["phi_bounds"])
-        x = ds.emc3["x_corners"].data.ravel(order="F")
-        y = ds.emc3["y_corners"].data.ravel(order="F")
+        self.dims = [i + 1 for i in vol_dims]
+        self.grids = []
+        mz = None
         z = ds.emc3["z_corners"].data.ravel(order="F")
-        sgrid.points = np.ascontiguousarray(np.vstack([x, y, z]).T)
-        self.grid = sgrid
+        for i in range(self.period):
+            ds["x_bounds"] = ds["R_bounds"] * np.cos(
+                ds["phi_bounds"] + (2 * np.pi * i / self.period)
+            )
+            ds["y_bounds"] = ds["R_bounds"] * np.sin(
+                ds["phi_bounds"] + (2 * np.pi * i / self.period)
+            )
+            x = ds.emc3["x_corners"].data.ravel(order="F")
+            y = ds.emc3["y_corners"].data.ravel(order="F")
+            self.grids.append(tvtk.StructuredGrid(dimensions=self.dims))
+            self.grids[-1].points = np.ascontiguousarray(np.vstack([x, y, z]).T)
+            if self.sym:
+                if mz is None:
+                    mz = -1 * z
+                ds["x_bounds"] = ds["R_bounds"] * np.cos(
+                    -ds["phi_bounds"] + (2 * np.pi * i / self.period)
+                )
+                ds["y_bounds"] = ds["R_bounds"] * np.sin(
+                    -ds["phi_bounds"] + (2 * np.pi * i / self.period)
+                )
+                x = ds.emc3["x_corners"].data.ravel(order="F")
+                y = ds.emc3["y_corners"].data.ravel(order="F")
+                self.grids.append(tvtk.StructuredGrid(dimensions=self.dims))
+                self.grids[-1].points = np.ascontiguousarray(np.vstack([x, y, mz]).T)
+
+        # phi = ds["phi_bounds"]
+        # phidims = phi.dims
+        # phi = phi.data
+        # R = ds["R_bounds"]
+        # Rdims = R.dims
+        # R = R.data
+        # z = ds["z_bounds"].data
+        # if self.sym:
+        #     phi = np.append(-phi[::-1, ::-1], phi, axis=phidims.index("phi"))
+        #     Rslc = [slice(None)] * 6
+        #     Rslc[Rdims.index("phi")] = slice(None, None, -1)
+        #     Rslc[Rdims.index("delta_phi")] = slice(None, None, -1)
+        #     R = np.append(R[Rslc], R, axis=Rdims.index("phi"))
+        #     z = np.append(-z[Rslc], z, axis=Rdims.index("phi"))
+        # if self.period:
+        #     phi0 = phi
+        #     R0 = R
+        #     z0 = z
+        #     for i in range(self.period - 1):
+        #         phi = np.append(
+        #             phi,
+        #             phi0 + (2 * np.pi) * (i + 1) / self.period,
+        #             axis=phidims.index("phi"),
+        #         )
+        #         R = np.append(R, R0, axis=Rdims.index("phi"))
+        #         z = np.append(z, z0, axis=Rdims.index("phi"))
+        # dplot = xr.Dataset(
+        #     coords=dict(
+        #         R_bounds=(Rdims, R),
+        #         z_bounds=(Rdims, z),
+        #         phi_bounds=(phidims, phi),
+        #     )
+        # )
         print("__init__ finished")
 
-    def plot(self, key):
+    def plot(self, key, **kwargs):
         """
         Plot a some quantities in 3D
 
@@ -190,10 +250,39 @@ class volume:
             The key to plot
         """
         print("plot started")
-        self.grid.point_data.scalars = np.ascontiguousarray(self.ds[key].data).ravel(
-            order="F"
-        )
-        self.grid.point_data.scalars.name = "scalars"
+        # cell_data doesn't quite work ...
+        # self.grid.cell_data.scalars = np.ascontiguousarray(self.ds[key].data).ravel(
+        #    order="F"
+        # )
+        # self.grid.cell_data.scalars.name = "scalars"
+        pnt_data = np.zeros(self.dims)
+        fac = np.ones(self.dims)
+        # rawdims = self.ds[key].dims
+        rawdata = self.ds[key].data
+        # if self.sym:
+        #    rawdata = np.append(rawdata, rawdata, axis=rawdims.index("phi"))
+        # rawdata0 = rawdata
+        # for i in range(self.period - 1):
+        #    rawdata = np.append(rawdata, rawdata0, axis=rawdims.index("phi"))
+        for ijk in itertools.product(*[[slice(1, None), slice(None, -1)]] * 3):
+            pnt_data[ijk] += rawdata
+            fac[ijk] += 1
+        pnt_data /= fac
+        default = dict(opacity=0.9)
+        default.update(kwargs)
+        ml, mu = np.nanmin(pnt_data), np.nanmax(pnt_data)
+        for i in range(self.period * (2 if self.sym else 2)):
+            self.grids[i].point_data.scalars = pnt_data.ravel(order="F")
+            self.grids[i].point_data.scalars.name = "scalars"
+            d = mlab.pipeline.add_dataset(self.grids[i])
+            # gx = mlab.pipeline.grid_plane(d)
+            # gy = mlab.pipeline.grid_plane(d)
+            # gy.grid_plane.axis = "y"
+            # gz = mlab.pipeline.grid_plane(d)
+            # gz.grid_plane.axis = "z"
+            iso = mlab.pipeline.iso_surface(d, **default)
+            # ml, mu = self.ds[key].min(), self.ds[key].max()
+            iso.contour.maximum_contour = (mu - ml) / 2 + ml
         print("plot finished")
         return self
 
