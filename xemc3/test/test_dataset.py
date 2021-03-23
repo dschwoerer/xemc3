@@ -2,6 +2,7 @@ from ..core import dataset
 import xarray as xr
 import numpy as np
 from . import gen_ds
+from timeit import timeit
 
 
 def test_sel():
@@ -129,9 +130,12 @@ def test_sel_multi2():
 
 
 class Test_eval_at_rpz(object):
-    def setup(self):
-        self.shape = (2, 20, 4)
-        self.geom = gen_ds.rotating_circle(5)
+    def setup(self, shape=None, **kwargs):
+        if shape is None:
+            self.shape = (2, 20, 4)
+        else:
+            self.shape = shape
+        self.geom = gen_ds.rotating_circle(5, **kwargs)
         self.ds = self.geom.gends(self.shape)
         self.dims = self.ds["_plasma_map"].dims
         self.dphi = 2 * np.pi / self.shape[2] / 5
@@ -219,6 +223,25 @@ class Test_eval_at_rpz(object):
                 print(r, p, t)
                 assert False
 
+    def theta_test_value(self, a, b):
+        dt = 2 * np.pi / self.shape[1]
+        t = np.linspace(0, 2 * np.pi - dt, self.shape[1])
+        self.ds["var"] = self.dims, np.zeros(self.shape) + t[None, :, None]
+        for r, p, t in [self.rand_rpt(a) for _ in range(b)]:
+            # No test within phi, as then we need to calculate where we end up, which is non-trivial
+            p = np.zeros_like(p)
+            exp = (np.round(((t)) / dt) % self.shape[1]) * dt
+            R, p, z = self.geom.rpt_to_rpz(r, p, t)
+            got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
+                "var"
+            ].data
+            isgood = np.allclose(got, exp)
+            if not isgood:
+                print(got / dt, exp / dt)
+                print(R, p, z)
+                print(r, p, t / dt)
+                assert False
+
     def test_r_single(self):
         self.setup()
         self.r_test_value(1, 20)
@@ -227,6 +250,112 @@ class Test_eval_at_rpz(object):
         self.setup()
         self.r_test_value(2, 3)
         self.r_test_value(3, 4)
+
+    def test_theta_single(self):
+        self.setup()
+        self.theta_test_value(1, 20)
+
+    def test_trace_line(self):
+        self.setup(shape=(5, 30, 10))
+        var = np.zeros(self.shape)
+        for i in range(5):
+            var[2, i * self.shape[1] // 5, :] = 1
+
+        p = np.linspace(0, 2 * np.pi, 100)
+        t = np.zeros_like(p)
+        r = self.geom.r * 0.5 + np.zeros_like(p)
+        R, p, z = self.geom.rpt_to_rpz(r, p, t)
+
+        self.ds["var"] = self.dims, var
+
+        # plt = self.ds.emc3.plot(
+        #     "var", updownsym=self.geom.sym, periodicity=1  # self.geom.period
+        # )
+        # import mayavi.mlab as mlab  # type: ignore
+
+        # for i in range(5):
+        #     mlab.plot3d(
+        #         *self.geom.rpz_to_xyz(
+        #             *self.geom.rpt_to_rpz(r, p, t + i * np.pi * 2 / 5)
+        #         ),
+        #         opacity=0.9,
+        #     )
+        # plt.show()
+        got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
+            "var"
+        ].data
+        assert np.allclose(got, 1), f"got {got} but expected 1"
+
+    def test_trace_line_updown(self):
+        self.setup(shape=(5, 60, 10), sym=True)
+        var = np.zeros(self.shape)
+        for i in range(5):
+            var[2, i * self.shape[1] // 5, :] = 1
+
+        p = np.linspace(0, 2 * np.pi, 100)
+        t = np.zeros_like(p)  # + np.pi / self.shape[1]
+        r = self.geom.r * 0.5 + np.zeros_like(p)
+        R, p, z = self.geom.rpt_to_rpz(r, p, t)
+        self.ds["var"] = self.dims, var
+
+        # plt = self.ds.emc3.plot(
+        #     "var", updownsym=self.geom.sym, periodicity=1  # self.geom.period
+        # )
+        # import mayavi.mlab as mlab  # type: ignore
+
+        # for i in range(5):
+        #     mlab.plot3d(
+        #         *self.geom.rpz_to_xyz(
+        #             *self.geom.rpt_to_rpz(r, p, t + i * np.pi * 2 / 5)
+        #         ),
+        #         opacity=0.9,
+        #     )
+        # plt.show()
+        got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
+            "var"
+        ].data
+        assert np.allclose(got, 1), f"got {got} but expected 1"
+
+    def test_cached_eval(self):
+        a = 200
+        b = 1
+        self.setup()  # (10, 20, 30))
+        dphi = self.dphi
+        for r, p, z in [self.rand(a) for _ in range(b)]:
+            exp = np.round((p - dphi / 2) / dphi) % self.shape[2]
+            got = self.ds.emc3.evaluate_at_rpz(
+                r, p, z, updownsym=self.geom.sym, delta_phi=dphi
+            )["phi_index"]
+            assert np.allclose(
+                exp, got
+            ), f"Expected \n{exp} but got \n{got.data} \n{p/dphi} % {self.shape[2]}"
+
+    def test_cached_eval_perf(self):
+        a = 40
+        b = 1
+        self.setup((2, 20, 30))
+        dphi = self.dphi
+        ds = self.ds
+        for r, p, z in [self.rand(a) for _ in range(b)]:
+            cached = timeit(
+                """ds.emc3.evaluate_at_rpz(
+                    r, p, z, updownsym=self.geom.sym, delta_phi=dphi
+            )""",
+                number=1,
+                globals=locals(),
+            )
+
+            slow = timeit(
+                """ds.emc3.evaluate_at_rpz(
+                    r, p, z, updownsym=self.geom.sym
+            )""",
+                number=1,
+                globals=locals(),
+            )
+            print(slow, cached, slow / cached)
+            assert (
+                slow > cached
+            ), f"Expected the cached version to be faster then the non-cached {slow} vs {cached}. Note that this might sometimes fail. Increase {a} to avoid that."
 
 
 if __name__ == "__main__":

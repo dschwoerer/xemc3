@@ -332,7 +332,13 @@ class EMC3DatasetAccessor:
         if "plate_ind" in self.data.dims:
             # assert args == []
             return plot_3d.divertor(self.data, key, *args, **kw)
-        vol = plot_3d.volume(self.data)
+
+        init = {}
+        for k in "updownsym", "periodicity":
+            if k in kw:
+                init[k] = kw.pop(k)
+        print(init, kw)
+        vol = plot_3d.volume(self.data, **init)
         return vol.plot(key, *args, **kw)
 
     def load(self, path):
@@ -532,14 +538,17 @@ class EMC3DatasetAccessor:
 
             j = -1
             if delta_phi:
-                j = int(round(phic / delta_phi))
+                j = int(round((phic - delta_phi / 2) / delta_phi))
 
             try:
                 mesh = cache[j]
                 s = scache[j]
             except KeyError:
                 if delta_phi:
-                    phic = round(phic / delta_phi) * delta_phi
+                    phic = (
+                        round((phic - delta_phi / 2) / delta_phi) * delta_phi
+                        + delta_phi / 2
+                    )
                 s = pln.emc3.sel(phi=phic)
                 mesh = PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data)
                 if delta_phi:
@@ -567,3 +576,5 @@ class EMC3DatasetAccessor:
             ret["theta_index"] = dims, out2[1]
             ret["phi_index"] = dims, out2[2]
         return ret
+
+    # def evaluate_at_indices(self, indices:xr.Dataset, key: str) -> xr.DataArray:

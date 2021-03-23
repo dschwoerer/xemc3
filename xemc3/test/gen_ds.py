@@ -197,8 +197,12 @@ class rotating_circle(object):
         self.r = 1
 
     def gends(self, shape):
-        phi = np.linspace(0, np.pi * 2 / self.period, shape[2] + 1)  # [None, None, :]
-        theta = np.linspace(0, np.pi * 2, shape[1] + 1)[None, :, None]
+        phi = np.linspace(
+            0, np.pi * (1 if self.sym else 2) / self.period, shape[2] + 1
+        )  # [None, None, :]
+        theta = np.linspace(0, np.pi * 2, shape[1] + 1)[None, :, None] - (
+            np.pi / shape[1]
+        )
 
         r = np.linspace(0, self.r, shape[0] + 1)[:, None, None]
         r, p, z = self.rpt_to_rpz(r, phi, theta)
@@ -213,8 +217,8 @@ class rotating_circle(object):
 
     def rpt_to_rpz(self, r, p, t):
         angle = t + self.iota * p
-        r_corner = self.R + r * np.sin(angle)
-        z_corner = r * np.cos(angle)
+        r_corner = self.R + r * np.cos(angle)
+        z_corner = r * np.sin(angle)
         return r_corner, p, z_corner
 
     def rpz_to_xyz(self, r, p, z):
