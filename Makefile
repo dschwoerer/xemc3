@@ -1,15 +1,18 @@
 .PHONY: build check
 PY ?= python3
 
-check: flake
+check: flake mypy
 	python -m pytest xemc3/
 
-recheck: flake
+recheck:
 	python -m pytest xemc3 --last-failed --new-first
 
 flake:
 	flake8 xemc3 --count --select=E9,F63,F7,F82 --show-source --statistics
 	flake8 xemc3 --count --exit-zero --max-complexity=10 --ignore E203 --max-line-length=127 --statistics
+
+mypy:
+	mypy xemc3
 format:
 	black .
 
@@ -33,5 +36,10 @@ doc:
 
 coverage:
 	coverage run -m pytest xemc3
+	coverage html --include=./* --omit=xemc3/test/*
+	@echo Report is in file://$$(pwd)/htmlcov/index.html
+
+coverage-all:
+	for i in {6..9} ; do coverage-3.$i run -p -m pytest xemc3; done
 	coverage html --include=./* --omit=xemc3/test/*
 	@echo Report is in file://$$(pwd)/htmlcov/index.html
