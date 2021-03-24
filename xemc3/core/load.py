@@ -675,32 +675,36 @@ def read_mapped(
     ignore_broken: bool = False,
     kinetic: bool = False,
     dtype: DTypeLike = float,
+    squeeze: bool = True,
 ) -> typing.Sequence[xr.DataArray]:
     """
     Read a file with the emc3 mapping.
 
     Parameters
     ----------
-    fn: str
+    fn : str
         The full path of the file to read
-    mapping: xr.DataArray or xr.Dataset
+    mapping : xr.DataArray or xr.Dataset
         The dataarray of the mesh mapping or a dataset containing the
         mapping
-    skip_first: int (optional)
+    skip_first : int (optional)
         Ignore the first n lines. Default 0
     ignore_broken: boolean (optional)
         if incomplete datasets at the end should be ignored. Default: False
-    kinetic: boolen (optional)
+    kinetic : boolen (optional)
         The file contains also data for cells that are only evolved by
         EIRENE, rather then EMC3. Default: False
-    dtype: datatype (optional)
+    dtype : datatype (optional)
         The type of the data, e.g. float or int. Is passed to
         numpy. Default: float
-
+    squeeze : bool
+        If True return a DataArray if only one field is read.
     Returns
     -------
-    list of xr.DataArray
-        The data that has been read from the file
+    xr.DataArray or list of xr.DataArray
+        The data that has been read from the file. If squeeze is True
+        and only one field is read only a sinlge DataArray is
+        returend.
     """
 
     if isinstance(mapping, xr.Dataset):
@@ -748,6 +752,8 @@ def read_mapped(
     if skip_first:
         for first, da in zip(firsts, das):
             da.attrs["print_before"] = first
+    if squeeze and len(das) == 1:
+        das = das[0]
     return das
 
 
@@ -1116,7 +1122,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         return ds
     elif type == "mapped":
         vars = opts.pop("vars")
-        datas = read_mapped(fn, ds["_plasma_map"], **opts)
+        datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
         vars = opts.pop("vars")
