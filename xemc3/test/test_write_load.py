@@ -48,6 +48,14 @@ def test_write_load_simple(shape):
     with tempfile.TemporaryDirectory() as dir:
         xemc3.write.fortran.all(dl, dir)
         dn = xemc3.load.all(dir)
+        da = xemc3.load.mapped_raw(dir + "/DENSITY_A", dn, kinetic=True)
+        assert not isinstance(da, list)
+        assert np.allclose(da, dn["nH"] / 1e6)
+        da = xemc3.load.mapped_raw(dir + "/DENSITY_A", dn, kinetic=True, squeeze=False)
+        assert isinstance(da, list)
+        assert np.allclose(da[0], dn["nH"] / 1e6)
+        da = xemc3.load.mapped(dir, "nH", dn["_plasma_map"])
+        assert np.allclose(da["nH"], dn["nH"])
         # print(xemc3.core.load.files)
         assert_ds_are_equal(dl, dn, True, 1e-4)
 
