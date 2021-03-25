@@ -1,5 +1,6 @@
 from xemc3.core import utils
 import numpy as np
+import xarray as xr
 from hypothesis import given, assume
 import hypothesis.strategies as strat
 
@@ -53,3 +54,34 @@ def test_merge_indexers_combine():
     both = {**v1, **v2}
     assert both == utils.merge_indexers(v1, v2)
     assert both == utils.merge_indexers(v2, v1)
+
+
+def test_interval_round_1d():
+    a = xr.DataArray(np.random.random(5), dims="a")
+    b = utils.from_interval(utils.to_interval(a))
+    assert all(a == b)
+
+
+def test_interval_round_mismatch():
+    a = xr.DataArray(np.random.random(5), dims="a")
+    b = utils.to_interval(a)
+    b.data[1, 1] += 1
+    raised = False
+    try:
+        utils.from_interval(b)
+    except:
+        raised = True
+    assert raised
+
+
+def test_timit():
+    with utils.timeit():
+        pass
+
+    with utils.timeit("pass takes %f seconds"):
+        pass
+
+
+def test_timit2():
+    with utils.timeit2():
+        pass

@@ -435,7 +435,6 @@ class EMC3DatasetAccessor:
                         break
                 else:
                     raise RuntimeError(f"Didn't find {val} in {k}_bounds")
-                ddat = dat[i, 1] - dat[i, 0]
                 fac = (val - dat[i, 0]) / (dat[i, 1] - dat[i, 0])
                 forisel[k] = i + fac
             else:
