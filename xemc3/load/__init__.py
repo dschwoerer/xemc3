@@ -8,10 +8,13 @@ import types as _types
 # Actual implementation is in load.py
 from ..core.load import (
     get_plates as plates,
-    read_mappings as mappings,
     read_mapped as mapped_raw,
-    read_mapped_nice as mapped,
+    read_fort_file_pub as file,
     load_all as all,
+    read_var as var,
+    # Removed in 0.0.5
+    #    read_mappings as mappings,
+    #    read_mapped_nice as mapped,
 )
 
 # write_magnetic_field as magnetic_field,
