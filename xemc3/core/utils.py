@@ -2,6 +2,7 @@ import itertools
 import time
 import numpy as np
 import xarray as xr
+from typing import Mapping, Hashable, Any, Dict, Optional
 
 
 class rrange2(object):
@@ -60,7 +61,7 @@ def prod(args):
     return ret
 
 
-def to_interval(dims, data=None):
+def to_interval(dims, data=None) -> xr.DataArray:
     """Transforms a N-D i_1+1 x ... x i_N+1 mesh to an
     i_1 x ... x i_N x 2 x ... x 2 mesh of quads
     """
@@ -144,11 +145,26 @@ class timeit2:
         last = t1
 
 
+def merge_indexers(
+    indexers: Optional[Mapping[str, Any]], indexers_kwargs: Dict[str, Any]
+) -> Dict[str, Any]:
+    if indexers is None:
+        return indexers_kwargs.copy()
+    for k in indexers.keys():
+        if k in indexers_kwargs:
+            raise AssertionError(
+                f"{k} is provided as kwargs and in indexers - only provide the key once"
+            )
+    indexers_kwargs = indexers_kwargs.copy()
+    indexers_kwargs.update(indexers)
+    return indexers_kwargs
+
+
 def _fft(data):
-    from scipy.fftpack import fft
+    from scipy.fftpack import fft  # type: ignore
 
     fr = fft(data)
-    import matplotlib.pyplot as plt
+    import matplotlib.pyplot as plt  # type: ignore
 
     plt.plot(np.abs(fr))
     # print(abs(fr.)

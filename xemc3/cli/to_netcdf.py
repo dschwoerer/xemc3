@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 
 from argparse import ArgumentParser
-import xemc3
+from ..core.load import load_all
+from ..core import dataset
 import sys
 
 
@@ -11,7 +12,7 @@ def to_netcdf(d: str, quiet: bool = True) -> None:
     if not quiet:
         print(f"Loading {d} ...", end="")
         sys.stdout.flush()
-    ds = xemc3.load(d)
+    ds = load_all(d)
     if not quiet:
         print(" writing ...", end="")
         sys.stdout.flush()

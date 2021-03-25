@@ -1,20 +1,24 @@
-import xemc3
-import gen_ds as g
+from .. import write
+from . import gen_ds as g
 import tempfile
 from hypothesis import given, settings, strategies as st
-from test_write_load import assert_ds_are_equal
-from subprocess import call as call_unsafe
+from .test_write_load import assert_ds_are_equal
 import xarray as xr
 import os
+import sys
+import copy
+import runpy
 
 
 def call(cmd: str) -> None:
-    out = call_unsafe("python3 xemc3/cli/" + cmd, shell=True)
-    if out:
-        raise RuntimeError(f"Nonzero return code {out}")
+    _argv = copy.deepcopy(sys.argv)
+    args = cmd.split()
+    sys.argv = args
+    runpy.run_module("xemc3.cli." + args[0], run_name="__main__")
+    sys.argv = _argv
 
 
-@settings(**g.setting)
+@settings(**g.setting)  # type: ignore
 @given(
     g.hypo_shape(10),
     g.hypo_vars12(),
@@ -35,8 +39,8 @@ def do_test_append_ds(shape, v12, rep):
         dir = dir + "/" + out
         os.mkdir(dir)
         for org in orgs:
-            xemc3.write.fortran(org, dir)
-            call("append_time.py " + dir)
+            write.fortran(org, dir)
+            call("append_time " + dir)
         nc = dir + ".nc"
         read = xr.open_dataset(nc)
         for i, org in enumerate(orgs):
@@ -44,7 +48,7 @@ def do_test_append_ds(shape, v12, rep):
         del read
 
 
-@settings(**g.setting)
+@settings(**g.setting)  # type: ignore
 @given(
     g.hypo_shape(30),
     g.hypo_vars(),
@@ -57,8 +61,8 @@ def test_to_netcdf_ds(shape, var, rep):
         os.mkdir(dir)
         for i in range(rep):
             org = g.gen_rand(shape, var)
-            xemc3.write.fortran(org, dir)
-            call("to_netcdf.py " + dir)
+            write.fortran(org, dir)
+            call("to_netcdf " + dir)
             nc = dir + ".nc"
             read = xr.open_dataset(nc)
             assert_ds_are_equal(org, read, True, 1e-2, 1e-2)

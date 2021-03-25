@@ -1,5 +1,7 @@
 import xarray as xr
-import numpy as np  # type: ignore
+import numpy as np
+from typing import Mapping, Hashable, Any, Dict, Optional
+
 from . import utils
 from . import load
 
@@ -16,7 +18,7 @@ def from_interval_no_checks(x):
 class EMC3DatasetAccessor:
     """Additional functions for working with EMC3 data."""
 
-    def __init__(self, ds):
+    def __init__(self, ds: xr.Dataset):
         self.data = ds
         self.metadata = ds.attrs.get("metadata")  # None if just grid file
 
@@ -229,7 +231,7 @@ class EMC3DatasetAccessor:
         if not isinstance(keys, list):
             keys = [keys]
         return load.write_mapped(
-            [self.data[k] for k in keys], self.data._plasma_map, fn, kinetic
+            [self.data[k] for k in keys], self.data._plasma_map, fn, kinetic=kinetic
         )
 
     def from_fort(self, fn, skip_first=0, ignore_broken=False, kinetic=False):
@@ -330,7 +332,13 @@ class EMC3DatasetAccessor:
         if "plate_ind" in self.data.dims:
             # assert args == []
             return plot_3d.divertor(self.data, key, *args, **kw)
-        vol = plot_3d.volume(self.data)
+
+        init = {}
+        for k in "updownsym", "periodicity":
+            if k in kw:
+                init[k] = kw.pop(k)
+        print(init, kw)
+        vol = plot_3d.volume(self.data, **init)
         return vol.plot(key, *args, **kw)
 
     def load(self, path):
@@ -359,3 +367,214 @@ class EMC3DatasetAccessor:
             if "time" in ds[k].dims:
                 ds[k] = ds[k].mean(dim="time")
         return ds
+
+    def isel(
+        self,
+        indexers: Mapping[str, Any] = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        **indexers_kwargs: Any,
+    ) -> xr.Dataset:
+        ds = self.data
+        indexers = utils.merge_indexers(indexers, indexers_kwargs)
+        mine = {}
+        xas = {}
+        for k, v in indexers.items():
+            if "delta_" + k in ds.dims and k in ds.dims:
+                mine[k] = v
+            else:
+                xas[k] = v
+        ds = ds.isel(drop=drop, missing_dims=missing_dims, **xas)
+        for k, v in mine.items():
+            dk = "delta_" + k
+            if v == len(ds[k]):
+                ds = ds.isel({k: int(v) - 1, dk: 1})
+            elif v == int(v):
+                ds = ds.isel({k: int(v), dk: 0})
+            else:
+                vi = int(v)
+                fac = v - vi
+                ds_ = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
+                    dim=dk
+                )
+                for co in ds.coords:
+                    ds_[co] = (
+                        ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
+                    ).sum(dim=dk)
+                ds = ds_
+        return ds
+
+    def sel(
+        self,
+        indexers: Mapping[str, Any] = None,
+        drop: bool = False,
+        missing_dims: str = "raise",
+        **indexers_kwargs: Any,
+    ) -> xr.Dataset:
+        ds = self.data
+        indexers = utils.merge_indexers(indexers, indexers_kwargs)
+        forisel = {}
+        for k in indexers.keys():
+            val = indexers[k]
+            if "delta_" + k in ds.dims and k + "_bounds" in ds:
+                assert k in ds.dims
+                assert (
+                    len(ds[k + "_bounds"].dims) == 2
+                ), "Only 1D bounds are currently supported. Maybe try isel."
+                dat = ds[k + "_bounds"]
+                if dat.dims == (k, "delta_" + k):
+                    pass
+                elif dat.T.dims == (k, "delta_" + k):
+                    dat = dat.T
+                else:
+                    raise RuntimeError(
+                        f"Unexpected dimensions for {k}_bounds - expected {k} and delta_{k} but got {dat.dims}"
+                    )
+                for i in range(len(dat)):
+                    if dat[i, 0] <= val <= dat[i, 1]:
+                        break
+                else:
+                    raise RuntimeError(f"Didn't find {val} in {k}_bounds")
+                ddat = dat[i, 1] - dat[i, 0]
+                fac = (val - dat[i, 0]) / (dat[i, 1] - dat[i, 0])
+                forisel[k] = i + fac
+            else:
+                forisel[k] = val
+        ds = ds.emc3.isel(forisel)
+        assert isinstance(ds, xr.Dataset)
+        return ds
+
+    def evaluate_at_xyz(self, x, y, z, *args, **kwargs):
+        """
+        See evaluate_at_rpz for options. Unlike evaluate_at_rpz the
+        coordinates are given here in cartesian coordinates.
+        """
+        r = np.sqrt(x ** 2 + y ** 2)
+        phi = np.arctan2(y, x)
+        return self.evaluate_at_rpz(r, phi, z, *args, **kwargs)
+
+    def evaluate_at_rpz(
+        self,
+        r,
+        phi,
+        z,
+        key=None,
+        periodicity: int = 5,
+        updownsym: bool = True,
+        delta_phi: float = None,
+    ):
+        """
+        Evaluate the field `key` in the dataset at the positions given by
+        the array r, phi, z.  If key is None, return the indices to access
+        the 3D field and get the appropriate values.
+
+        Parameters
+        ----------
+        ds : xr.Dataset
+            The dataset to work on.
+        r : array-like
+            The (major) radial coordinates to evaluate
+        phi : array-like
+            The toroidal coordinate
+        z : array-like
+            The z component
+        key : None or str
+            If None return the index-coordinates otherwise evaluate the
+            specified field in the dataset
+        periodicity : int
+            The rotational symmetry in toroidal direction
+        updownsym : bool
+            Whether the data is additionally up-down symmetric with half
+            the periodicity.
+        delta_phi : None or float
+            If not None, delta_phi gives the accuracy of the precision at
+            which phi is evaluated. Giving a float enables caching of the
+            phi slices, and can speed up computation. Note that it should
+            be smaller then the toroidal resolution. For a grid with 1°
+            resolution, delta_phi=2 * np.pi / 360 would be the upper
+            bound.  None disables caching.
+        """
+        from eudist import PolyMesh  # type: ignore
+
+        phi = phi % (np.pi * 2 / periodicity)
+        # Get raw data
+        dims = None
+        if isinstance(phi, xr.DataArray):
+            dims = phi.dims
+            phi = phi.data
+        if isinstance(r, xr.DataArray):
+            dims = r.dims
+            r = r.data
+        if isinstance(z, xr.DataArray):
+            dims = z.dims
+            z = z.data
+        pln = xr.Dataset()
+        pln = pln.assign_coords(
+            {k: self.data[k] for k in ["z_bounds", "R_bounds", "phi_bounds"]}
+        )
+        if key is not None:
+            pln[key] = self.data[key]
+        else:
+            pln["phi_index"] = "phi", np.arange(len(self.data.phi))
+        cache: Dict[int, PolyMesh] = {}
+        scache: Dict[int, xr.Dataset] = {}
+
+        n = len(pln.theta)
+        if key == None:
+            out2 = [np.empty_like(r) for _ in range(3)]
+            out = out2[0]
+        else:
+            out = np.empty_like(r)
+        if dims is None:
+            dims = tuple([f"dim{i}" for i in range(len(out.shape))])
+        k = -1
+        for ijk in utils.rrange(out.shape):
+            if updownsym and phi[ijk] > np.pi / periodicity:
+                zc = -z[ijk]
+                phic = (np.pi * 2 / periodicity) - phi[ijk]
+            else:
+                zc = z[ijk]
+                phic = phi[ijk]
+
+            j = -1
+            if delta_phi:
+                j = int(round((phic - delta_phi / 2) / delta_phi))
+
+            try:
+                mesh = cache[j]
+                s = scache[j]
+            except KeyError:
+                if delta_phi:
+                    phic = (
+                        round((phic - delta_phi / 2) / delta_phi) * delta_phi
+                        + delta_phi / 2
+                    )
+                s = pln.emc3.sel(phi=phic)
+                mesh = PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data)
+                if delta_phi:
+                    cache[j] = mesh
+                    scache[j] = s
+            k = mesh.find_cell(np.array([r[ijk], zc]), k)
+            if k == -1:
+                if key is None:
+                    for out in out2:
+                        out[ijk] = np.nan
+                else:
+                    out[ijk] = np.nan
+            else:
+                ij = k // n, k % n
+                if key is None:
+                    out2[0][ijk], out2[1][ijk] = ij
+                    out2[2][ijk] = s.phi_index.data
+                else:
+                    out[ijk] = s[key].data[ij]
+        ret = xr.Dataset()
+        if key:
+            ret[key] = dims, out
+        else:
+            ret["r_index"] = dims, out2[0]
+            ret["theta_index"] = dims, out2[1]
+            ret["phi_index"] = dims, out2[2]
+        return ret
+
+    # def evaluate_at_indices(self, indices:xr.Dataset, key: str) -> xr.DataArray:

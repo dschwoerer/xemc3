@@ -21,7 +21,7 @@ python3 -m pip install --user --upgrade setuptools wheel twine
 
 ```bash
 rm -rf dist
-python3 setup.py sdits
+python3 setup.py sdist
 # maybe without testpypi repositroy
 python -m twine upload --repository testpypi dist/*
 ```
