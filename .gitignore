@@ -41,3 +41,4 @@ html/
 /.coverage
 /.eggs
 /.hypothesis/
+/.coverage.*

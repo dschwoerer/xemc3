@@ -13,23 +13,27 @@ def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
     d2k = [k for k in d2] + [k for k in d2.coords]
     if not set(d1k) == set(d2k):
         raise AssertionError(f"{d1.keys()} != {d2.keys()}")
-    for k in d1:
-        slc = np.isfinite(d1[k].data)
-        if not np.isclose(d1[k].data[slc], d2[k].data[slc], rtol=rtol).all():
+    for k in d1k:
+        assert_da_are_equal(d1[k], d2[k], k, check_attrs, rtol, atol)
+
+
+def assert_da_are_equal(d1, d2, k, check_attrs, rtol, atol):
+    slc = np.isfinite(d1.data)
+    if not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol).all():
+        raise AssertionError(
+            f"""var {k} is changed.
+
+Before: {d1.shape}: {d1.data.flatten()}
+
+After: {d2.shape}: {d2.data.flatten()}
+
+np.isclose: {np.isclose(d1, d2 ,rtol=rtol).flatten()}"""
+        )
+    if check_attrs:
+        if d1.attrs != d2.attrs:
             raise AssertionError(
-                f"""var {k} is changed.
-
-Before: {d1[k].shape}: {d1[k].data.flatten()}
-
-After: {d2[k].shape}: {d2[k].data.flatten()}
-
-np.isclose: {np.isclose(d1[k], d2[k],rtol=rtol).flatten()}"""
+                f"attributes changed for {k}: {d1.attrs} != {d2.attrs}"
             )
-        if check_attrs:
-            if d1[k].attrs != d2[k].attrs:
-                raise AssertionError(
-                    f"attributes changed for {k}: {d1[k].attrs} != {d2[k].attrs}"
-                )
 
 
 setting = gen_ds.setting
@@ -49,13 +53,24 @@ def test_write_load_simple(shape):
         xemc3.write.fortran.all(dl, dir)
         dn = xemc3.load.all(dir)
         da = xemc3.load.mapped_raw(dir + "/DENSITY_A", dn, kinetic=True)
-        assert not isinstance(da, list)
-        assert np.allclose(da, dn["nH"] / 1e6)
+        assert not isinstance(da, list), "test with squeeze failed"
+        assert np.allclose(da, dn["nH"] / 1e6), "reading mapped_raw gives wrong data"
         da = xemc3.load.mapped_raw(dir + "/DENSITY_A", dn, kinetic=True, squeeze=False)
-        assert isinstance(da, list)
-        assert np.allclose(da[0], dn["nH"] / 1e6)
-        da = xemc3.load.mapped(dir, "nH", dn["_plasma_map"])
-        assert np.allclose(da["nH"], dn["nH"])
+        assert isinstance(da, list), "squeeze=False gives list"
+        assert np.allclose(da[0], dn["nH"] / 1e6), "mapped_raw gives wrong data"
+        for var, fn in ("nH", "DENSITY_A"), ("bf_bounds", "BFIELD_STRENGTH"):
+            for withmaps in True, False:
+                da = xemc3.load.var(dir, var, dn["_plasma_map"] if withmaps else None)
+                assert np.allclose(da[var], dn[var]), (
+                    "load.var fails with" + ("" if withmaps else "out") + " map fails"
+                )
+                da = xemc3.load.file(
+                    f"{dir}/{fn}", dn["_plasma_map"] if withmaps else None
+                )
+                assert np.allclose(da[var], dn[var]), (
+                    "load.file fails with" + ("" if withmaps else "out") + " map fails"
+                )
+
         # print(xemc3.core.load.files)
         assert_ds_are_equal(dl, dn, True, 1e-4)
 

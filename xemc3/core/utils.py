@@ -77,10 +77,9 @@ def to_interval(dims, data=None) -> xr.DataArray:
         in_dims = dims
         attrs = {}
     dims = len(data.shape)
-    if not dims == len(in_dims):
-        raise ValueError(
-            f"Data mismatch - {in_dims} as dimensions given, but data is shape {data.shape} (len{len(data.shape)})"
-        )
+    assert dims == len(
+        in_dims
+    ), f"Data mismatch - {in_dims} as dimensions given, but data is shape {data.shape} (len{len(data.shape)})"
     out_dims = [d for d in in_dims] + ["delta_" + d for d in in_dims]
     ret = np.empty([i - 1 for i in data.shape] + [2] * dims, dtype=data.dtype)
     for ijk in itertools.product(*[range(a - 1) for a in data.shape]):

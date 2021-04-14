@@ -435,7 +435,6 @@ class EMC3DatasetAccessor:
                         break
                 else:
                     raise RuntimeError(f"Didn't find {val} in {k}_bounds")
-                ddat = dat[i, 1] - dat[i, 0]
                 fac = (val - dat[i, 0]) / (dat[i, 1] - dat[i, 0])
                 forisel[k] = i + fac
             else:
@@ -478,7 +477,7 @@ class EMC3DatasetAccessor:
             The toroidal coordinate
         z : array-like
             The z component
-        key : None or str
+        key : None or str or sequence of str
             If None return the index-coordinates otherwise evaluate the
             specified field in the dataset
         periodicity : int
@@ -512,23 +511,35 @@ class EMC3DatasetAccessor:
         pln = pln.assign_coords(
             {k: self.data[k] for k in ["z_bounds", "R_bounds", "phi_bounds"]}
         )
-        if key is not None:
-            pln[key] = self.data[key]
+        if key is None:
+            lr = len(self.data.r)
+            lt = len(self.data.theta)
+            lp = len(self.data.phi)
+            pln["phi_index"] = "phi", np.arange(lp, dtype=int)
+            pln["r_index"] = ("r", "theta"), np.zeros((lr, lt), dtype=int) + np.arange(
+                lr, dtype=int
+            )[:, None]
+            pln["theta_index"] = ("r", "theta"), np.zeros(
+                (lr, lt), dtype=int
+            ) + np.arange(lt, dtype=int)
+            keys = ["phi_index", "r_index", "theta_index"]
         else:
-            pln["phi_index"] = "phi", np.arange(len(self.data.phi))
+            if isinstance(key, str):
+                keys = [key]
+            else:
+                keys = key
+            for k in keys:
+                pln[k] = self.data[k]
+
         cache: Dict[int, PolyMesh] = {}
         scache: Dict[int, xr.Dataset] = {}
 
         n = len(pln.theta)
-        if key == None:
-            out2 = [np.empty_like(r) for _ in range(3)]
-            out = out2[0]
-        else:
-            out = np.empty_like(r)
+        outs = [np.empty_like(r, dtype=pln[k].data.dtype) for k in keys]
         if dims is None:
-            dims = tuple([f"dim{i}" for i in range(len(out.shape))])
-        k = -1
-        for ijk in utils.rrange(out.shape):
+            dims = tuple([f"dim{i}" for i in range(len(outs[0].shape))])
+        cid = -1
+        for ijk in utils.rrange(outs[0].shape):
             if updownsym and phi[ijk] > np.pi / periodicity:
                 zc = -z[ijk]
                 phic = (np.pi * 2 / periodicity) - phi[ijk]
@@ -554,27 +565,23 @@ class EMC3DatasetAccessor:
                 if delta_phi:
                     cache[j] = mesh
                     scache[j] = s
-            k = mesh.find_cell(np.array([r[ijk], zc]), k)
-            if k == -1:
-                if key is None:
-                    for out in out2:
-                        out[ijk] = np.nan
-                else:
-                    out[ijk] = np.nan
+            cid = mesh.find_cell(np.array([r[ijk], zc]), cid)
+            if cid == -1:
+                for i in range(len(keys)):
+                    try:
+                        outs[i][ijk] = np.nan
+                    except ValueError:  # cannot assign nan to integers
+                        outs[i][ijk] = -1
             else:
-                ij = k // n, k % n
-                if key is None:
-                    out2[0][ijk], out2[1][ijk] = ij
-                    out2[2][ijk] = s.phi_index.data
-                else:
-                    out[ijk] = s[key].data[ij]
+                ij = cid // n, cid % n
+                for i, key in enumerate(keys):
+                    if len(s[key].dims):
+                        outs[i][ijk] = s[key].data[ij]
+                    else:
+                        outs[i][ijk] = s[key].data
         ret = xr.Dataset()
-        if key:
-            ret[key] = dims, out
-        else:
-            ret["r_index"] = dims, out2[0]
-            ret["theta_index"] = dims, out2[1]
-            ret["phi_index"] = dims, out2[2]
+        for i, k in enumerate(keys):
+            ret[k] = dims, outs[i]
         return ret
 
     # def evaluate_at_indices(self, indices:xr.Dataset, key: str) -> xr.DataArray:

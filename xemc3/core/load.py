@@ -97,16 +97,22 @@ def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     xr.Dataset
         The magenetic field strength
     """
-    shape = ds.R_bounds.shape
-    assert len(shape) == 6
-    shape = [i + 1 for i in shape[:3]]
+    if "R_bounds" in ds:
+        shape = ds.R_bounds.shape
+        assert len(shape) == 6
+        shape = [i + 1 for i in shape[:3]]
+        dims = ds.R_bounds.dims[:3]
+    else:
+        shape = ds._plasma_map.shape
+        shape = [i + 1 for i in shape]
+        dims = ds._plasma_map.dims
     nx, ny, nz = shape
     with open(fn) as f:
         raw = _fromfile(f, dtype=float, count=nx * ny * nz, sep=" ")
         _assert_eof(f, fn)
     raw = raw.reshape(shape[::-1])
     raw = np.swapaxes(raw, 0, 2)
-    return to_interval(ds.R_bounds.dims[:3], raw)
+    return to_interval(dims, raw)
 
 
 def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
@@ -337,8 +343,7 @@ def scrape(f: typing.TextIO, *, ignore=None, verbose=False) -> str:
 
 def _assert_eof(f: typing.TextIO, fn: str) -> None:
     test = _fromfile(f, dtype=float, count=2, sep=" ")
-    if len(test):
-        raise RuntimeError(f"Expected EOF, but found more data in {fn}")
+    assert len(test) == 0, f"Expected EOF, but found more data in {fn}"
 
 
 def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
@@ -346,9 +351,7 @@ def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
         # first line is a comment ...
         _ = next(f)
         setup = next(f).split()
-        if len(setup) != 5:
-            print(setup)
-            raise RuntimeError("Expected 5 values!")
+        assert len(setup) == 5, f"Expected 5 values but got {setup}"
         for zero in setup[3:]:
             assert float(zero) == 0.0
         nx, ny, nz = [int(i) for i in setup[:3]]
@@ -381,11 +384,8 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
         plates = []
         for plate in range(num_plates):
             s = scrape(f, ignore="!").split()
-            try:
-                _, geom = s
-            except:
-                print(plate, ":", s)
-                raise
+            assert len(s) == 2, f"{plate} : {s}"
+            _, geom = s
             r, z, phi = read_plate(cwd, geom)
             nx, ny = r.shape
             nx -= 1
@@ -627,8 +627,25 @@ def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
     return load_plates(cwd)
 
 
-def read_mapped_nice(
-    dir: str, var: str, mapping: typing.Union[None, xr.Dataset, xr.DataArray] = None
+def ensure_mapping(
+    dir: str,
+    mapping: typing.Union[None, xr.Dataset, xr.DataArray] = None,
+    need_mapping=True,
+) -> xr.Dataset:
+    if dir == "":
+        dir = "."
+    if mapping is None:
+        mapping = get_locations(dir)
+        if need_mapping:
+            mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+    else:
+        if isinstance(mapping, xr.DataArray):
+            mapping = xr.Dataset(dict(_plasma_map=mapping))
+    return mapping
+
+
+def read_var(
+    dir: str, var: str, ds: typing.Union[None, xr.Dataset, xr.DataArray] = None
 ) -> xr.Dataset:
     """
     Read the variable var from the simulation in directory dir.
@@ -639,22 +656,16 @@ def read_mapped_nice(
         The path of the simulation directory
     var: str
         The name of the variable to be read
-    mapping: xr.DataArray or xr.Dataset or None (optional)
-        If present the mapping. If not present, the information is
-        read from the simulation directory.
+    ds: xr.DataArray or xr.Dataset or None (optional)
+        An xemc3 Dataset or an DataArray containing the mapping. If
+        not given and a mapping is required to read the file, it is
+        read from the directory.
 
     Returns
     -------
     xr.Dataset
         A dataset in wich at least ``var`` is set.
     """
-    if mapping is None:
-        mapping = get_locations(dir)
-        mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
-    else:
-        if isinstance(mapping, xr.DataArray):
-            mapping = xr.Dataset(dict(_plasma_map=mapping))
-
     for fn, fd in files.items():
         if "vars" not in fd:
             continue
@@ -664,7 +675,9 @@ def read_mapped_nice(
                 and var.startswith(v[:-2])
                 and var[len(v[:-2]) :].isdigit()
             ):
-                return read_fort_file(mapping, f"{dir}/{fn}", **fd)
+                ds = ensure_mapping(dir, ds, fd.get("type", "mapped") == "mapped")
+                assert isinstance(ds, xr.Dataset)
+                return read_fort_file(ds, f"{dir}/{fn}", **fd)
     raise ValueError(f"Don't know how to read {var}")
 
 
@@ -800,10 +813,9 @@ def write_mapped_nice(ds: xr.Dataset, dir: str, fn: str = None, **args) -> None:
                 at = datas[i].attrs
                 datas[i] = datas[i] / ops["scale"]
                 datas[i].attrs = at
-        if datas == []:
-            raise AssertionError(
-                f"Requested to write file {dir}/{fn} but required data not found."
-            )
+        assert (
+            datas != []
+        ), f"Requested to write file {dir}/{fn} but required data not found."
         write_mapped(datas, ds["_plasma_map"], f"{dir}/{fn}", **meta)
 
 
@@ -1109,16 +1121,47 @@ else:
     _files_bak = files
 
 
+def read_fort_file_pub(
+    fn: str, ds: typing.Union[None, xr.Dataset, xr.DataArray] = None, **opts
+) -> xr.Dataset:
+    """
+    Read a EMC3 simulation file. The expected content is derived from
+    the filename.
+
+    fn : str
+        The location of the file to read
+    ds : xr.DataArray or xr.Dataset or None
+        The mapping or a dataset containing a mapping or None. If one
+        is needed and none is provided, it is read from the folder.
+
+    Returns
+    -------
+    xr.Dataset
+        The read variable is set. If a Dataset was given, the newly
+        read entries from the file are added. Otherwise a new Dataset
+        is returned with the read variables added.
+    """
+    filename = fn.split("/")[-1]
+    defaults = files[filename].copy()
+    defaults.update(opts)
+    type = defaults.get("type", "mapped")
+    ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped")
+    assert isinstance(ds, xr.Dataset)
+    return read_fort_file(ds, fn, **defaults)
+
+
 def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.Dataset:
+    """
+    Read a EMC3 simulation file. The expected content is derived from the
+
+    """
     assert files == _files_bak
     if type == "mapping":
         opts.pop("vars", False)
         ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
-        if opts != {}:
-            raise RuntimeError(
-                "Unexpected arguments: "
-                + ", ".join([f"{k}={v}" for k, v in opts.items()])
-            )
+        assert opts == {}, "Unexpected arguments: " + ", ".join(
+            [f"{k}={v}" for k, v in opts.items()]
+        )
         return ds
     elif type == "mapped":
         vars = opts.pop("vars")
@@ -1133,10 +1176,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
-    if opts != {}:
-        raise RuntimeError(
-            "Unexpected arguments: " + ", ".join([f"{k}={v}" for k, v in opts.items()])
-        )
+    assert opts == {}, "Unexpected arguments: " + ", ".join(
+        [f"{k}={v}" for k, v in opts.items()]
+    )
     vars = vars.copy()
     assert files == _files_bak
     assert opts == {}
@@ -1148,10 +1190,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
             vars[key % i] = flexi
 
     assert files == _files_bak
-    if len(vars) != len(datas):
-        raise RuntimeError(
-            f"in file {fn} we found {len(datas)} fields but only {len(vars)} vars are given!"
-        )
+    assert len(vars) == len(
+        datas
+    ), f"in file {fn} we found {len(datas)} fields but only {len(vars)} vars are given!"
     assert files == _files_bak
     for (var, varopts), data in zip(vars.items(), datas):
         ds[var] = data

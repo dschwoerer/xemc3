@@ -40,7 +40,7 @@ def do_test_append_ds(shape, v12, rep):
         os.mkdir(dir)
         for org in orgs:
             write.fortran(org, dir)
-            call("append_time " + dir)
+            call("append_time " + dir + "///")
         nc = dir + ".nc"
         read = xr.open_dataset(nc)
         for i, org in enumerate(orgs):
@@ -62,7 +62,7 @@ def test_to_netcdf_ds(shape, var, rep):
         for i in range(rep):
             org = g.gen_rand(shape, var)
             write.fortran(org, dir)
-            call("to_netcdf " + dir)
+            call("to_netcdf " + dir + "///")
             nc = dir + ".nc"
             read = xr.open_dataset(nc)
             assert_ds_are_equal(org, read, True, 1e-2, 1e-2)
