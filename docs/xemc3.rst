@@ -2,7 +2,7 @@ API reference
 =============
 
 
-xemc3. module
+xemc3 Dataset
 -----------------
 
 .. automodule:: xemc3.EMC3DatasetAccessor
