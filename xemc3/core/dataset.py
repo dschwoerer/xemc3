@@ -337,7 +337,6 @@ class EMC3DatasetAccessor:
         for k in "updownsym", "periodicity":
             if k in kw:
                 init[k] = kw.pop(k)
-        print(init, kw)
         vol = plot_3d.volume(self.data, **init)
         return vol.plot(key, *args, **kw)
 
@@ -463,14 +462,12 @@ class EMC3DatasetAccessor:
         delta_phi: float = None,
     ):
         """
-        Evaluate the field `key` in the dataset at the positions given by
+        Evaluate the field key in the dataset at the positions given by
         the array r, phi, z.  If key is None, return the indices to access
         the 3D field and get the appropriate values.
 
         Parameters
         ----------
-        ds : xr.Dataset
-            The dataset to work on.
         r : array-like
             The (major) radial coordinates to evaluate
         phi : array-like
@@ -539,7 +536,20 @@ class EMC3DatasetAccessor:
         if dims is None:
             dims = tuple([f"dim{i}" for i in range(len(outs[0].shape))])
         cid = -1
+        assert "delta_phi" in pln.phi_bounds.dims
+        assert "phi" in pln.phi_bounds.dims
         for ijk in utils.rrange(outs[0].shape):
+            if not np.isfinite(phi[ijk]):
+                for i in range(len(keys)):
+                    try:
+                        outs[i][ijk] = phi[ijk]
+                    except ValueError:
+                        try:
+                            outs[i][ijk] = np.nan
+                        except ValueError:  # cannot assign nan to integers
+                            outs[i][ijk] = -1
+                continue
+
             if updownsym and phi[ijk] > np.pi / periodicity:
                 zc = -z[ijk]
                 phic = (np.pi * 2 / periodicity) - phi[ijk]
