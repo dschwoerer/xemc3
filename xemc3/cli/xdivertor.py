@@ -78,8 +78,8 @@ def plot(cwd, args):
         plt.show()
 
 
-def main():
-    parser = ArgumentParser("Plot the heatflux on the divertor")
+def parser() -> ArgumentParser:
+    parser = ArgumentParser(description="Plot the heatflux on the divertor")
     parser.add_argument(
         "-c",
         "--cutoff",
@@ -121,12 +121,15 @@ def main():
         help="Data to plot",
     )
     parser.add_argument("path", nargs=1, help="Path of data")
+    return parser
 
+
+def main():
     if sys.argv[0] == "mayavi2" or "-x" in sys.argv:
         print("Run with `-g` in python?")
-        args = parser.parse_args(sys.argv[3:])
+        args = parser().parse_args(sys.argv[3:])
     else:
-        args = parser.parse_args()
+        args = parser().parse_args()
 
     for cwd in args.path:
         plot(cwd, args)

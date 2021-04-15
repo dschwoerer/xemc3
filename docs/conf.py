@@ -49,6 +49,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
+    "sphinx_argparse_cli",
 ]
 
 # Default for autodoc

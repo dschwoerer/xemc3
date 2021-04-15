@@ -21,9 +21,9 @@ def to_netcdf(d: str, quiet: bool = True) -> None:
         print(" done")
 
 
-def main() -> None:
+def parser() -> ArgumentParser:
     parser = ArgumentParser(
-        "Load the data from EMC3 simulations and store as netcdf file. "
+        description="Load the data from EMC3 simulations and store as netcdf file. "
         "The data is written for each simulation to a netcdf file."
     )
     parser.add_argument(
@@ -32,7 +32,11 @@ def main() -> None:
         help="Path of the directory to load. The netcdf file will be called dir.nc if the folder was called dir.",
     )
     parser.add_argument("-q", "--quiet", action="store_true", help="Be less verbose")
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = parser().parse_args()
 
     for d in args.path:
         to_netcdf(d, args.quiet)
