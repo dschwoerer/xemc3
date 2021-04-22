@@ -355,7 +355,7 @@ class EMC3DatasetAccessor:
         """
         return load(path)
 
-    def time_average(self) -> xr.Dataset:
+    def mean_time(self) -> xr.Dataset:
         """
         Average in time.
 
@@ -364,7 +364,9 @@ class EMC3DatasetAccessor:
         ds = self.data.copy()
         for k in ds:
             if "time" in ds[k].dims:
+                attrs = ds[k].attrs
                 ds[k] = ds[k].mean(dim="time")
+                ds[k].attrs = attrs
         return ds
 
     def isel(

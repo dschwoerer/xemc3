@@ -129,6 +129,16 @@ def test_sel_multi2():
         assert np.allclose(dss.emc3["r_corners"], i * zf + rr)
 
 
+def test_mean_dtype():
+    ds = xr.Dataset()
+    ds["pos"] = [1, 2, 3]
+    ds["data"] = ("pos", "time"), [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]
+    ds["var"] = "pos", [2, 3, 4]
+    ds2 = ds.emc3.mean_time()
+    assert all(ds2["var"] == ds["var"])
+    assert ds2["var"].dtype == ds["var"].dtype
+
+
 class Test_eval_at_rpz(object):
     def setup(self, shape=None, **kwargs):
         if shape is None:
