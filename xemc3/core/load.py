@@ -630,14 +630,22 @@ def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
 def ensure_mapping(
     dir: str,
     mapping: typing.Union[None, xr.Dataset, xr.DataArray] = None,
-    need_mapping=True,
+    need_mapping: bool = True,
 ) -> xr.Dataset:
     if dir == "":
         dir = "."
     if mapping is None:
-        mapping = get_locations(dir)
-        if need_mapping:
-            mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+        try:
+            mapping = get_locations(dir)
+            if need_mapping:
+                mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"""Reading {fn+ ' ' if fn is not None else ''} mapped requires mapping information, but the required
+infomation in '{dir}' could not be found.  Ensure all files are present
+in the folder or pass in a dataset that contains the mapping
+informations."""
+            )
     else:
         if isinstance(mapping, xr.DataArray):
             mapping = xr.Dataset(dict(_plasma_map=mapping))
