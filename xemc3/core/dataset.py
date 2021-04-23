@@ -496,16 +496,7 @@ class EMC3DatasetAccessor:
 
         phi = phi % (np.pi * 2 / periodicity)
         # Get raw data
-        dims = None
-        if isinstance(phi, xr.DataArray):
-            dims = phi.dims
-            phi = phi.data
-        if isinstance(r, xr.DataArray):
-            dims = r.dims
-            r = r.data
-        if isinstance(z, xr.DataArray):
-            dims = z.dims
-            z = z.data
+        dims, shape, coords, (r, phi, z) = get_out_shape(r, phi, z)
         pln = xr.Dataset()
         pln = pln.assign_coords(
             {k: self.data[k] for k in ["z_bounds", "R_bounds", "phi_bounds"]}
@@ -534,13 +525,11 @@ class EMC3DatasetAccessor:
         scache: Dict[int, xr.Dataset] = {}
 
         n = len(pln.theta)
-        outs = [np.empty_like(r, dtype=pln[k].data.dtype) for k in keys]
-        if dims is None:
-            dims = tuple([f"dim{i}" for i in range(len(outs[0].shape))])
+        outs = [np.empty(shape, dtype=pln[k].data.dtype) for k in keys]
         cid = -1
         assert "delta_phi" in pln.phi_bounds.dims
         assert "phi" in pln.phi_bounds.dims
-        for ijk in utils.rrange(outs[0].shape):
+        for ijk in utils.rrange(shape):
             if not np.isfinite(phi[ijk]):
                 for i in range(len(keys)):
                     try:
@@ -591,9 +580,47 @@ class EMC3DatasetAccessor:
                         outs[i][ijk] = s[key].data[ij]
                     else:
                         outs[i][ijk] = s[key].data
-        ret = xr.Dataset()
+        ret = xr.Dataset(coords=coords)
         for i, k in enumerate(keys):
             ret[k] = dims, outs[i]
         return ret
 
     # def evaluate_at_indices(self, indices:xr.Dataset, key: str) -> xr.DataArray:
+
+
+def get_out_shape(*data):
+    """
+    Convert xarray arrays and plain arrays to same shape and return
+    dims, shape and the raw arrays
+    """
+    if any([isinstance(x, xr.DataArray) for x in data]):
+        dims = []
+        shape = []
+        out = []
+        coords = {}
+        for d in data:
+            if isinstance(d, xr.DataArray):
+                for dim in d.dims:
+                    if dim in dims:
+                        assert len(d[dim]) == shape[dims.index(dim)]
+                    else:
+                        dims.append(dim)
+                        shape.append(len(d[dim]))
+                        coords[dim] = d.coords[dim]
+            else:
+                assert (
+                    utils.prod(np.shape(d)) == 1
+                ), "Cannot mix `xr.DataArray`s and `np.ndarray`s"
+        outzero = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
+        out = [outzero + d for d in data]
+        # for o in out:
+        #    assert all(o.dims == dims) if len(o.dims) > 1 else o.dims == dims
+        out = [d.data for d in out]
+        return dims, shape, coords, out
+    outzero = np.zeros(1)
+    for d in data:
+        outzero = outzero * d
+    out = [outzero + d for d in data]
+    dims = [f"dim_{d}" for d in outzero.shape]
+    shape = outzero.shape
+    return dims, shape, None, out

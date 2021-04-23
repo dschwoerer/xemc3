@@ -397,12 +397,30 @@ class Test_eval_at_rpz(object):
         # No test within phi, as then we need to calculate where we end up, which is non-trivial
         p = np.zeros_like(p)
         exp = (np.round(((t)) / dt) % self.shape[1]) * dt
-        R, p, z = self.geom.rpt_to_rpz(r, p, t)
-        xyz = self.geom.rpz_to_xyz(R, p, z)
+        Rpz = self.geom.rpt_to_rpz(r, p, t)
+        xyz = self.geom.rpz_to_xyz(*Rpz)
         got = self.ds.emc3.evaluate_at_xyz(*xyz, "var", updownsym=self.geom.sym)[
             "var"
         ].data
         assert all(np.isclose(got, exp))
+
+    def test_at_dataarrays(self):
+        self.setup()
+        t = np.linspace(0, 2 * np.pi, self.shape[2])
+        self.ds["var"] = self.dims, np.zeros(self.shape) + t
+        ds = xr.Dataset(coords=dict(x=np.linspace(0, 3, 5), y=np.linspace(0, 2, 6)))
+        x = ds.x
+        y = ds.y
+        for z in 0, x * y:
+            result = self.ds.emc3.evaluate_at_xyz(
+                x, y, z, "var", updownsym=self.geom.sym
+            )
+            assert "x" in result.dims
+            assert "y" in result.dims
+            assert all(result.coords["x"] == x)
+            assert all(result.coords["y"] == y)
+            assert result["var"].dims == ("x", "y")
+            assert result["var"].shape == (5, 6)
 
 
 if __name__ == "__main__":
