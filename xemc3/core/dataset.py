@@ -597,6 +597,7 @@ class EMC3DatasetAccessor:
         ret = xr.Dataset(coords=coords)
         for i, k in enumerate(keys):
             ret[k] = dims, outs[i]
+            ret[k].attrs = pln[k].attrs
         return ret
 
     # def evaluate_at_indices(self, indices:xr.Dataset, key: str) -> xr.DataArray:
