@@ -660,6 +660,8 @@ def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
 
 def load_plates(cwd: str) -> xr.Dataset:
     # Deprecate?
+    if cwd[-1] != "/":
+        cwd += "/"
     with timeit("\nReading raw: %f"):
         plates = read_plates_raw(cwd, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
