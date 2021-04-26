@@ -62,10 +62,21 @@ class EMC3DatasetAccessor:
                     crop.append(None)
             ret = []
             for i in range(len(self.data["plate_ind"])):
-                slcr = [slice(None) if j is None else slice(None, j[i]) for j in crop]
-                data = self.data[var].isel(plate_ind=i)
+                slcr = tuple(
+                    [slice(None) if j is None else slice(None, j[i]) for j in crop]
+                )
+                data = self.data.isel(plate_ind=i)
+                # coords = {
+                #     k: xr.DataArray(
+                #         coord.data[slcr], dims=coord.dims, attrs=coord.attrs
+                #     )
+                #     for k, coord in data.coords.items()
+                # }
                 data = xr.DataArray(
-                    data.data[tuple(slcr)], dims=data.dims, attrs=data.attrs
+                    data[var].data[slcr],
+                    dims=data[var].dims,
+                    attrs=data[var].attrs,
+                    # coords=coords,
                 )
                 ret.append(transform(data))
             return ret
