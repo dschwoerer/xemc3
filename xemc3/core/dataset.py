@@ -64,7 +64,9 @@ class EMC3DatasetAccessor:
             for i in range(len(self.data["plate_ind"])):
                 slcr = [slice(None) if j is None else slice(None, j[i]) for j in crop]
                 data = self.data[var].isel(plate_ind=i)
-                data = xr.DataArray(data.data[tuple(slcr)], dims=data.dims)
+                data = xr.DataArray(
+                    data.data[tuple(slcr)], dims=data.dims, attrs=data.attrs
+                )
                 ret.append(transform(data))
             return ret
         crop = []
