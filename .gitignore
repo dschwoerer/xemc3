@@ -42,3 +42,4 @@ html/
 /.eggs
 /.hypothesis/
 /.coverage.*
+/xemc3/test/testdata
