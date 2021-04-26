@@ -61,9 +61,10 @@ class EMC3DatasetAccessor:
                 except KeyError:
                     crop.append(None)
             ret = []
-            for i in range(dims["plate_ind"]):
+            for i in range(len(self.data["plate_ind"])):
                 slcr = [slice(None) if j is None else slice(None, j[i]) for j in crop]
-                data = self.data.isel(plate_ind=i).data[tuple(slcr)]
+                data = self.data[var].isel(plate_ind=i)
+                data = xr.DataArray(data.data[tuple(slcr)], dims=data.dims)
                 ret.append(transform(data))
             return ret
         crop = []
