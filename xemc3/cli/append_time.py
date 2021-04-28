@@ -37,9 +37,9 @@ def append_time(d: str, verbose: bool = False) -> None:
         print(" done")
 
 
-def main() -> None:
+def parser() -> ArgumentParser:
     parser = ArgumentParser(
-        """
+        description="""
         Load the data from EMC3 simulations and store as netcdf file. The
         data is appended for each simulation to the netcdf file, which
         will be created if it does not yet exists.
@@ -52,7 +52,11 @@ def main() -> None:
         called dir.nc if the folder was called dir.""",
     )
     parser.add_argument("-q", "--quiet", action="store_true", help="Be less verbose")
-    args = parser.parse_args()
+    return parser
+
+
+def main() -> None:
+    args = parser().parse_args()
 
     for d in args.path:
         append_time(d, not args.quiet)

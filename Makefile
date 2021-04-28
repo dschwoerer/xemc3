@@ -29,7 +29,11 @@ publish: check
 	#python3 -m twine upload dist/xemc3*.tar.gz
 	python -m twine upload --repository testpypi dist/*
 
-doc:
+docs/cli.rst: docs/cli.rst.in.py setup.cfg
+	python $< > $@.tmp
+	mv $@.tmp $@
+
+doc: docs/cli.rst
 	sphinx-build docs/ html/
 	@echo Documentation is in file://$$(pwd)/html/index.html
 

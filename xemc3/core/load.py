@@ -15,6 +15,30 @@ except ImportError:
 def _fromfile(
     f: typing.TextIO, *, count: int, dtype: DTypeLike, **kwargs
 ) -> np.ndarray:
+    """
+    Read count amount of dtype from the textio stream, i.e. a file
+    opened for reading. It always reads full lines. If there is more
+    data on the line then it should read, all data is returened. If
+    less data is read, then a shorter array is returned. Thus the
+    calling function needs to handle the case that more or less data
+    is returned.
+
+    Parameters
+    ----------
+    f : textio
+        the opened file
+    count : int
+        amount that should be read
+    dtype : dtype
+        the datatype to expect
+    kwargs : dict
+        Additional arguments for np.fromstring
+
+    Returns
+    -------
+    np.ndarray
+        The read data.
+    """
     ret = np.empty(count, dtype=dtype)  # type: np.ndarray
     pos = 0
     bad = re.compile(r"(\d)([+-]\d)")
@@ -289,6 +313,21 @@ def write_mappings(da: xr.DataArray, fn: str) -> None:
 
 
 def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
+    """
+    Read locations from folder path and add to dataset (if given).
+
+    Parameters
+    ----------
+    path : str
+        folder from which to read
+    ds : xr.Dataset (optional)
+        The dataset to add to. If not given return a new dataset.
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset with the coordinates set
+    """
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
@@ -306,24 +345,22 @@ def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     return ds
 
 
-def get_locations_old(path: str):
-    phi, r, z = read_locations(path + "/GRID_3D_DATA")
-
-    ds = xr.Dataset()
-    ds = ds.assign_coords({"R": (("r", "theta", "phi"), r)})
-    ds = ds.assign_coords({"z": (("r", "theta", "phi"), z)})
-    ds = ds.assign_coords({"phi": phi})
-    for d in "Rz":
-        ds[d].attrs["units"] = "meters"
-    return ds
-
-
 def scrape(f: typing.TextIO, *, ignore=None, verbose=False) -> str:
-    """read next data line from configuration file (skip lines with leading *)
-    f : fileobject to read from
-    ignore : (str or None) if any of the characters are given,
-             interpret as comment and remove. In this case only return
-             non-empty lines.
+    """read next data line from configuration file (skip lines with
+    leading *)
+
+    Parameters
+    ----------
+    f : textio
+        fileobject (opened file) to read from
+    ignore : (str or None)
+        if any of the characters are given, interpret as comment and
+        remove. In this case only return non-empty lines.
+
+    Returns
+    ------
+    str
+        the first non-ignored line
     """
     while True:
         s = f.readline()
@@ -342,12 +379,45 @@ def scrape(f: typing.TextIO, *, ignore=None, verbose=False) -> str:
 
 
 def _assert_eof(f: typing.TextIO, fn: str) -> None:
+    """Ensure the opened file is read to the end.
+
+    Parameters
+    ----------
+    f : textio
+        the opened file
+    fn : str
+        The name of the file, used for the error.
+
+    Raises
+    ------
+    AssertionError
+        if the file is not at the end.
+    """
     test = _fromfile(f, dtype=float, count=2, sep=" ")
     assert len(test) == 0, f"Expected EOF, but found more data in {fn}"
 
 
-def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
-    with open(cwd + fn) as f:
+def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
+    """
+    Read Target structures from a file that is in the Kisslinger
+    format as used by EMC3. It returns the coordinates as plain array
+    in the order or R, z, phi.
+
+    Parameters
+    ----------
+    filename : str
+        The location of the file to read
+
+    Returns
+    -------
+    np.ndarray
+        The major radius coordinates of the corners in meters.
+    np.ndarray
+        The z coordinate of the corners in meters
+    np.ndarray
+        the phi coordinate of the corners in radian
+    """
+    with open(filename) as f:
         # first line is a comment ...
         _ = next(f)
         setup = next(f).split()
@@ -361,16 +431,16 @@ def read_plate(cwd: str, fn: str = "") -> typing.Tuple[np.ndarray, ...]:
         for x in range(nx):
             phi[x] = float(next(f)) / 180 * np.pi
             for y in range(ny):
+                s = next(f)
                 try:
                     try:
-                        s = next(f)
                         r[x, y], z[x, y] = [float(i) / 100 for i in s.split()]
                     except ValueError:
                         s = s.split("!")[0]
                         r[x, y], z[x, y] = [float(i) / 100 for i in s.split()]
                 except ValueError:
-                    raise ValueError(f"Error with {s} in {cwd+fn}")
-        _assert_eof(f, cwd + fn)
+                    raise ValueError(f"Error with {s} in {filename}")
+        _assert_eof(f, filename)
         return (r, z, phi)
 
 
@@ -378,6 +448,21 @@ plates_labels = ["f_n", "f_E", "avg_n", "avg_Te", "avg_Ti"]
 
 
 def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
+    """
+    Read the target mapped info to a list of xr.Datasets
+
+    Parameters
+    ----------
+    cwd : str
+        The folder in which to look for the files (with trailing slash)
+    fn : str
+        the relative name of the file to read
+
+    Returns
+    -------
+    list of xr.Dataset
+        The read data as a list of datasets
+    """
     with open(cwd + fn) as f:
         s = scrape(f, ignore="!").split()
         _, num_plates = [int(i) for i in s]
@@ -386,7 +471,7 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
             s = scrape(f, ignore="!").split()
             assert len(s) == 2, f"{plate} : {s}"
             _, geom = s
-            r, z, phi = read_plate(cwd, geom)
+            r, z, phi = read_plate(cwd + geom)
             nx, ny = r.shape
             nx -= 1
             ny -= 1
@@ -530,6 +615,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
 
 
 def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
+    """
+    Convert a list of datasets to one dataset
+    """
     dims = {d: 0 for d in plates[0].dims}
     for plate in plates:
         for k, v in plate.dims.items():
@@ -571,6 +659,9 @@ def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
 
 
 def load_plates(cwd: str) -> xr.Dataset:
+    # Deprecate?
+    if cwd[-1] != "/":
+        cwd += "/"
     with timeit("\nReading raw: %f"):
         plates = read_plates_raw(cwd, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
@@ -578,6 +669,7 @@ def load_plates(cwd: str) -> xr.Dataset:
 
 
 def write_plates(cwd: str, plates: xr.Dataset) -> None:
+    # Deprecate?
     with timeit("Writing ncs: %f"):
         # Note we really should compress to get rid of the NaN's we added
         plates.to_netcdf(
@@ -590,7 +682,7 @@ def write_plates(cwd: str, plates: xr.Dataset) -> None:
 
 
 def read_plates(cwd: str) -> xr.Dataset:
-    # with timeit("Reading ncs: %f"):
+    # Deprecate?
     ds = xr.open_dataset(f"{cwd}/TARGET_PROFILES.nc")
     assert isinstance(ds, xr.Dataset)
     return ds
@@ -630,14 +722,49 @@ def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
 def ensure_mapping(
     dir: str,
     mapping: typing.Union[None, xr.Dataset, xr.DataArray] = None,
-    need_mapping=True,
+    need_mapping: bool = True,
+    fn: typing.Union[None, str] = None,
 ) -> xr.Dataset:
+    """
+    Ensure that basic infos are present to read datafiles.
+
+    Parameters
+    ----------
+    dir : str
+        The folder in which to look for files
+    mapping : None or xr.Dataset or xr.DataArray
+        Either the required mapping, in which case nothing is done, or
+        None, in which case the data is read.
+    need_mapping : bool (optional)
+        If true the mapping infomation has to be loaded, otherwise the
+        shape of the data is sufficient. Defaults to True.
+    fn : str (optional)
+        The file to read, used for a potential error message
+
+    Returns
+    -------
+    xr.Dataset
+        A dataset with the required information
+
+    Raises
+    ------
+    FileNotFoundError
+        If the required info could not be read
+    """
     if dir == "":
         dir = "."
     if mapping is None:
-        mapping = get_locations(dir)
-        if need_mapping:
-            mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+        try:
+            mapping = get_locations(dir)
+            if need_mapping:
+                mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+        except FileNotFoundError:
+            raise FileNotFoundError(
+                f"""Reading {fn+ ' ' if fn is not None else ''} mapped requires mapping information, but the required
+infomation in '{dir}' could not be found.  Ensure all files are present
+in the folder or pass in a dataset that contains the mapping
+informations."""
+            )
     else:
         if isinstance(mapping, xr.DataArray):
             mapping = xr.Dataset(dict(_plasma_map=mapping))
@@ -712,6 +839,7 @@ def read_mapped(
         numpy. Default: float
     squeeze : bool
         If True return a DataArray if only one field is read.
+
     Returns
     -------
     xr.DataArray or list of xr.DataArray
@@ -1128,11 +1256,15 @@ def read_fort_file_pub(
     Read a EMC3 simulation file. The expected content is derived from
     the filename.
 
+    Parameters
+    ----------
     fn : str
         The location of the file to read
     ds : xr.DataArray or xr.Dataset or None
         The mapping or a dataset containing a mapping or None. If one
         is needed and none is provided, it is read from the folder.
+    opts : dict
+        Additional options depending on the type of file that is read.
 
     Returns
     -------
@@ -1152,7 +1284,7 @@ def read_fort_file_pub(
 
 def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.Dataset:
     """
-    Read a EMC3 simulation file. The expected content is derived from the
+    Read an EMC3 simulation file and add to a dataset.
 
     """
     assert files == _files_bak

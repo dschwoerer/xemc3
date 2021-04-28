@@ -20,6 +20,7 @@ suggestions.
    :caption: Contents:
 
    xemc3
+   cli
 
 Installation
 ------------
