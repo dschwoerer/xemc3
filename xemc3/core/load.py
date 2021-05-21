@@ -537,12 +537,14 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 nxr = nx * xref
                 nyr = ny * yref
                 mode = 2
-            elif len(s) == 2:
+            else:
+                assert len(s) == 2, f"Unexpected string `{s}` while reading {cwd + fn}"
                 nyr, nxr = [int(i) for i in s]
                 xref = nxr // nx
                 yref = nyr // ny
                 items = nx * ny
                 mode = 1
+
             assert items == nx * ny
             if mode == 2:
                 data = _fromfile(f, dtype=float, count=nx * ny * 12, sep=" ")
