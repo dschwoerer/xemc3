@@ -45,7 +45,7 @@ def _fromfile(
 
     while True:
         line = f.readline()
-        if f == "":
+        if line == "":
             break
         line = bad.sub(r"\1E\2", line)
         new = np.fromstring(line, dtype=dtype, **kwargs)
