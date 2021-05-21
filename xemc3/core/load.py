@@ -614,12 +614,27 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
     return plates
 
 
-def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
+def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Dataset:
     """
     Convert a list of datasets to one dataset
+
+    Parameters
+    ----------
+    dss : sequence of xr.Datasets
+        The sequence of datasets that should be merged. Unlike
+        xr.combine_nested the input's do not need to have the same
+        shape, as the data is nan-padded.
+
+    axis : str
+        The name of the new axis
+
+    Returns
+    -------
+    xr.Dataset
+        The merged dataset with the new axes
     """
-    dims = {d: 0 for d in plates[0].dims}
-    for plate in plates:
+    dims = {d: 0 for d in dss[0].dims}
+    for plate in dss:
         for k, v in plate.dims.items():
             if dims[k] < v:
                 dims[k] = v
@@ -629,31 +644,31 @@ def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
     for k, v in dims.items():
         matching[k] = True
         org_dims = []
-        for plate in plates:
+        for plate in dss:
             org_dims.append(plate.dims[k])
             if plate.dims[k] != v:
                 matching[k] = False
         if not matching[k]:
             assert isinstance(k, str)
-            ds[k + "_dims"] = ("plate_ind", org_dims)
+            ds[k + "_dims"] = (axes, org_dims)
 
-    dims["plate_ind"] = len(plates)
+    dims[axes] = len(dss)
 
     def merge(var):
-        shape = [dims["plate_ind"]] + [dims[d] for d in plates[0][var].dims]
+        shape = [dims[axes]] + [dims[d] for d in dss[0][var].dims]
         data = np.empty(shape)
         data[...] = np.nan
-        for i, plate in enumerate(plates):
+        for i, plate in enumerate(dss):
             tmp = plate[var]
             data[tuple([i] + [slice(None, i) for i in tmp.shape])] = tmp
-        return ["plate_ind"] + list(plates[0][var].dims), data
+        return (axes, *dss[0][var].dims), data
 
-    for coord in plates[0].coords.keys():
+    for coord in dss[0].coords.keys():
         ds = ds.assign_coords({coord: merge(coord)})
 
-    for var in plates[0]:
+    for var in dss[0]:
         ds[var] = merge(var)
-        ds[var].attrs = plates[0][var].attrs
+        ds[var].attrs = dss[0][var].attrs
 
     return ds
 
@@ -665,7 +680,7 @@ def load_plates(cwd: str) -> xr.Dataset:
     with timeit("\nReading raw: %f"):
         plates = read_plates_raw(cwd, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
-        return plates_raw_to_ds(plates)
+        return merge_blocks(plates)
 
 
 def write_plates(cwd: str, plates: xr.Dataset) -> None:
