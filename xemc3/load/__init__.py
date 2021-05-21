@@ -12,6 +12,7 @@ from ..core.load import (
     read_fort_file_pub as file,
     load_all as all,
     read_var as var,
+    read_plate_nice as plates_geom,
     # Removed in 0.0.5
     #    read_mappings as mappings,
     #    read_mapped_nice as mapped,

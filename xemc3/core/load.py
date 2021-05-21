@@ -444,6 +444,60 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
         return (r, z, phi)
 
 
+def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dataset:
+    """
+    Read Target structures from a file that is in the Kisslinger
+    format as used by EMC3. It returns the coordinates as plain array
+    in the order or R, z, phi.
+
+    Parameters
+    ----------
+    filename : str or sequence of str
+        The location of the file to read
+
+    Returns
+    -------
+    xr.Dataset
+        The coordinates
+    """
+    if isinstance(filename, str):
+        return read_plate_ds(filename)
+    dss = [read_plate_ds(fn) for fn in filename]
+    return merge_blocks(dss)
+
+
+def read_plate_ds(filename: str) -> xr.Dataset:
+    """
+    Read Target structures from a file that is in the Kisslinger
+    format as used by EMC3. It returns the coordinates as plain array
+    in the order or R, z, phi.
+
+    Parameters
+    ----------
+    filename : str
+        The location of the file to read
+
+    Returns
+    -------
+    xr.Dataset
+        The coordinates
+    """
+    rzp = read_plate(filename)
+    out = xr.Dataset()
+    for name, dat in zip(("R", "z", "phi"), rzp):
+        if len(dat.shape) == 2:
+            dims = ["x", "phi"]
+        else:
+            assert len(dat.shape) == 1
+            dims = ["phi"]
+        out[f"{name}_corners"] = [f"{d}_plus1" for d in dims], dat
+    out.coords["R_corners"].attrs["units"] = "m"
+    out.coords["z_corners"].attrs["units"] = "m"
+    out.coords["phi_corners"].attrs["units"] = "radian"
+
+    return out
+
+
 plates_labels = ["f_n", "f_E", "avg_n", "avg_Te", "avg_Ti"]
 
 
