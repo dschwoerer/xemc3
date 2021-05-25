@@ -448,7 +448,7 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
     """
     Read Target structures from a file that is in the Kisslinger
     format as used by EMC3. It returns the coordinates as plain array
-    in the order or R, z, phi.
+    in the order of R, z, phi.
 
     Parameters
     ----------
@@ -469,8 +469,8 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
 def read_plate_ds(filename: str) -> xr.Dataset:
     """
     Read Target structures from a file that is in the Kisslinger
-    format as used by EMC3. It returns the coordinates as plain array
-    in the order or R, z, phi.
+    format as used by EMC3. It returns the coordinates as dataset
+    containing R, z and phi.
 
     Parameters
     ----------
@@ -730,7 +730,6 @@ def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Datas
 
 
 def load_plates(cwd: str) -> xr.Dataset:
-    # Deprecate?
     if cwd[-1] != "/":
         cwd += "/"
     with timeit("\nReading raw: %f"):
