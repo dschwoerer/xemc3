@@ -486,14 +486,14 @@ def read_plate_ds(filename: str) -> xr.Dataset:
     out = xr.Dataset()
     for name, dat in zip(("R", "z", "phi"), rzp):
         if len(dat.shape) == 2:
-            dims = ["x", "phi"]
+            dims = ["phi", "x"]
         else:
             assert len(dat.shape) == 1
             dims = ["phi"]
-        out[f"{name}_corners"] = [f"{d}_plus1" for d in dims], dat
-    out.coords["R_corners"].attrs["units"] = "m"
-    out.coords["z_corners"].attrs["units"] = "m"
-    out.coords["phi_corners"].attrs["units"] = "radian"
+        out[f"{name}"] = [f"{d}_plus1" for d in dims], dat
+    out["R"].attrs["units"] = "m"
+    out["z"].attrs["units"] = "m"
+    out["phi"].attrs["units"] = "radian"
 
     return out
 
