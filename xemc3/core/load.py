@@ -348,6 +348,8 @@ def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
             "phi_bounds": to_interval(("phi",), phi),
         }
     )
+    for x in ds.coords:
+        ds[x].attrs["xemc3_type"] = "geom"
     ds.emc3.unit("R_bounds", "m")
     ds.emc3.unit("z_bounds", "m")
     assert isinstance(ds, xr.Dataset)
@@ -1516,6 +1518,12 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "plates_mag":
         vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
+    elif type == "geom":
+        ds_ = read_locations(fn)
+        ds.assign_coords(ds_.coords)
+        assert opts == {}, "Unexpected arguments: " + ", ".join(
+            [f"{k}={v}" for k, v in opts.items()]
+        )
     elif type == "info":
         vars = opts.pop("vars")
         index = opts.pop("index")
@@ -1548,10 +1556,13 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         scale = varopts.pop("scale", 1)
         if scale != 1:
             ds[var].data *= scale
+
         attrs = varopts.pop("attrs", {})
+        attrs["xemc3_type"] = type
         for k in "long_name", "units", "notes":
             if k in varopts:
                 attrs[k] = varopts.pop(k)
+
         ds[var].attrs.update(attrs)
         assert (
             varopts == {}
