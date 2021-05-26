@@ -1,4 +1,4 @@
-from .utils import to_interval, timeit, prod, rrange
+from .utils import from_interval, to_interval, timeit, prod, rrange
 import os
 import xarray as xr
 import numpy as np
@@ -1600,6 +1600,81 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         ), f"variable {var} has options {varopts} but didn't expect anything"
     assert files == _files_bak
     return ds
+
+
+def guess_type(ds: xr.Dataset, key: str) -> str:
+    data = ds[key]
+    try:
+        return data.attrs["xemc3_type"]
+    except KeyError:
+        pass
+    if key == "_plasma_map":
+        return "mapping"
+    nameparts = key.split("_")
+    if len(nameparts) == 2:
+        if nameparts[0] in ["R", "z", "phi"] and nameparts[1] in [
+            "bounds",
+            "corners",
+        ]:
+            return "geom"
+    fulldims = len(
+        {"R", "phi", "z", "delta_R", "delta_z", "delta_phi"}.intersection(ds[key].dims)
+    )
+    if fulldims == 6:
+        return "full"
+    phidims = len({"phi", "delta_phi"}.intersection(ds[key].dims))
+    if phidims == fulldims == 2:
+        return "geom"
+    if data.dtype == bool:
+        return "plates_mag"
+    if data.dtype == int:
+        return "mapping"
+    return "mapped"
+
+
+def guess_kinetic(ds: xr.Dataset, key: str) -> bool:
+    pm = ds._plasma_map
+    assert ds[key].dtype in [float, np.float32, np.float16]
+    return np.any(np.isfinite(ds[key].data[(..., pm == pm.attrs["plasmacells"])]))
+
+
+def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -> None:
+    arch = xr.Dataset()
+    arch.attrs = ds.attrs
+    for k in list(ds.coords) + list(ds):
+        type = guess_type(ds, k)
+        if type == "mapped":
+            kinetic = guess_kinetic(ds, k)
+            arch[k] = (
+                *ds[k].dims[:-3],
+                "kinetic_map" if kinetic else "plasma_map",
+            ), to_mapped(ds[k], ds._plasma_map, guess_kinetic(ds, k))
+        elif type in ("geom", "full"):
+            if not geom:
+                continue
+            arch[k] = (
+                tuple([f"{x}_plus1" for x in ds[k].dims if x[:6] != "delta_"]),
+                from_interval(ds[k]),
+            )
+        elif type == "plates_mag":
+            if not geom:
+                continue
+            arch[k] = ds[k]
+        elif type == "mapping":
+            if not mapping:
+                continue
+            arch[k] = ds[k]
+        else:
+            arch[k] = ds[k]
+        arch[k].attrs = ds[k].attrs
+    arch.to_netcdf(
+        fn,
+        encoding={
+            i: {"zlib": True, "complevel": 9} for i in list(arch) + list(arch.coords)
+        },
+    )
+    print(f"done with {fn}")
+    pass
 
 
 def load_all(path, ignore_missing=None):
