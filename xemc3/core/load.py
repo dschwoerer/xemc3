@@ -6,6 +6,14 @@ import re
 import typing
 
 try:
+    from numba import jit
+
+    hasnumba = True
+except ImportError:
+    jit = lambda x: x
+    hasnumba = False
+
+try:
     from numpy.typing import DTypeLike
 except ImportError:
     # Workaround for python 3.6
@@ -1081,6 +1089,7 @@ def get_vars_for_file(
     return keys
 
 
+@jit
 def to_mapped_core(datdat, mapdat, out, count, max):
     if len(datdat.shape) == 3:
         for i in range(mapdat.shape[0]):
