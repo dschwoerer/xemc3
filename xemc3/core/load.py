@@ -321,7 +321,7 @@ def write_mappings(da: xr.DataArray, fn: str) -> None:
         _block_write(f, da.data.flatten(order="F") + 1, " %11d", 6)
 
 
-def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
+def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     """
     Read locations from folder path and add to dataset (if given).
 
@@ -834,7 +834,7 @@ def ensure_mapping(
         dir = "."
     if mapping is None:
         try:
-            mapping = get_locations(dir)
+            mapping = read_locations(dir)
             if need_mapping:
                 mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
         except FileNotFoundError:
@@ -1583,7 +1583,7 @@ def load_all(path, ignore_missing=None):
         in later versions will cause errors if the files are not
         present.
     """
-    ds = get_locations(path)
+    ds = read_locations(path)
     for fn, opts in files.items():
         opts = opts.copy()
         try:
