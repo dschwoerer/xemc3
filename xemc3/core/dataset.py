@@ -234,7 +234,7 @@ class EMC3DatasetAccessor:
             fn,
             encoding={
                 i: {"zlib": True, "complevel": complevel}
-                for i in [i for i in self.data] + [i for i in self.data.coords]
+                for i in list(self.data) + list(self.data.coords)
             },
         )
 
