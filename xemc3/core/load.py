@@ -1081,6 +1081,54 @@ def get_vars_for_file(
     return keys
 
 
+def to_mapped_core(datdat, mapdat, out, count, max):
+    if len(datdat.shape) == 3:
+        for i in range(mapdat.shape[0]):
+            for j in range(mapdat.shape[1]):
+                for k in range(mapdat.shape[2]):
+                    mapid = mapdat[i, j, k]
+                    if mapid < max:
+                        cdat = datdat[(..., i, j, k)]
+                        if not (np.isnan((cdat))):
+                            out[..., mapid] += cdat
+                            count[mapid] += 1
+    else:
+        for i in range(mapdat.shape[0]):
+            for j in range(mapdat.shape[1]):
+                for k in range(mapdat.shape[2]):
+                    mapid = mapdat[i, j, k]
+                    if mapid < max:
+                        cdat = datdat[(..., i, j, k)]
+                        if not (np.isnan((cdat))):
+                            out[..., mapid] += cdat
+                            count[mapid] += 1
+    out /= count
+    return out
+
+
+def to_mapped(
+    data: xr.DataArray,
+    mapping: xr.DataArray,
+    kinetic: bool = False,
+    dtype: typing.Union[DTypeLike, None] = None,
+) -> np.ndarray:
+
+    if kinetic:
+        max = np.max(mapping.values) + 1
+    else:
+        max = np.max(mapping.attrs["plasmacells"])
+    if dtype is None:
+        dtype = data.values.dtype
+
+    out = np.zeros((*data.shape[:-3], max), dtype=dtype)
+    mapdat = mapping.values
+    assert mapdat.dtype == int
+    datdat = data.values
+    count = np.zeros(max)
+    out = to_mapped_core(datdat, mapdat, out, count, max)
+    return out
+
+
 def write_mapped(
     datas,
     mapping,
@@ -1114,19 +1162,6 @@ def write_mapped(
     fmt : None or str
         The Format to be used for printing the data.
     """
-    if kinetic:
-        max = np.max(mapping.values) + 1
-    else:
-        max = np.max(mapping.attrs["plasmacells"])
-    if not isinstance(datas, list):
-        datas = [datas]
-    # if dtype:
-    #     if not dtype == datas[0].data.dtype:
-    #         raise AssertionError(
-    #             f"Expected dtype {dtype} but data has "
-    #             f"actually {datas[0].data.dtype} for "
-    #             f"file {fn}"
-    #         )
     if skip_first is not None:
         for d in datas:
             if skip_first:
@@ -1134,22 +1169,9 @@ def write_mapped(
             else:
                 if "print_before" in d.attrs:
                     assert d.attrs["print_before"] == ""
-    if dtype is None:
-        dtype = datas[0].values.dtype
-    # assert all([d.data.dtype == dtype for d in datas])
-    out = np.zeros((len(datas), max))
-    mapdat = mapping.values
-    assert mapdat.dtype == int
-    for j, data in enumerate(datas):
-        datdat = data.values
-        count = np.zeros(max)
-        for ijk in rrange(mapdat.shape):
-            mapid = mapdat[ijk]
-            if mapid < max:
-                if not np.isnan(datdat[ijk]):  # and mapid:
-                    out[j, mapid] += datdat[ijk]
-                    count[mapid] += 1
-        out[j, :] /= count
+    if not isinstance(datas, (list, tuple)):
+        datas = [datas]
+    out = [to_mapped(x, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
         for i, da in zip(out, datas):
             if "print_before" in da.attrs:
