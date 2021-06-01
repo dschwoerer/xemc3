@@ -3,6 +3,8 @@
 from argparse import ArgumentParser
 import sys
 import xemc3
+import os
+import xarray as xr
 
 long_names = {
     "f_n": "Particle flux",
@@ -28,8 +30,11 @@ def get_key(name):
 def plot(cwd, args):
     while cwd[-1] == "/":
         cwd = cwd[:-1]
-    cwd += "/"
-    plates = xemc3.load.plates(cwd)
+    if os.path.isdir(cwd):
+        cwd += "/"
+        plates = xemc3.load.plates(cwd)
+    else:
+        plates = xr.open_dataset(cwd)
     key = args.key
     if key not in plates:
         key = get_key(key)
