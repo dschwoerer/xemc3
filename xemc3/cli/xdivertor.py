@@ -116,13 +116,13 @@ def parser() -> ArgumentParser:
         "--key",
         default="Energy flux",
         type=get_name,
-        choices=[
-            "Particle flux",
-            "Energy flux",
-            "Averge density",
-            "Average electron temperature",
-            "Average ion temperature",
-        ],
+        # choices=[
+        #     "Particle flux",
+        #     "Energy flux",
+        #     "Averge density",
+        #     "Average electron temperature",
+        #     "Average ion temperature",
+        # ],
         help="Data to plot",
     )
     parser.add_argument("path", nargs=1, help="Path of data")
