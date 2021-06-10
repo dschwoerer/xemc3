@@ -1187,86 +1187,52 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         skip_first=1,
         kinetic=False,
         vars={
-            "ne": dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$", long_name="Electron density"),
-            ),
-            "nZ%d": dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$"),
-            ),
+            "ne": dict(scale=1e6, units="m$^{-3}$", long_name="Electron density"),
+            "nZ%d": dict(scale=1e6, units="m$^{-3}$"),
         },
     ),
-    "fort.33": dict(
-        type="mapped", vars={"M": dict(attrs=dict(long_name="Mach number"))}
-    ),
+    "fort.33": dict(type="mapped", vars={"M": dict(long_name="Mach number")}),
     "fort.30": dict(
         type="mapped",
         vars={
-            "Te": dict(attrs=dict(units="eV", long_name="Electron temperature")),
-            "Ti": dict(attrs=dict(units="eV", long_name="Ion temperature")),
+            "Te": dict(units="eV", long_name="Electron temperature"),
+            "Ti": dict(units="eV", long_name="Ion temperature"),
         },
     ),
     "CONNECTION_LENGTH": dict(
         type="mapped",
-        vars={
-            "Lc": dict(scale=1e-2, attrs=dict(units="m", long_name="Connection length"))
-        },
+        vars={"Lc": dict(scale=1e-2, units="m", long_name="Connection length")},
     ),
     "DENSITY_A": dict(
         type="mapped",
         kinetic=True,
         vars=dict(
-            nH=dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$", long_name="Atomic deuterium density"),
-            )
+            nH=dict(scale=1e6, units="m$^{-3}$", long_name="Atomic deuterium density")
         ),
     ),
     "DENSITY_M": dict(
         kinetic=True,
-        vars=dict(
-            nH2=dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$", long_name="D_2 density"),
-            )
-        ),
+        vars=dict(nH2=dict(scale=1e6, units="m$^{-3}$", long_name="D_2 density")),
     ),
     "DENSITY_I": dict(
         kinetic=True,
-        vars={
-            "nH2+": dict(
-                scale=1e6, attrs=dict(units="m$^{-3}$", long_name="D_2^+ density")
-            )
-        },
+        vars={"nH2+": dict(scale=1e6, units="m$^{-3}$", long_name="D_2^+ density")},
     ),
     "TEMPERATURE_A": dict(
         kinetic=True,
-        vars={
-            "TH": dict(attrs=dict(units="eV", long_name="Atomic hydrogen temperature"))
-        },
+        vars={"TH": dict(units="eV", long_name="Atomic hydrogen temperature")},
     ),
     "TEMPERATURE_M": dict(
         kinetic=True,
-        vars={
-            "TH": dict(attrs=dict(units="eV", long_name="Atomic hydrogen temperature"))
-        },
+        vars={"TH": dict(units="eV", long_name="Atomic hydrogen temperature")},
     ),
     "BFIELD_STRENGTH": dict(
         type="full",
-        vars={
-            "bf_bounds": dict(
-                attrs=dict(units="T", long_name="Magnetic field strength")
-            )
-        },
+        vars={"bf_bounds": dict(units="T", long_name="Magnetic field strength")},
     ),
     "PLATES_MAG": dict(
         type="plates_mag",
-        vars={
-            "PLATES_MAG": dict(
-                attrs=dict(long_name="Cells that are within or behind plates")
-            )
-        },
+        vars={"PLATES_MAG": dict(long_name="Cells that are within or behind plates")},
     ),
     # Some files - but don't know what they are
     "TEMPERATURE_I": dict(
