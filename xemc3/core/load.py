@@ -1150,6 +1150,27 @@ def write_mapped(
             _block_write(f, i, fmt=tfmt, bs=6)
 
 
+def read_info_file(
+    fn: str, vars: dict, index: typing.Optional[str] = None
+) -> xr.Dataset:
+    block = len(vars)
+    assert block > 0
+    ret = []
+    with open(fn) as f:
+        while True:
+            dat = _fromfile(f, dtype=float, count=block, sep=" ")
+            if len(dat) == 0:
+                dat = np.array(ret).T
+                ret = [xr.DataArray(d, dims=index) for d in dat]
+                return ret
+            if not len(dat) == block:
+                print(dat)
+                print(len(dat), block)
+                print(fn)
+                raise RuntimeError("Error reading file")
+            ret.append(dat)
+
+
 files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "fort.70": dict(type="mapping", vars={"_plasma_map": dict()}),
     "fort.31": dict(
@@ -1300,6 +1321,125 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         dtype=int,
         vars={"LG_CELL_%d": dict()},
     ),
+    "STREAMING_INFO": dict(
+        type="info",
+        index="index_stream",
+        vars={
+            "dens_change": dict(
+                long_name="Relative change in density",
+                scale=1e-2,
+                units="",
+                notes="Unlike in EMC3/pymc3 this is not percent.",
+            ),
+            "flow_change": dict(
+                long_name="Change in Flow",
+                notes="Not scaled",
+            ),
+            "part_balance": dict(
+                long_name="Global particle balance",
+                units="A",
+            ),
+            "dens_upstream": dict(
+                long_name="Upstream Density",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+            "dens_down_back": dict(
+                long_name="Downstream Density (backward direction)",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+            "dens_down_mean": dict(
+                long_name="Downstream Density (averaged)",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+            "dens_down_fwd": dict(
+                long_name="Downstream Density (forward direction)",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+        },
+    ),
+    "ENERGY_INFO": dict(
+        type="info",
+        index="index_energy",
+        vars={
+            "Te_change": dict(
+                long_name="Relative change in el. temperature",
+                scale=1e-2,
+                units="",
+                notes="Unlike in EMC3/pymc3 this is not percent.",
+            ),
+            "Te_upstream": dict(
+                long_name="Upstream el. temperature",
+                units="eV",
+            ),
+            "Te_down_back": dict(
+                long_name="Downstream el. temperature (backward direction)", units="eV"
+            ),
+            "Te_down_mean": dict(
+                long_name="Downstream el. temperature (averaged)", units="eV"
+            ),
+            "Te_down_fwd": dict(
+                long_name="Downstream el. temperature (forward direction)",
+                units="eV",
+            ),
+            "Ti_change": dict(
+                long_name="Change in ion temperature",
+                scale=1e-2,
+                units="",
+                notes="Unlike in EMC3/pymc3 this is not percent.",
+            ),
+            "Ti_upstream": dict(
+                long_name="Upstream ion temperature",
+                units="eV",
+            ),
+            "Ti_down_back": dict(
+                long_name="Downstream ion temperature (backward direction)", units="eV"
+            ),
+            "Ti_down_mean": dict(
+                long_name="Downstream ion temperature (averaged)", units="eV"
+            ),
+            "Ti_down_fwd": dict(
+                long_name="Downstream ion temperature (forward direction)",
+                units="eV",
+            ),
+            "P_loss_gas": dict(long_name="Power losses (neutral gas)", units="W"),
+            "P_loss_imp": dict(long_name="Power losses (impurities)", units="W"),
+            "P_loss_target": dict(long_name="Power losses (target)", units="W"),
+        },
+    ),
+    "NEUTRAL_INFO": dict(
+        type="info",
+        index="index_neut",
+        vars={
+            "ionization_core": dict(long_name="Core ionization"),
+            "ionization_edge": dict(long_name="Edge ionization"),
+            "ionization_electron": dict(
+                long_name="Electron energy source / ionization",
+                units="eV",
+            ),
+            "ionization_ion": dict(
+                long_name="Ion energy source / ionization",
+                units="eV",
+            ),
+            "ionization_moment_fwd": dict(
+                long_name="Forward momentum source/ ionization"
+            ),
+            "ionization_moment_bwk": dict(
+                long_name="Backward momentum source/ ionization"
+            ),
+        },
+    ),
+    "IMPURITY_INFO": dict(
+        type="info",
+        index="index_imp",
+        vars={
+            "TOTAL_FLX": dict(long_name="Total impurity flux"),
+            "TOTAL_RAD": dict(long_name="Total radiation", units="W"),
+        },
+    ),
 }
 
 if False:
@@ -1347,6 +1487,10 @@ def read_fort_file_pub(
     defaults = files[filename].copy()
     defaults.update(opts)
     type = defaults.get("type", "mapped")
+    if type == "info":
+        if ds is None:
+            ds = xr.Dataset()
+        return read_fort_file(ds, fn, **defaults)
     ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped")
     assert isinstance(ds, xr.Dataset)
     return read_fort_file(ds, fn, **defaults)
@@ -1375,6 +1519,10 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "plates_mag":
         vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
+    elif type == "info":
+        vars = opts.pop("vars")
+        index = opts.pop("index")
+        datas = read_info_file(fn, vars, index)
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
@@ -1403,8 +1551,13 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         if scale != 1:
             ds[var].data *= scale
         attrs = varopts.pop("attrs", {})
+        for k in "long_name", "units", "notes":
+            if k in varopts:
+                attrs[k] = varopts.pop(k)
         ds[var].attrs.update(attrs)
-        assert varopts == {}
+        assert (
+            varopts == {}
+        ), f"variable {var} has options {varopts} but didn't expect anything"
     assert files == _files_bak
     return ds
 
