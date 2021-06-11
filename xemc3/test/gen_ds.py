@@ -20,28 +20,44 @@ def hypo_shape(draw, max=1000):
 
 
 @st.composite
-def hypo_vars(draw):
+def hypo_vars(draw, skip=[]):
     files = []
     for v in load.files:
         if v in ("BFIELD_STRENGTH", "fort.70"):
+            continue
+        if v in skip:
             continue
         if draw(st.booleans()):
             t = [v]
             for k in load.files[v]["vars"]:
                 if "%" in k:
-                    t.append(draw(st.integers(min_value=1, max_value=20)))
+                    t.append(draw(st.integers(min_value=1, max_value=7)))
             files.append(t)
     return files
 
 
 @st.composite
-def hypo_vars12(draw):
-    files = draw(hypo_vars())
+def hypo_vars12(draw, skip_info=False):
+    skip = []
+    if skip_info:
+        skip += [
+            "NEUTRAL_INFO",
+            "ENERGY_INFO",
+            "IMPURITY_INFO",
+            "STREAMING_INFO",
+            # Merging of INFO files isn't supported yet, we just keep
+            # the last one ...
+        ]
+    files = draw(hypo_vars(skip=skip))
     # Skip some random files
-    # Also always skip PLATES_MAG:
-    #   * it shouldn't change in a simulation
-    #   * it is likely to be the same twice, thus resulting in a test failure
-    files2 = [f for f in files if draw(st.booleans()) and f[0] != "PLATES_MAG"]
+    skip += [
+        "PLATES_MAG",
+        # Also always skip PLATES_MAG:
+        #   * it shouldn't change in a simulation
+        #   * it is likely to be the same twice, thus resulting in
+        #     a test failure.
+    ]
+    files2 = [f for f in files if draw(st.booleans()) and f[0] not in skip]
     assume(len(files2))
     return files, files2
 

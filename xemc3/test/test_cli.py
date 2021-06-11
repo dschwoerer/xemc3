@@ -1,7 +1,7 @@
 from .. import write
 from . import gen_ds as g
 import tempfile
-from hypothesis import given, settings, strategies as st, assume, HealthCheck
+from hypothesis import given, settings, strategies as st
 from .test_write_load import assert_ds_are_equal
 import xarray as xr
 import os
@@ -18,17 +18,16 @@ def call(cmd: str) -> None:
     sys.argv = _argv
 
 
-@settings(**g.setting, suppress_health_check=[HealthCheck.filter_too_much])  # type: ignore
+@settings(**g.setting)  # type: ignore
 @given(
     g.hypo_shape(10),
-    g.hypo_vars12(),
+    g.hypo_vars12(skip_info=True),
     st.integers(min_value=1, max_value=3),
 )
 def test_append_ds(shape, v12, rep):
     for v in v12:
         for x in v:
-            print(x)
-            assume(not x[0].endswith("_INFO"))
+            assert not x[0].endswith("_INFO")
     do_test_append_ds(shape, v12, rep)
 
 
