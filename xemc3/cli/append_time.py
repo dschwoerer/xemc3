@@ -22,6 +22,10 @@ def append_time(d: str, verbose: bool = False) -> None:
             sys.stdout.flush()
         ds = load_all(d)
         if old is not None:
+            old = old.drop_dims(
+                ["index_" + f for f in ("stream", "energy", "neut", "imp")],
+                errors="ignore",
+            )
             ds = xr.concat([old, ds], "time", "different")
         if verbose:
             print(" writing ...", end="")
