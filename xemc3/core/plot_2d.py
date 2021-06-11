@@ -50,7 +50,6 @@ def plot_rz(
         data = np.zeros(das[0].shape[:2]) * np.nan
         if "edgecolors" not in kwargs:
             kwargs["edgecolors"] = "k"
-    print(data.shape)
     r = utils.from_interval(das[0])
     z = utils.from_interval(das[1])
     if ax is None:

@@ -20,28 +20,44 @@ def hypo_shape(draw, max=1000):
 
 
 @st.composite
-def hypo_vars(draw):
+def hypo_vars(draw, skip=[]):
     files = []
     for v in load.files:
         if v in ("BFIELD_STRENGTH", "fort.70"):
+            continue
+        if v in skip:
             continue
         if draw(st.booleans()):
             t = [v]
             for k in load.files[v]["vars"]:
                 if "%" in k:
-                    t.append(draw(st.integers(min_value=1, max_value=20)))
+                    t.append(draw(st.integers(min_value=1, max_value=7)))
             files.append(t)
     return files
 
 
 @st.composite
-def hypo_vars12(draw):
-    files = draw(hypo_vars())
+def hypo_vars12(draw, skip_info=False):
+    skip = []
+    if skip_info:
+        skip += [
+            "NEUTRAL_INFO",
+            "ENERGY_INFO",
+            "IMPURITY_INFO",
+            "STREAMING_INFO",
+            # Merging of INFO files isn't supported yet, we just keep
+            # the last one ...
+        ]
+    files = draw(hypo_vars(skip=skip))
     # Skip some random files
-    # Also always skip PLATES_MAG:
-    #   * it shouldn't change in a simulation
-    #   * it is likely to be the same twice, thus resulting in a test failure
-    files2 = [f for f in files if draw(st.booleans()) and f[0] != "PLATES_MAG"]
+    skip += [
+        "PLATES_MAG",
+        # Also always skip PLATES_MAG:
+        #   * it shouldn't change in a simulation
+        #   * it is likely to be the same twice, thus resulting in
+        #     a test failure.
+    ]
+    files2 = [f for f in files if draw(st.booleans()) and f[0] not in skip]
     assume(len(files2))
     return files, files2
 
@@ -79,6 +95,16 @@ def gen_rand(shape, files):
     for k in "R_bounds", "z_bounds":
         ds[k].attrs["units"] = "m"
     ds.emc3["phi_corners"] = ("phi",), np.random.random(shape[2] + 1)
+
+    def get_attrs(vsv):
+        out = {}
+        if "attrs" in vsv:
+            out.update(vsv["attrs"])
+        for attr in "long_name", "units", "notes":
+            if attr in vsv:
+                out[attr] = vs[v][attr]
+        return out
+
     for f in load.files:
         ids = 3
         if files is not None:
@@ -95,12 +121,14 @@ def gen_rand(shape, files):
         vs = load.files[f]["vars"]
         for v in vs:
             if v in ds:
-                if "attrs" in vs[v]:
-                    ds[v].attrs.update(vs[v]["attrs"])
+                ds[v].attrs.update(get_attrs(vs[v]))
                 continue
-            genf = {"mapped": gen_mapped, "full": gen_bf, "plates_mag": gen_plates_mag}[
-                load.files[f].get("type", "mapped")
-            ]
+            genf = {
+                "mapped": gen_mapped,
+                "full": gen_bf,
+                "plates_mag": gen_plates_mag,
+                "info": gen_info,
+            }[load.files[f].get("type", "mapped")]
             if load.files[f].get("kinetic", False):
                 assert genf == gen_mapped
                 genf = gen_kinetic
@@ -112,14 +140,15 @@ def gen_rand(shape, files):
                     ds[v % i] = genf(ds)
                     if dtype != float:
                         ds[v % i] = genf(ds)[0], np.round(genf(ds)[1] * 20)
-                    if "attrs" in vs[v]:
-                        ds[v % i].attrs = vs[v]["attrs"].copy()
+                    ds[v % i].attrs.update(get_attrs(vs[v]))
                     if pre:
                         ds[v % i].attrs["print_before"] = "   %d\n" % i
             else:
-                ds[v] = genf(ds)
-                if "attrs" in vs[v]:
-                    ds[v].attrs = vs[v]["attrs"].copy()
+                if genf == gen_info:
+                    ds[v] = genf(ds, load.files[f]["index"])
+                else:
+                    ds[v] = genf(ds)
+                ds[v].attrs.update(get_attrs(vs[v]))
                 if pre:
                     ds[v].attrs["print_before"] = "   %d\n" % i
             i += 1
@@ -186,6 +215,15 @@ def gen_mapping(shape):
         pc = 1
     da.attrs = dict(numcells=i, plasmacells=pc, other=np.max(dat) + 1)
     return da
+
+
+def gen_info(ds: xr.Dataset, index: str) -> xr.DataArray:
+    if index in ds.dims:
+        length = len(ds[index])
+    else:
+        length = np.random.randint(2, 6)
+    dat = np.random.random(length)
+    return xr.DataArray(dat, dims=index)
 
 
 class rotating_circle(object):

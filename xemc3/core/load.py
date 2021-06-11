@@ -12,6 +12,15 @@ except ImportError:
     DTypeLike = typing.Type  # type: ignore
 
 
+_org_open = open
+
+
+def open(fn, *args):
+    if fn[0] == "~":
+        fn = os.environ["HOME"] + fn[1:]
+    return _org_open(fn, *args)
+
+
 def _fromfile(
     f: typing.TextIO, *, count: int, dtype: DTypeLike, **kwargs
 ) -> np.ndarray:
@@ -45,7 +54,7 @@ def _fromfile(
 
     while True:
         line = f.readline()
-        if f == "":
+        if line == "":
             break
         line = bad.sub(r"\1E\2", line)
         new = np.fromstring(line, dtype=dtype, **kwargs)
@@ -444,6 +453,60 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
         return (r, z, phi)
 
 
+def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dataset:
+    """
+    Read Target structures from a file that is in the Kisslinger
+    format as used by EMC3. It returns the coordinates as plain array
+    in the order of R, z, phi.
+
+    Parameters
+    ----------
+    filename : str or sequence of str
+        The location of the file to read
+
+    Returns
+    -------
+    xr.Dataset
+        The coordinates
+    """
+    if isinstance(filename, str):
+        return read_plate_ds(filename)
+    dss = [read_plate_ds(fn) for fn in filename]
+    return merge_blocks(dss)
+
+
+def read_plate_ds(filename: str) -> xr.Dataset:
+    """
+    Read Target structures from a file that is in the Kisslinger
+    format as used by EMC3. It returns the coordinates as dataset
+    containing R, z and phi.
+
+    Parameters
+    ----------
+    filename : str
+        The location of the file to read
+
+    Returns
+    -------
+    xr.Dataset
+        The coordinates
+    """
+    rzp = read_plate(filename)
+    out = xr.Dataset()
+    for name, dat in zip(("R", "z", "phi"), rzp):
+        if len(dat.shape) == 2:
+            dims = ["phi", "x"]
+        else:
+            assert len(dat.shape) == 1
+            dims = ["phi"]
+        out[f"{name}"] = [f"{d}_plus1" for d in dims], dat
+    out["R"].attrs["units"] = "m"
+    out["z"].attrs["units"] = "m"
+    out["phi"].attrs["units"] = "radian"
+
+    return out
+
+
 plates_labels = ["f_n", "f_E", "avg_n", "avg_Te", "avg_Ti"]
 
 
@@ -483,12 +546,14 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 nxr = nx * xref
                 nyr = ny * yref
                 mode = 2
-            elif len(s) == 2:
+            else:
+                assert len(s) == 2, f"Unexpected string `{s}` while reading {cwd + fn}"
                 nyr, nxr = [int(i) for i in s]
                 xref = nxr // nx
                 yref = nyr // ny
                 items = nx * ny
                 mode = 1
+
             assert items == nx * ny
             if mode == 2:
                 data = _fromfile(f, dtype=float, count=nx * ny * 12, sep=" ")
@@ -614,12 +679,27 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
     return plates
 
 
-def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
+def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Dataset:
     """
     Convert a list of datasets to one dataset
+
+    Parameters
+    ----------
+    dss : sequence of xr.Datasets
+        The sequence of datasets that should be merged. Unlike
+        xr.combine_nested the input's do not need to have the same
+        shape, as the data is nan-padded.
+
+    axis : str
+        The name of the new axis
+
+    Returns
+    -------
+    xr.Dataset
+        The merged dataset with the new axes
     """
-    dims = {d: 0 for d in plates[0].dims}
-    for plate in plates:
+    dims = {d: 0 for d in dss[0].dims}
+    for plate in dss:
         for k, v in plate.dims.items():
             if dims[k] < v:
                 dims[k] = v
@@ -629,43 +709,42 @@ def plates_raw_to_ds(plates: typing.Sequence[xr.Dataset]) -> xr.Dataset:
     for k, v in dims.items():
         matching[k] = True
         org_dims = []
-        for plate in plates:
+        for plate in dss:
             org_dims.append(plate.dims[k])
             if plate.dims[k] != v:
                 matching[k] = False
         if not matching[k]:
             assert isinstance(k, str)
-            ds[k + "_dims"] = ("plate_ind", org_dims)
+            ds[k + "_dims"] = (axes, org_dims)
 
-    dims["plate_ind"] = len(plates)
+    dims[axes] = len(dss)
 
     def merge(var):
-        shape = [dims["plate_ind"]] + [dims[d] for d in plates[0][var].dims]
+        shape = [dims[axes]] + [dims[d] for d in dss[0][var].dims]
         data = np.empty(shape)
         data[...] = np.nan
-        for i, plate in enumerate(plates):
+        for i, plate in enumerate(dss):
             tmp = plate[var]
             data[tuple([i] + [slice(None, i) for i in tmp.shape])] = tmp
-        return ["plate_ind"] + list(plates[0][var].dims), data
+        return (axes, *dss[0][var].dims), data
 
-    for coord in plates[0].coords.keys():
+    for coord in dss[0].coords.keys():
         ds = ds.assign_coords({coord: merge(coord)})
 
-    for var in plates[0]:
+    for var in dss[0]:
         ds[var] = merge(var)
-        ds[var].attrs = plates[0][var].attrs
+        ds[var].attrs = dss[0][var].attrs
 
     return ds
 
 
 def load_plates(cwd: str) -> xr.Dataset:
-    # Deprecate?
     if cwd[-1] != "/":
         cwd += "/"
     with timeit("\nReading raw: %f"):
         plates = read_plates_raw(cwd, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
-        return plates_raw_to_ds(plates)
+        return merge_blocks(plates)
 
 
 def write_plates(cwd: str, plates: xr.Dataset) -> None:
@@ -1080,6 +1159,45 @@ def write_mapped(
             _block_write(f, i, fmt=tfmt, bs=6)
 
 
+def read_info_file(
+    fn: str, vars: dict, index: typing.Optional[str] = None
+) -> typing.List[xr.DataArray]:
+    block = len(vars)
+    assert block > 0
+    ret: typing.List[np.ndarray] = []
+    with open(fn) as f:
+        while True:
+            dat = _fromfile(f, dtype=float, count=block, sep=" ")
+            if len(dat) == 0:
+                dat = np.array(ret).T
+                return [xr.DataArray(d, dims=index) for d in dat]
+            if not len(dat) == block:
+                print(dat)
+                print(len(dat), block)
+                print(fn)
+                raise RuntimeError("Error reading file")
+            ret.append(dat)
+
+
+def write_info_file(fn: str, ds: xr.Dataset) -> None:
+    info = files[fn.split("/")[-1]]
+    fmt = info["fmt"]
+    dats: typing.List[np.ndarray] = []
+    for v, i in info["vars"].items():
+        dats.append(ds[v].data)
+        if "scale" in i:
+            # Make copy, so we don't change underlying data
+            dats[-1] = dats[-1] / i["scale"]
+    dat = np.array(dats)
+    fmtc = fmt.count("%")
+    assert fmtc == len(
+        dat
+    ), f"Found {fmtc} format specifiers but data has {len(dat)} values. Format is {fmt}."
+    with open(fn, "w") as f:
+        for d in dat.T:
+            f.write(fmt % tuple(d) + "\n")
+
+
 files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "fort.70": dict(type="mapping", vars={"_plasma_map": dict()}),
     "fort.31": dict(
@@ -1087,86 +1205,52 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         skip_first=1,
         kinetic=False,
         vars={
-            "ne": dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$", long_name="Electron density"),
-            ),
-            "nZ%d": dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$"),
-            ),
+            "ne": dict(scale=1e6, units="m$^{-3}$", long_name="Electron density"),
+            "nZ%d": dict(scale=1e6, units="m$^{-3}$"),
         },
     ),
-    "fort.33": dict(
-        type="mapped", vars={"M": dict(attrs=dict(long_name="Mach number"))}
-    ),
+    "fort.33": dict(type="mapped", vars={"M": dict(long_name="Mach number")}),
     "fort.30": dict(
         type="mapped",
         vars={
-            "Te": dict(attrs=dict(units="eV", long_name="Electron temperature")),
-            "Ti": dict(attrs=dict(units="eV", long_name="Ion temperature")),
+            "Te": dict(units="eV", long_name="Electron temperature"),
+            "Ti": dict(units="eV", long_name="Ion temperature"),
         },
     ),
     "CONNECTION_LENGTH": dict(
         type="mapped",
-        vars={
-            "Lc": dict(scale=1e-2, attrs=dict(units="m", long_name="Connection length"))
-        },
+        vars={"Lc": dict(scale=1e-2, units="m", long_name="Connection length")},
     ),
     "DENSITY_A": dict(
         type="mapped",
         kinetic=True,
         vars=dict(
-            nH=dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$", long_name="Atomic deuterium density"),
-            )
+            nH=dict(scale=1e6, units="m$^{-3}$", long_name="Atomic deuterium density")
         ),
     ),
     "DENSITY_M": dict(
         kinetic=True,
-        vars=dict(
-            nH2=dict(
-                scale=1e6,
-                attrs=dict(units="m$^{-3}$", long_name="D_2 density"),
-            )
-        ),
+        vars=dict(nH2=dict(scale=1e6, units="m$^{-3}$", long_name="D_2 density")),
     ),
     "DENSITY_I": dict(
         kinetic=True,
-        vars={
-            "nH2+": dict(
-                scale=1e6, attrs=dict(units="m$^{-3}$", long_name="D_2^+ density")
-            )
-        },
+        vars={"nH2+": dict(scale=1e6, units="m$^{-3}$", long_name="D_2^+ density")},
     ),
     "TEMPERATURE_A": dict(
         kinetic=True,
-        vars={
-            "TH": dict(attrs=dict(units="eV", long_name="Atomic hydrogen temperature"))
-        },
+        vars={"TH": dict(units="eV", long_name="Atomic hydrogen temperature")},
     ),
     "TEMPERATURE_M": dict(
         kinetic=True,
-        vars={
-            "TH": dict(attrs=dict(units="eV", long_name="Atomic hydrogen temperature"))
-        },
+        vars={"TH": dict(units="eV", long_name="Atomic hydrogen temperature")},
     ),
     "BFIELD_STRENGTH": dict(
         type="full",
-        vars={
-            "bf_bounds": dict(
-                attrs=dict(units="T", long_name="Magnetic field strength")
-            )
-        },
+        vars={"bf_bounds": dict(units="T", long_name="Magnetic field strength")},
     ),
     "PLATES_MAG": dict(
         type="plates_mag",
-        vars={
-            "PLATES_MAG": dict(
-                attrs=dict(long_name="Cells that are within or behind plates")
-            )
-        },
+        vars={"PLATES_MAG": dict(long_name="Cells that are within or behind plates")},
     ),
     # Some files - but don't know what they are
     "TEMPERATURE_I": dict(
@@ -1230,6 +1314,129 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         dtype=int,
         vars={"LG_CELL_%d": dict()},
     ),
+    "STREAMING_INFO": dict(
+        type="info",
+        index="index_stream",
+        fmt="%6.2f %5.3f %10.3E %10.3E %10.3E %10.3E %10.3E",
+        vars={
+            "dens_change": dict(
+                long_name="Relative change in density",
+                scale=1e-2,
+                units="",
+                notes="Unlike in EMC3/pymc3 this is not percent.",
+            ),
+            "flow_change": dict(
+                long_name="Change in Flow",
+                notes="Not scaled",
+            ),
+            "part_balance": dict(
+                long_name="Global particle balance",
+                units="A",
+            ),
+            "dens_upstream": dict(
+                long_name="Upstream Density",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+            "dens_down_back": dict(
+                long_name="Downstream Density (backward direction)",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+            "dens_down_mean": dict(
+                long_name="Downstream Density (averaged)",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+            "dens_down_fwd": dict(
+                long_name="Downstream Density (forward direction)",
+                scale=1e6,
+                units="m$^{-3}$",
+            ),
+        },
+    ),
+    "ENERGY_INFO": dict(
+        type="info",
+        index="index_energy",
+        fmt=("%6.1f" + " %11.4E" * 4 + "\n") * 2 + " " * 18 + 3 * " %11.4E",
+        vars={
+            "Te_change": dict(
+                long_name="Relative change in el. temperature",
+                scale=1e-2,
+                units="",
+                notes="Unlike in EMC3/pymc3 this is not percent.",
+            ),
+            "Te_upstream": dict(
+                long_name="Upstream el. temperature",
+                units="eV",
+            ),
+            "Te_down_back": dict(
+                long_name="Downstream el. temperature (backward direction)", units="eV"
+            ),
+            "Te_down_mean": dict(
+                long_name="Downstream el. temperature (averaged)", units="eV"
+            ),
+            "Te_down_fwd": dict(
+                long_name="Downstream el. temperature (forward direction)",
+                units="eV",
+            ),
+            "Ti_change": dict(
+                long_name="Change in ion temperature",
+                scale=1e-2,
+                units="",
+                notes="Unlike in EMC3/pymc3 this is not percent.",
+            ),
+            "Ti_upstream": dict(
+                long_name="Upstream ion temperature",
+                units="eV",
+            ),
+            "Ti_down_back": dict(
+                long_name="Downstream ion temperature (backward direction)", units="eV"
+            ),
+            "Ti_down_mean": dict(
+                long_name="Downstream ion temperature (averaged)", units="eV"
+            ),
+            "Ti_down_fwd": dict(
+                long_name="Downstream ion temperature (forward direction)",
+                units="eV",
+            ),
+            "P_loss_gas": dict(long_name="Power losses (neutral gas)", units="W"),
+            "P_loss_imp": dict(long_name="Power losses (impurities)", units="W"),
+            "P_loss_target": dict(long_name="Power losses (target)", units="W"),
+        },
+    ),
+    "NEUTRAL_INFO": dict(
+        type="info",
+        index="index_neut",
+        fmt="%12.4E" + (" %11.4E" * 5),
+        vars={
+            "ionization_core": dict(long_name="Core ionization"),
+            "ionization_edge": dict(long_name="Edge ionization"),
+            "ionization_electron": dict(
+                long_name="Electron energy source / ionization",
+                units="eV",
+            ),
+            "ionization_ion": dict(
+                long_name="Ion energy source / ionization",
+                units="eV",
+            ),
+            "ionization_moment_fwd": dict(
+                long_name="Forward momentum source/ ionization"
+            ),
+            "ionization_moment_bwk": dict(
+                long_name="Backward momentum source/ ionization"
+            ),
+        },
+    ),
+    "IMPURITY_INFO": dict(
+        type="info",
+        index="index_imp",
+        fmt="%12.4E %11.4E",
+        vars={
+            "TOTAL_FLX": dict(long_name="Total impurity flux"),
+            "TOTAL_RAD": dict(long_name="Total radiation", units="W"),
+        },
+    ),
 }
 
 if False:
@@ -1277,6 +1484,10 @@ def read_fort_file_pub(
     defaults = files[filename].copy()
     defaults.update(opts)
     type = defaults.get("type", "mapped")
+    if type == "info":
+        if not isinstance(ds, xr.Dataset):
+            ds = xr.Dataset()
+        return read_fort_file(ds, fn, **defaults)
     ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped")
     assert isinstance(ds, xr.Dataset)
     return read_fort_file(ds, fn, **defaults)
@@ -1305,6 +1516,11 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "plates_mag":
         vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
+    elif type == "info":
+        vars = opts.pop("vars")
+        index = opts.pop("index")
+        opts.pop("fmt")
+        datas = read_info_file(fn, vars, index)
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
@@ -1333,8 +1549,13 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         if scale != 1:
             ds[var].data *= scale
         attrs = varopts.pop("attrs", {})
+        for k in "long_name", "units", "notes":
+            if k in varopts:
+                attrs[k] = varopts.pop(k)
         ds[var].attrs.update(attrs)
-        assert varopts == {}
+        assert (
+            varopts == {}
+        ), f"variable {var} has options {varopts} but didn't expect anything"
     assert files == _files_bak
     return ds
 
@@ -1390,6 +1611,8 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
     elif type == "plates_mag":
         vars = opts.pop("vars")
         write_plates_mag(f"{dir}/{fn}", ds)
+    elif type == "info":
+        write_info_file(f"{dir}/{fn}", ds)
     else:
         raise RuntimeError(f"Unexpected type {type}")
 
@@ -1408,7 +1631,6 @@ def write_all_fortran(ds, dir):
     write_locations(ds, f"{dir}/GRID_3D_DATA")
     for fn, opts in files.items():
         try:
-
             get_vars_for_file(ds, fn)
         except KeyError:
             pass
