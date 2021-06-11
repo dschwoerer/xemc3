@@ -1161,17 +1161,16 @@ def write_mapped(
 
 def read_info_file(
     fn: str, vars: dict, index: typing.Optional[str] = None
-) -> xr.Dataset:
+) -> typing.List[xr.DataArray]:
     block = len(vars)
     assert block > 0
-    ret = []
+    ret: typing.List[np.ndarray] = []
     with open(fn) as f:
         while True:
             dat = _fromfile(f, dtype=float, count=block, sep=" ")
             if len(dat) == 0:
                 dat = np.array(ret).T
-                ret = [xr.DataArray(d, dims=index) for d in dat]
-                return ret
+                return [xr.DataArray(d, dims=index) for d in dat]
             if not len(dat) == block:
                 print(dat)
                 print(len(dat), block)
@@ -1463,7 +1462,7 @@ def read_fort_file_pub(
     defaults.update(opts)
     type = defaults.get("type", "mapped")
     if type == "info":
-        if ds is None:
+        if not isinstance(ds, xr.Dataset):
             ds = xr.Dataset()
         return read_fort_file(ds, fn, **defaults)
     ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped")
