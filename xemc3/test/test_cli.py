@@ -1,7 +1,7 @@
 from .. import write
 from . import gen_ds as g
 import tempfile
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings, strategies as st, assume, HealthCheck
 from .test_write_load import assert_ds_are_equal
 import xarray as xr
 import os
@@ -18,13 +18,17 @@ def call(cmd: str) -> None:
     sys.argv = _argv
 
 
-@settings(**g.setting)  # type: ignore
+@settings(**g.setting, suppress_health_check=[HealthCheck.filter_too_much])  # type: ignore
 @given(
     g.hypo_shape(10),
     g.hypo_vars12(),
     st.integers(min_value=1, max_value=3),
 )
 def test_append_ds(shape, v12, rep):
+    for v in v12:
+        for x in v:
+            print(x)
+            assume(not x[0].endswith("_INFO"))
     do_test_append_ds(shape, v12, rep)
 
 
@@ -55,6 +59,10 @@ def do_test_append_ds(shape, v12, rep):
     st.integers(min_value=1, max_value=3),
 )
 def test_to_netcdf_ds(shape, var, rep):
+    do_to_netcdf_ds(shape, var, rep)
+
+
+def do_to_netcdf_ds(shape, var, rep):
     out = "test"
     with tempfile.TemporaryDirectory() as dir:
         dir = dir + "/" + out
@@ -71,4 +79,5 @@ def test_to_netcdf_ds(shape, var, rep):
 
 
 if __name__ == "__main__":
-    do_test_append_ds((2, 2, 2), ([["LG_CELL", 1]], [["LG_CELL", 1]]), 1)
+    do_test_append_ds((2, 2, 2), ([["ENERGY_INFO"]], [["ENERGY_INFO"]]), 1)
+    # do_to_netcdf_ds((1, 1, 1), [["ENERGY_INFO"]], 1)

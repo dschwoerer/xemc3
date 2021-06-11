@@ -6,20 +6,19 @@ from hypothesis import settings, given
 
 
 def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
-    print()
-    print(xemc3.core.load.files["LG_CELL"], xemc3.core.load._files_bak["LG_CELL"])
-    print()
     d1k = [k for k in d1] + [k for k in d1.coords]
     d2k = [k for k in d2] + [k for k in d2.coords]
     if not set(d1k) == set(d2k):
         raise AssertionError(f"{d1.keys()} != {d2.keys()}")
     for k in d1k:
-        assert_da_are_equal(d1[k], d2[k], k, check_attrs, rtol, atol)
+        assert_da_are_equal(
+            d1[k], d2[k], k, check_attrs, rtol, 1e-3 if k.endswith("_change") else atol
+        )
 
 
 def assert_da_are_equal(d1, d2, k, check_attrs, rtol, atol):
     slc = np.isfinite(d1.data)
-    if not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol).all():
+    if not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol, atol=atol).all():
         raise AssertionError(
             f"""var {k} is changed.
 
