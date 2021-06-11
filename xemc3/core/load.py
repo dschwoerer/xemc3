@@ -1179,6 +1179,25 @@ def read_info_file(
             ret.append(dat)
 
 
+def write_info_file(fn: str, ds: xr.Dataset) -> None:
+    info = files[fn.split("/")[-1]]
+    fmt = info["fmt"]
+    dats: typing.List[np.ndarray] = []
+    for v, i in info["vars"].items():
+        dats.append(ds[v].data)
+        if "scale" in i:
+            # Make copy, so we don't change underlying data
+            dats[-1] = dats[-1] / i["scale"]
+    dat = np.array(dats)
+    fmtc = fmt.count("%")
+    assert fmtc == len(
+        dat
+    ), f"Found {fmtc} format specifiers but data has {len(dat)} values. Format is {fmt}."
+    with open(fn, "w") as f:
+        for d in dat.T:
+            f.write(fmt % tuple(d) + "\n")
+
+
 files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "fort.70": dict(type="mapping", vars={"_plasma_map": dict()}),
     "fort.31": dict(
@@ -1298,6 +1317,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "STREAMING_INFO": dict(
         type="info",
         index="index_stream",
+        fmt="%6.2f %5.3f %10.3E %10.3E %10.3E %10.3E %10.3E",
         vars={
             "dens_change": dict(
                 long_name="Relative change in density",
@@ -1338,6 +1358,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "ENERGY_INFO": dict(
         type="info",
         index="index_energy",
+        fmt=("%6.1f" + " %11.4E" * 4 + "\n") * 2 + " " * 18 + 3 * " %11.4E",
         vars={
             "Te_change": dict(
                 long_name="Relative change in el. temperature",
@@ -1387,6 +1408,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "NEUTRAL_INFO": dict(
         type="info",
         index="index_neut",
+        fmt="%12.4E" + (" %11.4E" * 5),
         vars={
             "ionization_core": dict(long_name="Core ionization"),
             "ionization_edge": dict(long_name="Edge ionization"),
@@ -1409,6 +1431,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     "IMPURITY_INFO": dict(
         type="info",
         index="index_imp",
+        fmt="%12.4E %11.4E",
         vars={
             "TOTAL_FLX": dict(long_name="Total impurity flux"),
             "TOTAL_RAD": dict(long_name="Total radiation", units="W"),
@@ -1496,6 +1519,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "info":
         vars = opts.pop("vars")
         index = opts.pop("index")
+        opts.pop("fmt")
         datas = read_info_file(fn, vars, index)
     else:
         raise RuntimeError(f"Unexpected type {type}")
@@ -1587,6 +1611,8 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
     elif type == "plates_mag":
         vars = opts.pop("vars")
         write_plates_mag(f"{dir}/{fn}", ds)
+    elif type == "info":
+        write_info_file(f"{dir}/{fn}", ds)
     else:
         raise RuntimeError(f"Unexpected type {type}")
 
@@ -1605,7 +1631,6 @@ def write_all_fortran(ds, dir):
     write_locations(ds, f"{dir}/GRID_3D_DATA")
     for fn, opts in files.items():
         try:
-
             get_vars_for_file(ds, fn)
         except KeyError:
             pass
