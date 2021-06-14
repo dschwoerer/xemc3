@@ -6,12 +6,12 @@ import re
 import typing
 
 try:
-    from numba import jit
-
-    hasnumba = True
+    from numba import jit  # type: ignore
 except ImportError:
-    jit = lambda x: x
-    hasnumba = False
+
+    def jit(x):
+        return x
+
 
 try:
     from numpy.typing import DTypeLike
