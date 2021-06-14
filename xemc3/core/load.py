@@ -173,7 +173,7 @@ def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
         _block_write(f, bf, "%7.4f")
 
 
-def read_locations(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Read spatial positions of grid points
 
@@ -348,7 +348,7 @@ def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
-    phi, r, z = read_locations(path + "/GRID_3D_DATA")
+    phi, r, z = read_locations_raw(path + "/GRID_3D_DATA")
     ds = ds.assign_coords(
         {
             "R_bounds": to_interval(("r", "theta", "phi"), r),
