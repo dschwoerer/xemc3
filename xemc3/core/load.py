@@ -1180,7 +1180,7 @@ def write_mapped(
                     assert d.attrs["print_before"] == ""
     if not isinstance(datas, (list, tuple)):
         datas = [datas]
-    out = [to_mapped(x, kinetic, dtype) for x in datas]
+    out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
         for i, da in zip(out, datas):
             if "print_before" in da.attrs:
