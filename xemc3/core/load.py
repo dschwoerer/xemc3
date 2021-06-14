@@ -1090,7 +1090,9 @@ def get_vars_for_file(
 
 
 @jit
-def to_mapped_core(datdat, mapdat, out, count, max):
+def to_mapped_core(
+    datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
+) -> np.ndarray:
     if len(datdat.shape) == 3:
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
@@ -1133,8 +1135,12 @@ def to_mapped(
     mapdat = mapping.values
     assert mapdat.dtype == int
     datdat = data.values
-    count = np.zeros(max)
-    out = to_mapped_core(datdat, mapdat, out, count, max)
+    count = np.zeros(max, dtype=int)
+    args = datdat, mapdat, out, count
+    for arg in args:
+        assert isinstance(arg, np.ndarray)
+    out = to_mapped_core(*args, max)
+    assert isinstance(out, np.ndarray)
     return out
 
 
@@ -1602,10 +1608,13 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     return ds
 
 
-def guess_type(ds: xr.Dataset, key: str) -> str:
+def guess_type(ds: xr.Dataset, key: typing.Hashable) -> str:
     data = ds[key]
+    assert isinstance(key, str)
     try:
-        return data.attrs["xemc3_type"]
+        ret = data.attrs["xemc3_type"]
+        assert isinstance(ret, str)
+        return ret
     except KeyError:
         pass
     if key == "_plasma_map":
@@ -1632,10 +1641,10 @@ def guess_type(ds: xr.Dataset, key: str) -> str:
     return "mapped"
 
 
-def guess_kinetic(ds: xr.Dataset, key: str) -> bool:
+def guess_kinetic(ds: xr.Dataset, key: typing.Hashable) -> bool:
     pm = ds._plasma_map
     assert ds[key].dtype in [float, np.float32, np.float16]
-    return np.any(np.isfinite(ds[key].data[(..., pm == pm.attrs["plasmacells"])]))
+    return bool(np.any(np.isfinite(ds[key].data[(..., pm == pm.attrs["plasmacells"])])))
 
 
 def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -> None:
@@ -1653,7 +1662,13 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
             if not geom:
                 continue
             arch[k] = (
-                tuple([f"{x}_plus1" for x in ds[k].dims if x[:6] != "delta_"]),
+                tuple(
+                    [
+                        f"{x}_plus1"
+                        for x in ds[k].dims
+                        if x[:6] != "delta_"  # type: ignore
+                    ]
+                ),
                 from_interval(ds[k]),
             )
         elif type == "plates_mag":
