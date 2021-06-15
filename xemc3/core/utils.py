@@ -2,7 +2,7 @@ import itertools
 import time
 import numpy as np
 import xarray as xr
-from typing import Mapping, Hashable, Any, Dict, Optional
+from typing import Mapping, Any, Dict, Optional
 
 
 class rrange2(object):

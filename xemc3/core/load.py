@@ -87,10 +87,10 @@ def _fromfile(
 
 def _block_write(f: typing.TextIO, d: np.ndarray, fmt: str, bs: int = 10) -> None:
     d = d.flatten()
-    l = (len(d) // bs) * bs
-    np.savetxt(f, d[:l].reshape(-1, bs), fmt=fmt)
-    if l != len(d):
-        np.savetxt(f, d[l:], fmt=fmt)
+    asblock = (len(d) // bs) * bs
+    np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt)
+    if asblock != len(d):
+        np.savetxt(f, d[asblock:], fmt=fmt)
 
 
 def write_locations(ds: xr.Dataset, fn: str) -> None:
