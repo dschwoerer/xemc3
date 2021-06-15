@@ -534,3 +534,13 @@ class EMC3DatasetAccessor:
                 else:
                     ret[k].data[fill] = fill_value
         return ret
+
+    def evaluate_at_diagnostic(self, diag, key=None, num_points=100):
+        ret = dict()
+        for var in ("los",):
+            if var in diag.__dict__:
+                for i, dat in enumerate(diag.__dict__[var]):
+                    ret[f"{var}_{i}"] = self.evaluate_at_xyz(
+                        *dat.get_points(num_points)
+                    )
+        return ret
