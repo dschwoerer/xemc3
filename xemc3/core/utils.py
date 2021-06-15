@@ -3,9 +3,9 @@ import time
 import numpy as np
 import xarray as xr
 import os
-from typing import Mapping, Any, Dict, Optional
+from typing import Mapping, Any, Dict, Optional, Tuple, Callable, List
 
-_open_formats = []
+_open_formats: List[Tuple[Callable, str]] = []
 try:
     import lzma
 
