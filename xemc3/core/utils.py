@@ -2,7 +2,25 @@ import itertools
 import time
 import numpy as np
 import xarray as xr
+import os
 from typing import Mapping, Any, Dict, Optional
+
+_open_formats = []
+try:
+    import lzma
+
+    _open_formats += [
+        (lzma.open, ".xz"),
+        (lzma.open, ".lzma"),
+    ]
+except ImportError:
+    pass
+try:
+    import gzip
+
+    _open_formats += [(gzip.open, ".gz")]
+except ImportError:
+    pass
 
 
 class rrange2(object):
@@ -172,22 +190,6 @@ def _fft(data):
 
 
 _open_formats = []
-try:
-    import lzma
-
-    _open_formats += [
-        (lzma.open, ".xz"),
-        (lzma.open, ".lzma"),
-    ]
-except ImportError:
-    pass
-try:
-    import gzip
-
-    _open_formats += [(gzip.open, ".gz")]
-except ImportError:
-    pass
-
 _org_open = open
 
 
