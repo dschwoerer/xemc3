@@ -9,7 +9,9 @@ recheck:
 
 flake:
 	flake8 xemc3 --count --select=E9,F63,F7,F82 --show-source --statistics
-	flake8 xemc3 --count --exit-zero --max-complexity=10 --ignore E203 --max-line-length=127 --statistics
+# W503 : line break before binary operator
+# E203 : whitespace before ':'
+	flake8 xemc3 --count --exit-zero --max-complexity=20 --ignore E203,W503 --exclude test --max-line-length=127 --statistics
 
 mypy:
 	mypy xemc3
