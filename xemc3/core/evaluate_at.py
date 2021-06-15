@@ -120,6 +120,6 @@ def get_out_shape(*data):
     for d in data:
         outzero = outzero * d
     out = [outzero + d for d in data]
-    dims = [f"dim_{d}" for d in outzero.shape]
+    dims = [f"dim_{d}" for d in range(len(outzero.shape))]
     shape = outzero.shape
     return dims, shape, None, out
