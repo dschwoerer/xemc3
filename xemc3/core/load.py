@@ -1,4 +1,4 @@
-from .utils import from_interval, to_interval, timeit, prod, rrange
+from .utils import from_interval, to_interval, timeit, prod, rrange, open
 import os
 import xarray as xr
 import numpy as np
@@ -18,15 +18,6 @@ try:
 except ImportError:
     # Workaround for python 3.6
     DTypeLike = typing.Type  # type: ignore
-
-
-_org_open = open
-
-
-def open(fn, *args):
-    if fn[0] == "~":
-        fn = os.environ["HOME"] + fn[1:]
-    return _org_open(fn, *args)
 
 
 def _fromfile(

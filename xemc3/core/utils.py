@@ -169,3 +169,39 @@ def _fft(data):
     # print(abs(fr.)
     plt.show()
     exit(1)
+
+
+_open_formats = []
+try:
+    import lzma
+
+    _open_formats += [
+        (lzma.open, ".xz"),
+        (lzma.open, ".lzma"),
+    ]
+except ImportError:
+    pass
+try:
+    import gzip
+
+    _open_formats += [(gzip.open, ".gz")]
+except ImportError:
+    pass
+
+_org_open = open
+
+
+def open(fn, mode="rt", *args):
+    if fn[0] == "~":
+        fn = os.environ["HOME"] + fn[1:]
+    if mode in ["r", "rb", "rt"]:
+        try:
+            return _org_open(fn, mode, *args)
+        except FileNotFoundError as e:
+            for func, ext in _open_formats:
+                try:
+                    return func(fn + ext, mode, *args)
+                except FileNotFoundError:
+                    pass
+            raise e
+    return _org_open(fn, mode, *args)
