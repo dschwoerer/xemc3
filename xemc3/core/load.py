@@ -1113,7 +1113,10 @@ def to_mapped_core(
                         if not (np.isnan((cdat))):
                             out[..., mapid] += cdat
                             count[mapid] += 1
-    out /= count
+    if out.dtype in [int, np.int32, np.int64]:
+        out //= count
+    else:
+        out /= count
     return out
 
 
@@ -1486,10 +1489,10 @@ if False:
             for l in files[k]:
                 try:
                     _files_bak[k][l] = files[k][l].copy()
-                except:
+                except:  # noqa: E722
                     try:
                         _files_bak[k][l] = files[k][l][:]
-                    except:
+                    except:  # noqa: E722
                         pass
 else:
     _files_bak = files
