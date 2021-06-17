@@ -1083,7 +1083,7 @@ def get_vars_for_file(
 @jit
 def to_mapped_core(
     datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
-) -> np.ndarray:
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     if len(datdat.shape) == 3:
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
