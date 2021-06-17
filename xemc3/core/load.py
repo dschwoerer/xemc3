@@ -1104,11 +1104,7 @@ def to_mapped_core(
                         if not (np.isnan((cdat))):
                             out[..., mapid] += cdat
                             count[mapid] += 1
-    if out.dtype in [int, np.int32, np.int64]:
-        out //= count
-    else:
-        out /= count
-    return out
+    return out, count
 
 
 def to_mapped(
@@ -1133,7 +1129,11 @@ def to_mapped(
     args = datdat, mapdat, out, count
     for arg in args:
         assert isinstance(arg, np.ndarray)
-    out = to_mapped_core(*args, max)
+    out, count = to_mapped_core(*args, max)
+    if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
+        out //= count
+    else:
+        out /= count
     assert isinstance(out, np.ndarray)
     return out
 
