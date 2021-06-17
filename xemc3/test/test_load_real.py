@@ -3,6 +3,7 @@ import os
 import pytest
 from xarray.testing import assert_identical
 import xarray as xr
+import numpy as np
 
 
 def get_data():
@@ -44,8 +45,15 @@ def test_load_plates():
 def test_iter_plates():
     bd = get_data()
     ds = xemc3.load.plates(bd)
-    for _ in ds.emc3.iter_plates():
-        pass
+    c = 0
+    for x in ds.emc3.iter_plates():
+        c += 1
+        assert np.all(np.isfinite(x.emc3["f_E"].data))
+    assert c == 22
+    c = 0
+    for _ in ds.emc3.iter_plates(symmetry=True, segments=5):
+        c += 1
+    assert c == 22 * 5 * 2
 
 
 def test_get_element():
