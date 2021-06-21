@@ -185,9 +185,7 @@ class Test_eval_at_rpz(object):
         for r, p, z in [self.rand(a) for _ in range(b)]:
             assert np.allclose(
                 np.round((p - dphi / 2) / dphi) % self.shape[2],
-                self.ds.emc3.evaluate_at_rpz(r, p, z, updownsym=self.geom.sym)[
-                    "phi_index"
-                ],
+                self.ds.emc3.evaluate_at_rpz(r, p, z, updownsym=self.geom.sym)["phi"],
             )
 
     def test_phi_single1(self):
@@ -335,10 +333,11 @@ class Test_eval_at_rpz(object):
             exp = np.round((p - dphi / 2) / dphi) % self.shape[2]
             got = self.ds.emc3.evaluate_at_rpz(
                 r, p, z, updownsym=self.geom.sym, delta_phi=dphi
-            )["phi_index"]
+            )["phi"]
             assert np.allclose(
                 exp, got
             ), f"Expected \n{exp} but got \n{got.data} \n{p/dphi} % {self.shape[2]}"
+            assert got.dims == ("dim_0",)
 
     def test_cached_eval_perf(self):
         self.setup((2, 20, 30))
@@ -383,7 +382,7 @@ class Test_eval_at_rpz(object):
         ].data
         isgood = all(np.isnan(exp) == np.isnan(got))
         assert isgood, f"""
-        {got / dt} {exp / dt}
+        {exp / dt} {got / dt}
         {R} {p} {z}
         {r} {p} {t / dt}
 """

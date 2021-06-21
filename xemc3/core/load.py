@@ -1,4 +1,4 @@
-from .utils import from_interval, to_interval, timeit, prod, rrange
+from .utils import from_interval, to_interval, timeit, prod, rrange, open
 import os
 import xarray as xr
 import numpy as np
@@ -18,15 +18,6 @@ try:
 except ImportError:
     # Workaround for python 3.6
     DTypeLike = typing.Type  # type: ignore
-
-
-_org_open = open
-
-
-def open(fn, *args):
-    if fn[0] == "~":
-        fn = os.environ["HOME"] + fn[1:]
-    return _org_open(fn, *args)
 
 
 def _fromfile(
@@ -87,10 +78,10 @@ def _fromfile(
 
 def _block_write(f: typing.TextIO, d: np.ndarray, fmt: str, bs: int = 10) -> None:
     d = d.flatten()
-    l = (len(d) // bs) * bs
-    np.savetxt(f, d[:l].reshape(-1, bs), fmt=fmt)
-    if l != len(d):
-        np.savetxt(f, d[l:], fmt=fmt)
+    asblock = (len(d) // bs) * bs
+    np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt)
+    if asblock != len(d):
+        np.savetxt(f, d[asblock:], fmt=fmt)
 
 
 def write_locations(ds: xr.Dataset, fn: str) -> None:
@@ -1092,7 +1083,7 @@ def get_vars_for_file(
 @jit
 def to_mapped_core(
     datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
-) -> np.ndarray:
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     if len(datdat.shape) == 3:
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
@@ -1113,11 +1104,7 @@ def to_mapped_core(
                         if not (np.isnan((cdat))):
                             out[..., mapid] += cdat
                             count[mapid] += 1
-    if out.dtype in [int, np.int32, np.int64]:
-        out //= count
-    else:
-        out /= count
-    return out
+    return out, count
 
 
 def to_mapped(
@@ -1138,11 +1125,18 @@ def to_mapped(
     mapdat = mapping.values
     assert mapdat.dtype == int
     datdat = data.values
+    if out.dtype != datdat.dtype:
+        if out.dtype == np.int64 and datdat.dtype == np.float64:
+            datdat = (datdat + 0.5).astype(dtype)
     count = np.zeros(max, dtype=int)
     args = datdat, mapdat, out, count
     for arg in args:
         assert isinstance(arg, np.ndarray)
-    out = to_mapped_core(*args, max)
+    out, count = to_mapped_core(*args, max)
+    if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
+        out //= count
+    else:
+        out /= count
     assert isinstance(out, np.ndarray)
     return out
 

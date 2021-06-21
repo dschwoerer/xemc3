@@ -1,6 +1,6 @@
 import xarray as xr
 import numpy as np
-from typing import Mapping, Hashable, Any, Dict, Optional
+from typing import Mapping, Any
 
 from . import utils
 from . import load
@@ -476,6 +476,7 @@ class EMC3DatasetAccessor:
         periodicity: int = 5,
         updownsym: bool = True,
         delta_phi: float = None,
+        fill_value=None,
     ):
         """
         Evaluate the field key in the dataset at the positions given by
@@ -505,137 +506,41 @@ class EMC3DatasetAccessor:
             be smaller then the toroidal resolution. For a grid with 1°
             resolution, delta_phi=2 * np.pi / 360 would be the upper
             bound.  None disables caching.
+        fill_value : None or any
+            If fill_value is None, missing data is initialised as
+            np.nan, or as -1 for non-float datatypes. Otherwise
+            fill_value is used to set missing data.
         """
-        from eudist import PolyMesh  # type: ignore
+        from .evaluate_at import _evaluate_get_keys
 
-        phi = phi % (np.pi * 2 / periodicity)
-        # Get raw data
-        dims, shape, coords, (r, phi, z) = get_out_shape(r, phi, z)
-        pln = xr.Dataset()
-        pln = pln.assign_coords(
-            {k: self.data[k] for k in ["z_bounds", "R_bounds", "phi_bounds"]}
-        )
+        at = _evaluate_get_keys(self.data, r, phi, z, periodicity, updownsym, delta_phi)
         if key is None:
-            lr = len(self.data.r)
-            lt = len(self.data.theta)
-            lp = len(self.data.phi)
-            pln["phi_index"] = "phi", np.arange(lp, dtype=int)
-            pln["r_index"] = ("r", "theta"), np.zeros((lr, lt), dtype=int) + np.arange(
-                lr, dtype=int
-            )[:, None]
-            pln["theta_index"] = ("r", "theta"), np.zeros(
-                (lr, lt), dtype=int
-            ) + np.arange(lt, dtype=int)
-            keys = ["phi_index", "r_index", "theta_index"]
+            return at
+        if isinstance(key, str):
+            keys = [key]
         else:
-            if isinstance(key, str):
-                keys = [key]
-            else:
-                keys = key
-            for k in keys:
-                pln[k] = self.data[k]
-
-        cache: Dict[int, PolyMesh] = {}
-        scache: Dict[int, xr.Dataset] = {}
-
-        n = len(pln.theta)
-        outs = [np.empty(shape, dtype=pln[k].data.dtype) for k in keys]
-        cid = -1
-        assert "delta_phi" in pln.phi_bounds.dims
-        assert "phi" in pln.phi_bounds.dims
-        for ijk in utils.rrange(shape):
-            if not np.isfinite(phi[ijk]):
-                for i in range(len(keys)):
+            keys = key
+        ret = xr.Dataset(coords=at.coords)
+        fill = at["phi"].data == -1
+        dofill = np.any(fill)
+        for k in keys:
+            ret[k] = self.data[k].isel(**at)
+            if dofill:
+                if fill_value is None:
                     try:
-                        outs[i][ijk] = phi[ijk]
+                        ret[k].data[fill] = np.nan
                     except ValueError:
-                        try:
-                            outs[i][ijk] = np.nan
-                        except ValueError:  # cannot assign nan to integers
-                            outs[i][ijk] = -1
-                continue
-
-            if updownsym and phi[ijk] > np.pi / periodicity:
-                zc = -z[ijk]
-                phic = (np.pi * 2 / periodicity) - phi[ijk]
-            else:
-                zc = z[ijk]
-                phic = phi[ijk]
-
-            j = -1
-            if delta_phi:
-                j = int(round((phic - delta_phi / 2) / delta_phi))
-
-            try:
-                mesh = cache[j]
-                s = scache[j]
-            except KeyError:
-                if delta_phi:
-                    phic = (
-                        round((phic - delta_phi / 2) / delta_phi) * delta_phi
-                        + delta_phi / 2
-                    )
-                s = pln.emc3.sel(phi=phic)
-                mesh = PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data)
-                if delta_phi:
-                    cache[j] = mesh
-                    scache[j] = s
-            cid = mesh.find_cell(np.array([r[ijk], zc]), cid)
-            if cid == -1:
-                for i in range(len(keys)):
-                    try:
-                        outs[i][ijk] = np.nan
-                    except ValueError:  # cannot assign nan to integers
-                        outs[i][ijk] = -1
-            else:
-                ij = cid // n, cid % n
-                for i, key in enumerate(keys):
-                    if len(s[key].dims):
-                        outs[i][ijk] = s[key].data[ij]
-                    else:
-                        outs[i][ijk] = s[key].data
-        ret = xr.Dataset(coords=coords)
-        for i, k in enumerate(keys):
-            ret[k] = dims, outs[i]
-            ret[k].attrs = pln[k].attrs
+                        ret[k].data[fill] = -1
+                else:
+                    ret[k].data[fill] = fill_value
         return ret
 
-    # def evaluate_at_indices(self, indices:xr.Dataset, key: str) -> xr.DataArray:
-
-
-def get_out_shape(*data):
-    """
-    Convert xarray arrays and plain arrays to same shape and return
-    dims, shape and the raw arrays
-    """
-    if any([isinstance(x, xr.DataArray) for x in data]):
-        dims = []
-        shape = []
-        out = []
-        coords = {}
-        for d in data:
-            if isinstance(d, xr.DataArray):
-                for dim in d.dims:
-                    if dim in dims:
-                        assert len(d[dim]) == shape[dims.index(dim)]
-                    else:
-                        dims.append(dim)
-                        shape.append(len(d[dim]))
-                        coords[dim] = d.coords[dim]
-            else:
-                assert (
-                    utils.prod(np.shape(d)) == 1
-                ), "Cannot mix `xr.DataArray`s and `np.ndarray`s"
-        outzero = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
-        out = [outzero + d for d in data]
-        # for o in out:
-        #    assert all(o.dims == dims) if len(o.dims) > 1 else o.dims == dims
-        out = [d.data for d in out]
-        return dims, shape, coords, out
-    outzero = np.zeros(1)
-    for d in data:
-        outzero = outzero * d
-    out = [outzero + d for d in data]
-    dims = [f"dim_{d}" for d in outzero.shape]
-    shape = outzero.shape
-    return dims, shape, None, out
+    def evaluate_at_diagnostic(self, diag, key=None, num_points=100):
+        ret = dict()
+        for var in ("los",):
+            if var in diag.__dict__:
+                for i, dat in enumerate(diag.__dict__[var]):
+                    ret[f"{var}_{i}"] = self.evaluate_at_xyz(
+                        *dat.get_points(num_points)
+                    )
+        return ret
