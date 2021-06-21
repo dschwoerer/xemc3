@@ -283,8 +283,9 @@ class EMC3DatasetAccessor:
 
         Parameters
         ----------
-        key : str
-            Index of the data to plot
+        key : str or None
+            Index of the data to plot. Select None to plot the mesh
+            instead.
 
         phi : float
             Angle at which to plot. As always in radian.
