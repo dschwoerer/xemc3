@@ -1125,6 +1125,9 @@ def to_mapped(
     mapdat = mapping.values
     assert mapdat.dtype == int
     datdat = data.values
+    if out.dtype != datdat.dtype:
+        if out.dtype == np.int64 and datdat.dtype == np.float64:
+            datdat = (datdat + 0.5).astype(dtype)
     count = np.zeros(max, dtype=int)
     args = datdat, mapdat, out, count
     for arg in args:
