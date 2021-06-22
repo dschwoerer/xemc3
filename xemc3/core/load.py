@@ -26,7 +26,7 @@ def _fromfile(
     """
     Read count amount of dtype from the textio stream, i.e. a file
     opened for reading. It always reads full lines. If there is more
-    data on the line then it should read, all data is returened. If
+    data on the line then it should read, all data is returned. If
     less data is read, then a shorter array is returned. Thus the
     calling function needs to handle the case that more or less data
     is returned.
@@ -115,7 +115,7 @@ def write_locations(ds: xr.Dataset, fn: str) -> None:
 
 def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     """
-    Read magnetic fieldstrength from grid
+    Read magnetic field strength from grid
 
     Parameters
     ----------
@@ -127,7 +127,7 @@ def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     Returns
     -------
     xr.Dataset
-        The magenetic field strength
+        The magnetic field strength
     """
     if "R_bounds" in ds:
         shape = ds.R_bounds.shape
@@ -739,21 +739,21 @@ def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Datas
     return ds
 
 
-def load_plates(cwd: str) -> xr.Dataset:
-    if cwd[-1] != "/":
-        cwd += "/"
+def load_plates(dir: str) -> xr.Dataset:
+    if dir[-1] != "/":
+        dir += "/"
     with timeit("\nReading raw: %f"):
-        plates = read_plates_raw(cwd, "TARGET_PROFILES")
+        plates = read_plates_raw(dir, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
         return merge_blocks(plates)
 
 
-def write_plates(cwd: str, plates: xr.Dataset) -> None:
+def write_plates(dir: str, plates: xr.Dataset) -> None:
     # Deprecate?
     with timeit("Writing ncs: %f"):
         # Note we really should compress to get rid of the NaN's we added
         plates.to_netcdf(
-            f"{cwd}/TARGET_PROFILES.nc",
+            f"{dir}/TARGET_PROFILES.nc",
             encoding={
                 i: {"zlib": True, "complevel": 1}
                 for i in [i for i in plates] + [i for i in plates.coords]
@@ -761,20 +761,20 @@ def write_plates(cwd: str, plates: xr.Dataset) -> None:
         )
 
 
-def read_plates(cwd: str) -> xr.Dataset:
+def read_plates(dir: str) -> xr.Dataset:
     # Deprecate?
-    ds = xr.open_dataset(f"{cwd}/TARGET_PROFILES.nc")
+    ds = xr.open_dataset(f"{dir}/TARGET_PROFILES.nc")
     assert isinstance(ds, xr.Dataset)
     return ds
 
 
-def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
+def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     """
-    Read the target fluxes from the EMC3_post procesing routine
+    Read the target fluxes from the EMC3_post processing routine
 
     Parameters
     ----------
-    cwd : str
+    dir : str
         The directory in which the file is
     cache : bool (optional)
         Whether to check whether a netcdf file is present, and if not
@@ -787,16 +787,16 @@ def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
     """
     if cache:
         try:
-            if os.path.getmtime(cwd + "/TARGET_PROFILES.nc") > os.path.getmtime(
-                cwd + "/TARGET_PROFILES"
+            if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
+                dir + "/TARGET_PROFILES"
             ):
-                return read_plates(cwd)
+                return read_plates(dir)
         except OSError:
             pass
-        data = load_plates(cwd)
-        write_plates(cwd, data)
+        data = load_plates(dir)
+        write_plates(dir, data)
         return data
-    return load_plates(cwd)
+    return load_plates(dir)
 
 
 def ensure_mapping(
@@ -806,7 +806,7 @@ def ensure_mapping(
     fn: typing.Union[None, str] = None,
 ) -> xr.Dataset:
     """
-    Ensure that basic infos are present to read datafiles.
+    Ensure that basic info's are present to read datafiles.
 
     Parameters
     ----------
@@ -816,7 +816,7 @@ def ensure_mapping(
         Either the required mapping, in which case nothing is done, or
         None, in which case the data is read.
     need_mapping : bool (optional)
-        If true the mapping infomation has to be loaded, otherwise the
+        If true the mapping information has to be loaded, otherwise the
         shape of the data is sufficient. Defaults to True.
     fn : str (optional)
         The file to read, used for a potential error message
@@ -841,9 +841,9 @@ def ensure_mapping(
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"""Reading {fn+ ' ' if fn is not None else ''} mapped requires mapping information, but the required
-infomation in '{dir}' could not be found.  Ensure all files are present
+information in '{dir}' could not be found.  Ensure all files are present
 in the folder or pass in a dataset that contains the mapping
-informations."""
+information."""
             )
     else:
         if isinstance(mapping, xr.DataArray):
@@ -871,7 +871,9 @@ def read_var(
     Returns
     -------
     xr.Dataset
-        A dataset in wich at least ``var`` is set.
+        A dataset in which at least ``var`` is set. If there are other
+        variables in the read file, it is also added. Finally, mapping
+        and other variables that are required to read are also added.
     """
     for fn, fd in files.items():
         if "vars" not in fd:
@@ -898,7 +900,7 @@ def read_mapped(
     squeeze: bool = True,
 ) -> typing.Sequence[xr.DataArray]:
     """
-    Read a file with the emc3 mapping.
+    Read a file with the EMC3 mapping.
 
     Parameters
     ----------
@@ -909,9 +911,9 @@ def read_mapped(
         mapping
     skip_first : int (optional)
         Ignore the first n lines. Default 0
-    ignore_broken: boolean (optional)
+    ignore_broken: bool (optional)
         if incomplete datasets at the end should be ignored. Default: False
-    kinetic : boolen (optional)
+    kinetic : bool (optional)
         The file contains also data for cells that are only evolved by
         EIRENE, rather then EMC3. Default: False
     dtype : datatype (optional)
@@ -924,8 +926,8 @@ def read_mapped(
     -------
     xr.DataArray or list of xr.DataArray
         The data that has been read from the file. If squeeze is True
-        and only one field is read only a sinlge DataArray is
-        returend.
+        and only one field is read only a single DataArray is
+        returned.
     """
 
     if isinstance(mapping, xr.Dataset):
@@ -1042,7 +1044,7 @@ def get_vars_for_file(
 
     Returns
     -------
-    list of  tuple of str and dict
+    list of tuple of str and dict
         The variables that are from that file as well as a dict
         containing additional info about the variable.
 
@@ -1167,7 +1169,7 @@ def write_mapped(
         the `print_before` attribute.
     ignore_broken : any
         ignored.
-    kinetic : boolean
+    kinetic : bool
         If true the data is defined also outside of the plasma region.
     dtype : any
         if not None, it needs to match the dtype of the data
