@@ -51,11 +51,15 @@ def hypo_vars12(draw, skip_info=False):
     files = draw(hypo_vars(skip=skip))
     # Skip some random files
     skip += [
-        "PLATES_MAG",
         # Also always skip PLATES_MAG:
         #   * it shouldn't change in a simulation
         #   * it is likely to be the same twice, thus resulting in
         #     a test failure.
+        "PLATES_MAG",
+        # Also always skip LG_CELL:
+        #   * it is likely to be the same twice, thus resulting in
+        #     a test failure.
+        "LG_CELL",
     ]
     files2 = [f for f in files if draw(st.booleans()) and f[0] not in skip]
     assume(len(files2))
