@@ -456,6 +456,7 @@ class EMC3DatasetAccessor:
                     raise RuntimeError(
                         f"Unexpected dimensions for {k}_bounds - expected {k} and delta_{k} but got {dat.dims}"
                     )
+                dat = dat.data
                 for i in range(len(dat)):
                     if dat[i, 0] <= val <= dat[i, 1]:
                         break
@@ -488,6 +489,7 @@ class EMC3DatasetAccessor:
         updownsym: bool = True,
         delta_phi: float = None,
         fill_value=None,
+        lazy=False,
     ):
         """
         Evaluate the field key in the dataset at the positions given by
@@ -521,6 +523,10 @@ class EMC3DatasetAccessor:
             If fill_value is None, missing data is initialised as
             np.nan, or as -1 for non-float datatypes. Otherwise
             fill_value is used to set missing data.
+        lazy : bool
+            Force the loading of the data for key. Defaults to False.
+            Can significantly decrease performance, but can decrease
+            memory usage.
         """
         from .evaluate_at import _evaluate_get_keys
 
@@ -535,6 +541,8 @@ class EMC3DatasetAccessor:
         fill = at["phi"].data == -1
         dofill = np.any(fill)
         for k in keys:
+            if not lazy:
+                self.data[k].data
             ret[k] = self.data[k].isel(**at)
             if dofill:
                 if fill_value is None:
