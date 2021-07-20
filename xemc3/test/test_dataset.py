@@ -215,8 +215,8 @@ class Test_eval_at_rpz(object):
         for r, p, t in [self.rand_rpt(a) for _ in range(b)]:
             expl = (np.round((r - dr * 0.51) / dr)) * dr + dr * 0.49
             exp = (
-                np.round((r / np.cos(np.pi / self.shape[1]) - dr * 0.49) / dr)
-            ) * dr + dr * 0.51
+                np.round((r / np.cos(np.pi / self.shape[1]) - dr * 0.48) / dr)
+            ) * dr + dr * 0.52
             R, p, z = self.geom.rpt_to_rpz(r, p, t)
             got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
                 "var"
