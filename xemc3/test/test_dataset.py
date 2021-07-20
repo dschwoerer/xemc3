@@ -225,11 +225,9 @@ class Test_eval_at_rpz(object):
                 isgood = expl < got < exp
             else:
                 isgood = all([a < b < c for a, b, c in zip(expl, got, exp)])
-            if not isgood:
-                print(expl, got, exp)
-                print(R, p, z)
-                print(r, p, t)
-                assert False
+            assert isgood, f"""{expl} <  {got} < {exp}
+{R}, {p}, {z}
+{r}, {p}, {t})"""
 
     def theta_test_value(self, a, b):
         dt = 2 * np.pi / self.shape[1]
