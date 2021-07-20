@@ -2,10 +2,10 @@
 PY ?= python3
 
 check: flake mypy
-	python -m pytest xemc3/
+	python3 -m pytest xemc3/
 
 recheck:
-	python -m pytest xemc3 --last-failed --new-first
+	python3 -m pytest xemc3 --last-failed --new-first
 
 flake:
 	flake8 xemc3 --count --select=E9,F63,F7,F82 --show-source --statistics
@@ -29,7 +29,7 @@ publish: check
 	python3 -m pip install --user --upgrade setuptools wheel twine
 	python3 setup.py sdist
 	#python3 -m twine upload dist/xemc3*.tar.gz
-	python -m twine upload --repository testpypi dist/*
+	python3 -m twine upload --repository testpypi dist/*
 
 docs/cli.rst: docs/cli.rst.in.py setup.cfg
 	python $< > $@.tmp
