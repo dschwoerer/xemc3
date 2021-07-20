@@ -225,6 +225,14 @@ class Test_eval_at_rpz(object):
                 isgood = expl < got < exp
             else:
                 isgood = all([a < b < c for a, b, c in zip(expl, got, exp)])
+            if not isgood:
+                for i, t in enumerate([a < b < c for a, b, c in zip(expl, got, exp)]):
+                    if not t:
+                        import matplotlib.pyplot as plt  # type: ignore
+
+                        self.ds.emc3.plot_Rz(key=None, phi=p[i] % (np.pi * 2 / 5))
+                        plt.plot(R[i], z[i], "rx")
+                        plt.show()
             assert isgood, f"""{expl} <  {got} < {exp}
 {R}, {p}, {z}
 {r}, {p}, {t})"""
