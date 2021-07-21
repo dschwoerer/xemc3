@@ -43,5 +43,5 @@ html/
 /.hypothesis/
 /.coverage.*
 /xemc3/test/testdata
-.ipynb_checkpoints/
+examples/.ipynb_checkpoints/
 example-data
