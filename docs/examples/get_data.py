@@ -35,4 +35,4 @@ def load_example_data():
     print("Trying to download an example file to ../../example-data/ ...")
     download_file()
     print("done")
-    return xr.open_dataset("../example-data/emc3_example.nc")
+    return xr.open_dataset("../../example-data/emc3_example.nc")

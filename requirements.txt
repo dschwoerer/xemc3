@@ -21,3 +21,5 @@ sphinx >= 1.4
 # only for recent versions - skip CLI docs otherwise
 sphinx-argparse-cli ; python_version > "3.6"
 nbsphinx >= 0.8.6
+ipykernel
+ipywidgets
