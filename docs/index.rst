@@ -21,6 +21,7 @@ suggestions.
 
    xemc3
    cli
+   examples
 
 Installation
 ------------
