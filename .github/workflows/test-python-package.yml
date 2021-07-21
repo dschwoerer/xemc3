@@ -40,6 +40,6 @@ jobs:
         if test $(python -V | grep -Po '3.\K[0-9]*') -ge 8 ; then echo "Python new enough" && mypy xemc3 ; fi
     - name: Test with pytest
       run: |
-        mkdir xemc3/test/testdata
+        mkdir example-data
         sed -e "s/examples=10/examples=30/" -i xemc3/test/gen_ds.py
         PYTHONPATH=$(pwd):$PYTHONPATH pytest
