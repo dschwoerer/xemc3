@@ -50,6 +50,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx_argparse_cli",
+    "nbsphinx",
 ]
 
 # Default for autodoc
