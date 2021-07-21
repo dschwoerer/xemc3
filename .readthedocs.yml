@@ -6,3 +6,8 @@ python:
   pip_install: true
   extra_requirements:
     - docs
+
+# No PDF (nbsphinx issue)
+formats:
+  - epub
+  - htmlzip
