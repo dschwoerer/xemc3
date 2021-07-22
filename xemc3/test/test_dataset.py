@@ -215,8 +215,8 @@ class Test_eval_at_rpz(object):
         for r, p, t in [self.rand_rpt(a) for _ in range(b)]:
             expl = (np.round((r - dr * 0.51) / dr)) * dr + dr * 0.49
             exp = (
-                np.round((r / np.cos(np.pi / self.shape[1]) - dr * 0.49) / dr)
-            ) * dr + dr * 0.51
+                np.round((r / np.cos(np.pi / self.shape[1]) - dr * 0.48) / dr)
+            ) * dr + dr * 0.52
             R, p, z = self.geom.rpt_to_rpz(r, p, t)
             got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
                 "var"
@@ -226,10 +226,16 @@ class Test_eval_at_rpz(object):
             else:
                 isgood = all([a < b < c for a, b, c in zip(expl, got, exp)])
             if not isgood:
-                print(expl, got, exp)
-                print(R, p, z)
-                print(r, p, t)
-                assert False
+                for i, t in enumerate([a < b < c for a, b, c in zip(expl, got, exp)]):
+                    if not t:
+                        import matplotlib.pyplot as plt  # type: ignore
+
+                        self.ds.emc3.plot_Rz(key=None, phi=p[i] % (np.pi * 2 / 5))
+                        plt.plot(R[i], z[i], "rx")
+                        plt.show()
+            assert isgood, f"""{expl} <  {got} < {exp}
+{R}, {p}, {z}
+{r}, {p}, {t})"""
 
     def theta_test_value(self, a, b):
         dt = 2 * np.pi / self.shape[1]

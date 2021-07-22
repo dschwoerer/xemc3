@@ -181,29 +181,39 @@ class EMC3DatasetAccessor:
         iterator of xr.Dataset
             The plates of the divertor plates
         """
-        phis = []
-        zs = []
+        var_exts = ["_bounds", ""]
+        var_names = ["phi", "z"]
+        var_list = {}
+        basevar = {}
+        for var_name in var_names:
+            found = False
+            for var_ext in var_exts:
+                cur = var_name + var_ext
+                if var_name + var_ext in self.data:
+                    var_list[cur] = []
+                    basevar[cur] = var_name
+                    found = True
+            assert found, f"Didn't find variable for {var_name} coordinate!"
+
         if segments != 1 or symmetry:
             for phioffset in np.linspace(0, 2 * np.pi, segments, endpoint=False):
                 for sym in [False, True] if symmetry else [False]:
-                    phi = self.data["phi_bounds"].copy()
-                    z = self.data["z_bounds"].copy()
-                    if sym:
-                        phi *= -1
-                        z *= -1
-                    if phioffset != 0:
-                        phi += phioffset
-                    phis.append(phi)
-                    zs.append(z)
+                    for key in var_list:
+                        tmp = self.data[key].copy()
+                        if sym:
+                            tmp *= -1
+                        if phioffset != 0 and basevar[key] == "phi":
+                            tmp += phioffset
+                        var_list[key].append(tmp)
         else:
-            phis.append(self.data["phi_bounds"])
-            zs.append(self.data["z_bounds"])
-        for phi, z in zip(phis, zs):
+            for key in var_list:
+                var_list[key].append(self.data[key])
+        for i in range(len(next(iter(var_list.values())))):
             ds = self.data.copy()
-            ds["phi_bounds"] = phi
-            ds["z_bounds"] = z
-            for i in range(ds.dims["plate_ind"]):
-                yield ds.isel(plate_ind=i)
+            for key in var_list:
+                ds[key] = var_list[key][i]
+            for j in range(ds.dims["plate_ind"]):
+                yield ds.isel(plate_ind=j)
 
     def plot_div(self, index, **kwargs):
         """Plot divertor data."""
@@ -446,6 +456,7 @@ class EMC3DatasetAccessor:
                     raise RuntimeError(
                         f"Unexpected dimensions for {k}_bounds - expected {k} and delta_{k} but got {dat.dims}"
                     )
+                dat = dat.data
                 for i in range(len(dat)):
                     if dat[i, 0] <= val <= dat[i, 1]:
                         break
@@ -478,6 +489,7 @@ class EMC3DatasetAccessor:
         updownsym: bool = True,
         delta_phi: float = None,
         fill_value=None,
+        lazy=False,
     ):
         """
         Evaluate the field key in the dataset at the positions given by
@@ -511,6 +523,10 @@ class EMC3DatasetAccessor:
             If fill_value is None, missing data is initialised as
             np.nan, or as -1 for non-float datatypes. Otherwise
             fill_value is used to set missing data.
+        lazy : bool
+            Force the loading of the data for key. Defaults to False.
+            Can significantly decrease performance, but can decrease
+            memory usage.
         """
         from .evaluate_at import _evaluate_get_keys
 
@@ -525,6 +541,8 @@ class EMC3DatasetAccessor:
         fill = at["phi"].data == -1
         dofill = np.any(fill)
         for k in keys:
+            if not lazy:
+                self.data[k].data
             ret[k] = self.data[k].isel(**at)
             if dofill:
                 if fill_value is None:

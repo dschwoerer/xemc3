@@ -23,6 +23,20 @@ except ImportError:
     pass
 
 
+def format_time(secs):
+    ret = ""
+    out = False
+    for name, val in [("m", 60), ("h", 3600), ("d", 60 * 60 * 24)][::-1]:
+        if secs >= val:
+            out = True
+        if out:
+            cur = int(secs // val)
+            ret += f"{cur:02d}{name}"
+            secs -= cur * val
+    ret += f"{secs:02.0f}s"
+    return ret
+
+
 class rrange2(object):
     def __init__(self, args, *, update=100):
         self.args = [int(a) for a in args]
@@ -46,8 +60,10 @@ class rrange2(object):
         self.tstate += 1
         if self.tstate == self.tnext:
             self.tnext += ((self.total - 1) // self.update) + 1
+            needed = time.time() - self.t0
+            prog = self.tstate / self.total
             print(
-                f"{self.tstate * 100 / self.total:6.2f} % ... {time.time() - self.t0:.0f} s",
+                f"{prog * 100:6.2f} % ... {format_time(needed)}>{format_time(needed / (prog) - needed) if prog else 0}",
                 end="\r",
             )
         try:
@@ -64,6 +80,7 @@ class rrange2(object):
                 try:
                     self.state[i + 1] += 1
                 except IndexError:
+                    print()
                     raise StopIteration
 
 

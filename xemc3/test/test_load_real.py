@@ -7,7 +7,7 @@ import numpy as np
 
 
 def get_data():
-    basedir = "xemc3/test/testdata/"
+    basedir = "./example-data/"
     if not os.path.isdir(basedir):
         pytest.skip("create {basedir} to enable testing on real data")
         return

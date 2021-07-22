@@ -20,6 +20,7 @@ import os
 # Are we running on readthedocs?
 on_rtd = os.environ.get("READTHEDOCS") == "True"
 
+
 # -- Project information -----------------------------------------------------
 
 import xemc3
@@ -50,6 +51,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.napoleon",
     "sphinx_argparse_cli",
+    "nbsphinx",
 ]
 
 # Default for autodoc
@@ -75,6 +77,9 @@ if os.path.exists("/usr/share/javascript/mathjax/MathJax.js"):
     mathjax_path = (
         "/usr/share/javascript/mathjax/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
     )
+
+# nbsphinx
+nbsphinx_allow_errors = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
