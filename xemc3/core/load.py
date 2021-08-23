@@ -1,9 +1,17 @@
-from .utils import to_interval, timeit, prod, rrange
+from .utils import from_interval, to_interval, timeit, prod, rrange, open
 import os
 import xarray as xr
 import numpy as np
 import re
 import typing
+
+try:
+    from numba import jit  # type: ignore
+except ImportError:
+
+    def jit(x):
+        return x
+
 
 try:
     from numpy.typing import DTypeLike
@@ -12,22 +20,13 @@ except ImportError:
     DTypeLike = typing.Type  # type: ignore
 
 
-_org_open = open
-
-
-def open(fn, *args):
-    if fn[0] == "~":
-        fn = os.environ["HOME"] + fn[1:]
-    return _org_open(fn, *args)
-
-
 def _fromfile(
     f: typing.TextIO, *, count: int, dtype: DTypeLike, **kwargs
 ) -> np.ndarray:
     """
     Read count amount of dtype from the textio stream, i.e. a file
     opened for reading. It always reads full lines. If there is more
-    data on the line then it should read, all data is returened. If
+    data on the line then it should read, all data is returned. If
     less data is read, then a shorter array is returned. Thus the
     calling function needs to handle the case that more or less data
     is returned.
@@ -79,10 +78,10 @@ def _fromfile(
 
 def _block_write(f: typing.TextIO, d: np.ndarray, fmt: str, bs: int = 10) -> None:
     d = d.flatten()
-    l = (len(d) // bs) * bs
-    np.savetxt(f, d[:l].reshape(-1, bs), fmt=fmt)
-    if l != len(d):
-        np.savetxt(f, d[l:], fmt=fmt)
+    asblock = (len(d) // bs) * bs
+    np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt)
+    if asblock != len(d):
+        np.savetxt(f, d[asblock:], fmt=fmt)
 
 
 def write_locations(ds: xr.Dataset, fn: str) -> None:
@@ -116,7 +115,7 @@ def write_locations(ds: xr.Dataset, fn: str) -> None:
 
 def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     """
-    Read magnetic fieldstrength from grid
+    Read magnetic field strength from grid
 
     Parameters
     ----------
@@ -128,7 +127,7 @@ def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     Returns
     -------
     xr.Dataset
-        The magenetic field strength
+        The magnetic field strength
     """
     if "R_bounds" in ds:
         shape = ds.R_bounds.shape
@@ -165,7 +164,7 @@ def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
         _block_write(f, bf, "%7.4f")
 
 
-def read_locations(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Read spatial positions of grid points
 
@@ -321,7 +320,7 @@ def write_mappings(da: xr.DataArray, fn: str) -> None:
         _block_write(f, da.data.flatten(order="F") + 1, " %11d", 6)
 
 
-def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
+def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     """
     Read locations from folder path and add to dataset (if given).
 
@@ -340,7 +339,7 @@ def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
-    phi, r, z = read_locations(path + "/GRID_3D_DATA")
+    phi, r, z = read_locations_raw(path + "/GRID_3D_DATA")
     ds = ds.assign_coords(
         {
             "R_bounds": to_interval(("r", "theta", "phi"), r),
@@ -348,6 +347,8 @@ def get_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
             "phi_bounds": to_interval(("phi",), phi),
         }
     )
+    for x in ds.coords:
+        ds[x].attrs["xemc3_type"] = "geom"
     ds.emc3.unit("R_bounds", "m")
     ds.emc3.unit("z_bounds", "m")
     assert isinstance(ds, xr.Dataset)
@@ -738,21 +739,21 @@ def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Datas
     return ds
 
 
-def load_plates(cwd: str) -> xr.Dataset:
-    if cwd[-1] != "/":
-        cwd += "/"
+def load_plates(dir: str) -> xr.Dataset:
+    if dir[-1] != "/":
+        dir += "/"
     with timeit("\nReading raw: %f"):
-        plates = read_plates_raw(cwd, "TARGET_PROFILES")
+        plates = read_plates_raw(dir, "TARGET_PROFILES")
     with timeit("To xarray: %f"):
         return merge_blocks(plates)
 
 
-def write_plates(cwd: str, plates: xr.Dataset) -> None:
+def write_plates(dir: str, plates: xr.Dataset) -> None:
     # Deprecate?
     with timeit("Writing ncs: %f"):
         # Note we really should compress to get rid of the NaN's we added
         plates.to_netcdf(
-            f"{cwd}/TARGET_PROFILES.nc",
+            f"{dir}/TARGET_PROFILES.nc",
             encoding={
                 i: {"zlib": True, "complevel": 1}
                 for i in [i for i in plates] + [i for i in plates.coords]
@@ -760,20 +761,20 @@ def write_plates(cwd: str, plates: xr.Dataset) -> None:
         )
 
 
-def read_plates(cwd: str) -> xr.Dataset:
+def read_plates(dir: str) -> xr.Dataset:
     # Deprecate?
-    ds = xr.open_dataset(f"{cwd}/TARGET_PROFILES.nc")
+    ds = xr.open_dataset(f"{dir}/TARGET_PROFILES.nc")
     assert isinstance(ds, xr.Dataset)
     return ds
 
 
-def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
+def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     """
-    Read the target fluxes from the EMC3_post procesing routine
+    Read the target fluxes from the EMC3_post processing routine
 
     Parameters
     ----------
-    cwd : str
+    dir : str
         The directory in which the file is
     cache : bool (optional)
         Whether to check whether a netcdf file is present, and if not
@@ -786,16 +787,16 @@ def get_plates(cwd: str, cache: bool = True) -> xr.Dataset:
     """
     if cache:
         try:
-            if os.path.getmtime(cwd + "/TARGET_PROFILES.nc") > os.path.getmtime(
-                cwd + "/TARGET_PROFILES"
+            if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
+                dir + "/TARGET_PROFILES"
             ):
-                return read_plates(cwd)
+                return read_plates(dir)
         except OSError:
             pass
-        data = load_plates(cwd)
-        write_plates(cwd, data)
+        data = load_plates(dir)
+        write_plates(dir, data)
         return data
-    return load_plates(cwd)
+    return load_plates(dir)
 
 
 def ensure_mapping(
@@ -805,7 +806,7 @@ def ensure_mapping(
     fn: typing.Union[None, str] = None,
 ) -> xr.Dataset:
     """
-    Ensure that basic infos are present to read datafiles.
+    Ensure that basic info's are present to read datafiles.
 
     Parameters
     ----------
@@ -815,7 +816,7 @@ def ensure_mapping(
         Either the required mapping, in which case nothing is done, or
         None, in which case the data is read.
     need_mapping : bool (optional)
-        If true the mapping infomation has to be loaded, otherwise the
+        If true the mapping information has to be loaded, otherwise the
         shape of the data is sufficient. Defaults to True.
     fn : str (optional)
         The file to read, used for a potential error message
@@ -834,15 +835,15 @@ def ensure_mapping(
         dir = "."
     if mapping is None:
         try:
-            mapping = get_locations(dir)
+            mapping = read_locations(dir)
             if need_mapping:
                 mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
         except FileNotFoundError:
             raise FileNotFoundError(
                 f"""Reading {fn+ ' ' if fn is not None else ''} mapped requires mapping information, but the required
-infomation in '{dir}' could not be found.  Ensure all files are present
+information in '{dir}' could not be found.  Ensure all files are present
 in the folder or pass in a dataset that contains the mapping
-informations."""
+information."""
             )
     else:
         if isinstance(mapping, xr.DataArray):
@@ -870,7 +871,9 @@ def read_var(
     Returns
     -------
     xr.Dataset
-        A dataset in wich at least ``var`` is set.
+        A dataset in which at least ``var`` is set. If there are other
+        variables in the read file, it is also added. Finally, mapping
+        and other variables that are required to read are also added.
     """
     for fn, fd in files.items():
         if "vars" not in fd:
@@ -897,7 +900,7 @@ def read_mapped(
     squeeze: bool = True,
 ) -> typing.Sequence[xr.DataArray]:
     """
-    Read a file with the emc3 mapping.
+    Read a file with the EMC3 mapping.
 
     Parameters
     ----------
@@ -908,9 +911,9 @@ def read_mapped(
         mapping
     skip_first : int (optional)
         Ignore the first n lines. Default 0
-    ignore_broken: boolean (optional)
+    ignore_broken: bool (optional)
         if incomplete datasets at the end should be ignored. Default: False
-    kinetic : boolen (optional)
+    kinetic : bool (optional)
         The file contains also data for cells that are only evolved by
         EIRENE, rather then EMC3. Default: False
     dtype : datatype (optional)
@@ -923,8 +926,8 @@ def read_mapped(
     -------
     xr.DataArray or list of xr.DataArray
         The data that has been read from the file. If squeeze is True
-        and only one field is read only a sinlge DataArray is
-        returend.
+        and only one field is read only a single DataArray is
+        returned.
     """
 
     if isinstance(mapping, xr.Dataset):
@@ -1041,7 +1044,7 @@ def get_vars_for_file(
 
     Returns
     -------
-    list of  tuple of str and dict
+    list of tuple of str and dict
         The variables that are from that file as well as a dict
         containing additional info about the variable.
 
@@ -1079,6 +1082,67 @@ def get_vars_for_file(
     return keys
 
 
+@jit
+def to_mapped_core(
+    datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    if len(datdat.shape) == 3:
+        for i in range(mapdat.shape[0]):
+            for j in range(mapdat.shape[1]):
+                for k in range(mapdat.shape[2]):
+                    mapid = mapdat[i, j, k]
+                    if mapid < max:
+                        cdat = datdat[(..., i, j, k)]
+                        if not (np.isnan((cdat))):
+                            out[..., mapid] += cdat
+                            count[mapid] += 1
+    else:
+        for i in range(mapdat.shape[0]):
+            for j in range(mapdat.shape[1]):
+                for k in range(mapdat.shape[2]):
+                    mapid = mapdat[i, j, k]
+                    if mapid < max:
+                        cdat = datdat[(..., i, j, k)]
+                        if not (np.isnan((cdat))):
+                            out[..., mapid] += cdat
+                            count[mapid] += 1
+    return out, count
+
+
+def to_mapped(
+    data: xr.DataArray,
+    mapping: xr.DataArray,
+    kinetic: bool = False,
+    dtype: typing.Union[DTypeLike, None] = None,
+) -> np.ndarray:
+
+    if kinetic:
+        max = np.max(mapping.values) + 1
+    else:
+        max = np.max(mapping.attrs["plasmacells"])
+    if dtype is None:
+        dtype = data.values.dtype
+
+    out = np.zeros((*data.shape[:-3], max), dtype=dtype)
+    mapdat = mapping.values
+    assert mapdat.dtype == int
+    datdat = data.values
+    if out.dtype != datdat.dtype:
+        if out.dtype == np.int64 and datdat.dtype == np.float64:
+            datdat = (datdat + 0.5).astype(dtype)
+    count = np.zeros(max, dtype=int)
+    args = datdat, mapdat, out, count
+    for arg in args:
+        assert isinstance(arg, np.ndarray)
+    out, count = to_mapped_core(*args, max)
+    if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
+        out //= count
+    else:
+        out /= count
+    assert isinstance(out, np.ndarray)
+    return out
+
+
 def write_mapped(
     datas,
     mapping,
@@ -1105,26 +1169,13 @@ def write_mapped(
         the `print_before` attribute.
     ignore_broken : any
         ignored.
-    kinetic : boolean
+    kinetic : bool
         If true the data is defined also outside of the plasma region.
     dtype : any
         if not None, it needs to match the dtype of the data
     fmt : None or str
         The Format to be used for printing the data.
     """
-    if kinetic:
-        max = np.max(mapping.values) + 1
-    else:
-        max = np.max(mapping.attrs["plasmacells"])
-    if not isinstance(datas, list):
-        datas = [datas]
-    # if dtype:
-    #     if not dtype == datas[0].data.dtype:
-    #         raise AssertionError(
-    #             f"Expected dtype {dtype} but data has "
-    #             f"actually {datas[0].data.dtype} for "
-    #             f"file {fn}"
-    #         )
     if skip_first is not None:
         for d in datas:
             if skip_first:
@@ -1132,22 +1183,9 @@ def write_mapped(
             else:
                 if "print_before" in d.attrs:
                     assert d.attrs["print_before"] == ""
-    if dtype is None:
-        dtype = datas[0].values.dtype
-    # assert all([d.data.dtype == dtype for d in datas])
-    out = np.zeros((len(datas), max))
-    mapdat = mapping.values
-    assert mapdat.dtype == int
-    for j, data in enumerate(datas):
-        datdat = data.values
-        count = np.zeros(max)
-        for ijk in rrange(mapdat.shape):
-            mapid = mapdat[ijk]
-            if mapid < max:
-                if not np.isnan(datdat[ijk]):  # and mapid:
-                    out[j, mapid] += datdat[ijk]
-                    count[mapid] += 1
-        out[j, :] /= count
+    if not isinstance(datas, (list, tuple)):
+        datas = [datas]
+    out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
         for i, da in zip(out, datas):
             if "print_before" in da.attrs:
@@ -1447,10 +1485,10 @@ if False:
             for l in files[k]:
                 try:
                     _files_bak[k][l] = files[k][l].copy()
-                except:
+                except:  # noqa: E722
                     try:
                         _files_bak[k][l] = files[k][l][:]
-                    except:
+                    except:  # noqa: E722
                         pass
 else:
     _files_bak = files
@@ -1516,6 +1554,12 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "plates_mag":
         vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
+    elif type == "geom":
+        ds_ = read_locations(fn)
+        ds.assign_coords(ds_.coords)
+        assert opts == {}, "Unexpected arguments: " + ", ".join(
+            [f"{k}={v}" for k, v in opts.items()]
+        )
     elif type == "info":
         vars = opts.pop("vars")
         index = opts.pop("index")
@@ -1548,16 +1592,103 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         scale = varopts.pop("scale", 1)
         if scale != 1:
             ds[var].data *= scale
+
         attrs = varopts.pop("attrs", {})
+        attrs["xemc3_type"] = type
         for k in "long_name", "units", "notes":
             if k in varopts:
                 attrs[k] = varopts.pop(k)
+
         ds[var].attrs.update(attrs)
         assert (
             varopts == {}
         ), f"variable {var} has options {varopts} but didn't expect anything"
     assert files == _files_bak
     return ds
+
+
+def guess_type(ds: xr.Dataset, key: typing.Hashable) -> str:
+    data = ds[key]
+    assert isinstance(key, str)
+    try:
+        ret = data.attrs["xemc3_type"]
+        assert isinstance(ret, str)
+        return ret
+    except KeyError:
+        pass
+    if key == "_plasma_map":
+        return "mapping"
+    nameparts = key.split("_")
+    if len(nameparts) == 2:
+        if nameparts[0] in ["R", "z", "phi"] and nameparts[1] in [
+            "bounds",
+            "corners",
+        ]:
+            return "geom"
+    fulldims = len(
+        {"R", "phi", "z", "delta_R", "delta_z", "delta_phi"}.intersection(ds[key].dims)
+    )
+    if fulldims == 6:
+        return "full"
+    phidims = len({"phi", "delta_phi"}.intersection(ds[key].dims))
+    if phidims == fulldims == 2:
+        return "geom"
+    if data.dtype == bool:
+        return "plates_mag"
+    if data.dtype == int:
+        return "mapping"
+    return "mapped"
+
+
+def guess_kinetic(ds: xr.Dataset, key: typing.Hashable) -> bool:
+    pm = ds._plasma_map
+    assert ds[key].dtype in [float, np.float32, np.float16]
+    return bool(np.any(np.isfinite(ds[key].data[(..., pm == pm.attrs["plasmacells"])])))
+
+
+def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -> None:
+    arch = xr.Dataset()
+    arch.attrs = ds.attrs
+    for k in list(ds.coords) + list(ds):
+        type = guess_type(ds, k)
+        if type == "mapped":
+            kinetic = guess_kinetic(ds, k)
+            arch[k] = (
+                *ds[k].dims[:-3],
+                "kinetic_map" if kinetic else "plasma_map",
+            ), to_mapped(ds[k], ds._plasma_map, guess_kinetic(ds, k))
+        elif type in ("geom", "full"):
+            if not geom:
+                continue
+            arch[k] = (
+                tuple(
+                    [
+                        f"{x}_plus1"
+                        for x in ds[k].dims
+                        if x[:6] != "delta_"  # type: ignore
+                    ]
+                ),
+                from_interval(ds[k]),
+            )
+        elif type == "plates_mag":
+            if not geom:
+                continue
+            arch[k] = ds[k]
+        elif type == "mapping":
+            if not mapping:
+                continue
+            arch[k] = ds[k]
+        else:
+            arch[k] = ds[k]
+        arch[k].attrs = ds[k].attrs
+    arch.to_netcdf(
+        fn,
+        encoding={
+            i: {"zlib": True, "complevel": 9} for i in list(arch) + list(arch.coords)
+        },
+    )
+    print(f"done with {fn}")
+    pass
 
 
 def load_all(path, ignore_missing=None):
@@ -1583,7 +1714,7 @@ def load_all(path, ignore_missing=None):
         in later versions will cause errors if the files are not
         present.
     """
-    ds = get_locations(path)
+    ds = read_locations(path)
     for fn, opts in files.items():
         opts = opts.copy()
         try:

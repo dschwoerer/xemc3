@@ -261,7 +261,7 @@ def launch(
         else:
             cmd = "OMP_NUM_THREADS={} {}".format(mthread, cmd)
 
-    if verbose == True:
+    if verbose:
         print(cmd)
 
     return shell(cmd, pipe=pipe)

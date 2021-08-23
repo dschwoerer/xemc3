@@ -29,10 +29,12 @@ After: {d2.shape}: {d2.data.flatten()}
 np.isclose: {np.isclose(d1, d2 ,rtol=rtol).flatten()}"""
         )
     if check_attrs:
-        if d1.attrs != d2.attrs:
-            raise AssertionError(
-                f"attributes changed for {k}: {d1.attrs} != {d2.attrs}"
-            )
+        d1a = d1.attrs.copy()
+        key = "xemc3_type"
+        if key not in d1a and key in d2.attrs:
+            d1a[key] = d2.attrs[key]
+
+        assert d1a == d2.attrs, f"attributes changed for {k}: {d1a} != {d2.attrs}"
 
 
 setting = gen_ds.setting
@@ -109,4 +111,5 @@ def test_write_load_some(shape, vars):
 
 
 if __name__ == "__main__":
+    test_write_load_simple()
     test_write_load_full()

@@ -14,10 +14,11 @@ def plot_rz(
     zmin=None,
     zmax=None,
     aspect=True,
+    figsize=None,
     **kwargs,
 ):
     phis = ds["phi_bounds"]
-    if phi < np.min(phi) or phi > np.max(phi):
+    if phi < np.min(phis.data) or phi > np.max(phis.data):
         raise RuntimeError(
             f"{phi} outside of bounds in dataset {np.min(phis)}:{np.max(phis)}"
         )
@@ -52,6 +53,11 @@ def plot_rz(
             kwargs["edgecolors"] = "k"
     r = utils.from_interval(das[0])
     z = utils.from_interval(das[1])
+    if figsize is not None:
+        assert (
+            ax is None
+        ), "Passing in an axes object and specifing the figure size cannot be combined"
+        plt.figure(figsize=figsize)
     if ax is None:
         ax = plt.axes(label=np.random.bytes(20))
     p = ax.pcolormesh(r, z, data, **kwargs)

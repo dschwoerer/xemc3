@@ -1,6 +1,6 @@
 """Routines for reading EMC3 files."""
 
-__all__ = ["plates", "mappings", "all"]
+__all__ = ["plates", "mappings", "all", "mapped_raw", "file", "var", "plates_geom"]
 
 import sys as _sys
 import types as _types

@@ -2,7 +2,39 @@ import itertools
 import time
 import numpy as np
 import xarray as xr
-from typing import Mapping, Hashable, Any, Dict, Optional
+import os
+from typing import Mapping, Any, Dict, Optional, Tuple, Callable, List
+
+_open_formats: List[Tuple[Callable, str]] = []
+try:
+    import lzma
+
+    _open_formats += [
+        (lzma.open, ".xz"),
+        (lzma.open, ".lzma"),
+    ]
+except ImportError:
+    pass
+try:
+    import gzip
+
+    _open_formats += [(gzip.open, ".gz")]
+except ImportError:
+    pass
+
+
+def format_time(secs):
+    ret = ""
+    out = False
+    for name, val in [("m", 60), ("h", 3600), ("d", 60 * 60 * 24)][::-1]:
+        if secs >= val:
+            out = True
+        if out:
+            cur = int(secs // val)
+            ret += f"{cur:02d}{name}"
+            secs -= cur * val
+    ret += f"{secs:02.0f}s"
+    return ret
 
 
 class rrange2(object):
@@ -28,8 +60,10 @@ class rrange2(object):
         self.tstate += 1
         if self.tstate == self.tnext:
             self.tnext += ((self.total - 1) // self.update) + 1
+            needed = time.time() - self.t0
+            prog = self.tstate / self.total
             print(
-                f"{self.tstate * 100 / self.total:6.2f} % ... {time.time() - self.t0:.0f} s",
+                f"{prog * 100:6.2f} % ... {format_time(needed)}>{format_time(needed / (prog) - needed) if prog else 0}",
                 end="\r",
             )
         try:
@@ -46,6 +80,7 @@ class rrange2(object):
                 try:
                     self.state[i + 1] += 1
                 except IndexError:
+                    print()
                     raise StopIteration
 
 
@@ -169,3 +204,23 @@ def _fft(data):
     # print(abs(fr.)
     plt.show()
     exit(1)
+
+
+_open_formats = []
+_org_open = open
+
+
+def open(fn, mode="rt", *args):
+    if fn[0] == "~":
+        fn = os.environ["HOME"] + fn[1:]
+    if mode in ["r", "rb", "rt"]:
+        try:
+            return _org_open(fn, mode, *args)
+        except FileNotFoundError as e:
+            for func, ext in _open_formats:
+                try:
+                    return func(fn + ext, mode, *args)
+                except FileNotFoundError:
+                    pass
+            raise e
+    return _org_open(fn, mode, *args)
