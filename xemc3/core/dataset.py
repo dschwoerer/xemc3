@@ -128,7 +128,7 @@ class EMC3DatasetAccessor:
         """
         Get a variable from the dataset.
 
-        See `get` for the transormations performed.
+        See `get` for the transformations performed.
 
         Parameters
         ----------
@@ -374,7 +374,8 @@ class EMC3DatasetAccessor:
         path : str
             The directory of the EMC3 simulation data
 
-        Returns:
+        Returns
+        -------
         xr.Dataset
             The xemc3 dataset with the simulation data
         """
