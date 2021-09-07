@@ -6,7 +6,7 @@ from eudist import PolyMesh  # type: ignore
 from . import utils
 
 
-def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi):
+def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progress):
 
     phi = phi % (np.pi * 2 / periodicity)
     # Get raw data
@@ -33,7 +33,9 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi):
     cid = -1
     assert "delta_phi" in pln.phi_bounds.dims
     assert "phi" in pln.phi_bounds.dims
-    for ijk in utils.rrange(shape):
+
+    rrange = utils.rrange2 if progress else utils.rrange
+    for ijk in rrange(shape):
         if not np.isfinite(phi[ijk]):
             for i in range(len(keys)):
                 try:
