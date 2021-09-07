@@ -84,8 +84,17 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi):
                     out[ijk] = s[key].data[ij]
                 else:
                     out[ijk] = s[key].data
+    keyout = [k.split("_")[0] for k in keys]
+
     ret = xr.Dataset(coords=coords)
-    for out, k in zip(outs, keys):
+    for i in range(len(dims)):
+        d0 = dims[i]
+        cnt = 0
+        while dims[i] in keyout:
+            dims[i] = f"{d0}_{cnt}"
+        if dims[i] != d0 and d0 in ret:
+            ret = ret.rename({d0: dims[i]})
+    for out, k, ko in zip(outs, keys, keyout):
         ret[k.split("_")[0]] = xr.DataArray(out, dims=dims, attrs=pln[k].attrs)
     return ret
 
