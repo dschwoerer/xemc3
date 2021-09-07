@@ -65,6 +65,9 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi):
                     round((phic - delta_phi / 2) / delta_phi) * delta_phi
                     + delta_phi / 2
                 )
+                if updownsym and phic > np.pi / periodicity:
+                    zc = -zc
+                    phic = (np.pi * 2 / periodicity) - phi[ijk]
             s = pln.emc3.sel(phi=phic)
             mesh = PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data)
             if delta_phi:
