@@ -491,6 +491,7 @@ class EMC3DatasetAccessor:
         delta_phi: float = None,
         fill_value=None,
         lazy=False,
+        progress=False,
     ):
         """
         Evaluate the field key in the dataset at the positions given by
@@ -528,10 +529,14 @@ class EMC3DatasetAccessor:
             Force the loading of the data for key. Defaults to False.
             Can significantly decrease performance, but can decrease
             memory usage.
+        progress : bool
+            Show the progress of the mapping. Defaults to False.
         """
         from .evaluate_at import _evaluate_get_keys
 
-        at = _evaluate_get_keys(self.data, r, phi, z, periodicity, updownsym, delta_phi)
+        at = _evaluate_get_keys(
+            self.data, r, phi, z, periodicity, updownsym, delta_phi, progress
+        )
         if key is None:
             return at
         if isinstance(key, str):
