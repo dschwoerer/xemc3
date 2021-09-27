@@ -801,6 +801,10 @@ def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     xr.Dataset
         The target profiles
     """
+    if os.path.isdir(dir):
+        fn = "TARGET_PROFILES"
+    else:
+        dir, fn = dir.rsplit("/", 1)
     if cache:
         try:
             if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
