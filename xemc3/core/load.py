@@ -739,11 +739,27 @@ def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Datas
     return ds
 
 
-def load_plates(dir: str) -> xr.Dataset:
+def load_plates(dir: str, fn: str = "TARGET_PROFILES") -> xr.Dataset:
+    """
+    Read the target heatflux mapping from EMC3 Postprocessing routine.
+
+    Parameters
+    ----------
+    dir : str
+        The location of the directory in which the files are to be read
+
+    fn : str
+        The name of the deposition file
+
+    Returns
+    -------
+    xr.Dataset
+        The read data
+    """
     if dir[-1] != "/":
         dir += "/"
     with timeit("\nReading raw: %f"):
-        plates = read_plates_raw(dir, "TARGET_PROFILES")
+        plates = read_plates_raw(dir, fn)
     with timeit("To xarray: %f"):
         return merge_blocks(plates)
 
@@ -1691,7 +1707,7 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
     pass
 
 
-def load_all(path, ignore_missing=None):
+def load_all(path: str, ignore_missing: bool = None) -> xr.Dataset:
     """
     Load all data from a path and return as dataset
 
