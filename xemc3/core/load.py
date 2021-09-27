@@ -1728,6 +1728,25 @@ def load_all(path, ignore_missing=None):
     return ds
 
 
+def load_any(path: str, *args, **kwargs) -> xr.Dataset:
+    """
+    Read a file or directory. For possible kwargs see the respective
+    functions that are called:
+
+    For a directory xemc3.load.all is called.
+
+    xemc3.load.plates for the "TARGET_PROFILES" file.
+
+    xemc3.load.file otherwise.
+    """
+    if os.path.isdir(path):
+        return load_all(path, *args, **kwargs)
+    dir, fname = path.rsplit("/", 1)
+    if fname == "TARGET_PROFILES":
+        return get_plates(dir, *args, **kwargs)
+    return read_fort_file_pub(path, *args, **kwargs)
+
+
 def write_fort_file(ds, dir, fn, type="mapped", **opts):
     if type == "mapping":
         write_mappings(ds["_plasma_map"], f"{dir}/{fn}")
