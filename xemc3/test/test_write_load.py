@@ -6,6 +6,10 @@ from hypothesis import settings, given
 
 
 def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
+    """
+    d1 : old dataset
+    d2 : new dataset
+    """
     d1k = [k for k in d1] + [k for k in d1.coords]
     d2k = [k for k in d2] + [k for k in d2.coords]
     if not set(d1k) == set(d2k):
@@ -18,7 +22,10 @@ def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
 
 def assert_da_are_equal(d1, d2, k, check_attrs, rtol, atol):
     slc = np.isfinite(d1.data)
-    if not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol, atol=atol).all():
+    if (
+        d1.shape != d2.shape
+        or not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol, atol=atol).all()
+    ):
         raise AssertionError(
             f"""var {k} is changed.
 

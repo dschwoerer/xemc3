@@ -148,10 +148,7 @@ def gen_rand(shape, files):
                     if pre:
                         ds[v % i].attrs["print_before"] = "   %d\n" % i
             else:
-                if genf == gen_info:
-                    ds[v] = genf(ds, load.files[f]["index"])
-                else:
-                    ds[v] = genf(ds)
+                ds[v] = genf(ds)
                 ds[v].attrs.update(get_attrs(vs[v]))
                 if pre:
                     ds[v].attrs["print_before"] = "   %d\n" % i
@@ -221,12 +218,11 @@ def gen_mapping(shape):
     return da
 
 
-def gen_info(ds: xr.Dataset, index: str) -> xr.DataArray:
-    if index in ds.dims:
-        length = len(ds[index])
-    else:
-        length = np.random.randint(2, 6)
-    dat = np.random.random(length)
+def gen_info(ds: xr.Dataset, index: str = "info") -> xr.DataArray:
+    length = np.random.randint(2, 6)
+    dat = np.empty(1000)
+    dat[:] = np.nan
+    dat[-length:] = np.random.random(length)
     return xr.DataArray(dat, dims=index)
 
 
