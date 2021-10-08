@@ -2,13 +2,16 @@ import xarray as xr
 import numpy as np
 from typing import Dict
 from eudist import PolyMesh  # type: ignore
+import warnings
 
 from . import utils
 
 
 def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progress):
 
-    phi = phi % (np.pi * 2 / periodicity)
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", "invalid value encountered in remainder")
+        phi = phi % (np.pi * 2 / periodicity)
     # Get raw data
     dims, shape, coords, (r, phi, z) = get_out_shape(r, phi, z)
     pln = xr.Dataset()
