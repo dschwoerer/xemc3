@@ -1218,7 +1218,10 @@ def write_mapped(
 
 
 def read_info_file(
-    fn: str, vars: dict, index: typing.Optional[str] = None
+    fn: str,
+    vars: dict,
+    index: typing.Optional[str] = "info",
+    length: int = 1000,
 ) -> typing.List[xr.DataArray]:
     block = len(vars)
     assert block > 0
@@ -1227,8 +1230,13 @@ def read_info_file(
         while True:
             dat = _fromfile(f, dtype=float, count=block, sep=" ")
             if len(dat) == 0:
-                dat = np.array(ret).T
-                return [xr.DataArray(d, dims=index) for d in dat]
+                dat = np.array(ret)[-length:]
+                if len(dat) < length:
+                    padded = np.empty((length, block))
+                    padded[: -len(dat)] = np.nan
+                    padded[-len(dat) :] = dat
+                    dat = padded
+                return [xr.DataArray(d, dims=index) for d in dat.T]
             if not len(dat) == block:
                 print(dat)
                 print(len(dat), block)
@@ -1251,8 +1259,11 @@ def write_info_file(fn: str, ds: xr.Dataset) -> None:
     assert fmtc == len(
         dat
     ), f"Found {fmtc} format specifiers but data has {len(dat)} values. Format is {fmt}."
+    # dat.shape == x, 1000
+    valid_entries = np.sum(np.isfinite(dat), axis=1)
+    assert len(valid_entries) == fmtc
     with open(fn, "w") as f:
-        for d in dat.T:
+        for d in dat.T[-np.max(valid_entries) :]:
             f.write(fmt % tuple(d) + "\n")
 
 
@@ -1374,7 +1385,6 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     ),
     "STREAMING_INFO": dict(
         type="info",
-        index="index_stream",
         fmt="%6.2f %5.3f %10.3E %10.3E %10.3E %10.3E %10.3E",
         vars={
             "dens_change": dict(
@@ -1415,7 +1425,6 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     ),
     "ENERGY_INFO": dict(
         type="info",
-        index="index_energy",
         fmt=("%6.1f" + " %11.4E" * 4 + "\n") * 2 + " " * 18 + 3 * " %11.4E",
         vars={
             "Te_change": dict(
@@ -1465,7 +1474,6 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     ),
     "NEUTRAL_INFO": dict(
         type="info",
-        index="index_neut",
         fmt="%12.4E" + (" %11.4E" * 5),
         vars={
             "ionization_core": dict(long_name="Core ionization"),
@@ -1488,7 +1496,6 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
     ),
     "IMPURITY_INFO": dict(
         type="info",
-        index="index_imp",
         fmt="%12.4E %11.4E",
         vars={
             "TOTAL_FLX": dict(long_name="Total impurity flux"),
@@ -1582,9 +1589,11 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         )
     elif type == "info":
         vars = opts.pop("vars")
-        index = opts.pop("index")
         opts.pop("fmt")
-        datas = read_info_file(fn, vars, index)
+        if "info" in ds.dims and "length" not in opts:
+            opts["length"] = len(ds["info"])
+        datas = read_info_file(fn, vars, **opts)
+        opts = {}
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
