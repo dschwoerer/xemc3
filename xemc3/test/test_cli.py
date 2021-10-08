@@ -1,20 +1,28 @@
-from .. import write
-from . import gen_ds as g
-import tempfile
-from hypothesis import given, settings, strategies as st
-from .test_write_load import assert_ds_are_equal
-import xarray as xr
 import os
 import sys
 import copy
 import runpy
+import warnings
+import tempfile
+
+import xarray as xr
+from hypothesis import given, settings, strategies as st
+
+from .. import write
+from . import gen_ds as g
+from .test_write_load import assert_ds_are_equal
 
 
 def call(cmd: str) -> None:
     _argv = copy.deepcopy(sys.argv)
     args = cmd.split()
     sys.argv = args
-    runpy.run_module("xemc3.cli." + args[0], run_name="__main__")
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            "'xemc3.cli.append_time' found in sys.modules after import of package 'xemc3.cli', but prior to execut",
+        )
+        runpy.run_module("xemc3.cli." + args[0], run_name="__main__")
     sys.argv = _argv
 
 
