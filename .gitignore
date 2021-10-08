@@ -45,3 +45,4 @@ html/
 /xemc3/test/testdata
 examples/.ipynb_checkpoints/
 example-data
+/docs/examples/.ipynb_checkpoints
