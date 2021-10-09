@@ -8,12 +8,15 @@ def download_file():
     )
 
 
-def load_example_data():
+def load_example_data(get_path=False):
     # Check whether we have a local copy
     for path in "./", "../", "../../":
         for path in [path, path + "example-data/"]:
             try:
                 fn = path + "emc3_example.nc"
+                if get_path:
+                    xr.open_dataset(fn)
+                    return fn[:-3]
                 return xr.open_dataset(fn)
             except FileNotFoundError:
                 pass

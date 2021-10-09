@@ -23,3 +23,10 @@ CLI reference
    :func: parser
    :prog: xemc3-divertor
 
+
+
+.. sphinx_argparse_cli::
+   :module: xemc3.cli.to_archive
+   :func: parser
+   :prog: xemc3-to-archive
+
