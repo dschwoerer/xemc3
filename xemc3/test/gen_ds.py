@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 import xarray as xr
 import numpy as np
-from ..core import utils, load, dataset
+import typing
 
 from hypothesis import assume, strategies as st
+
+from ..core import utils, load, dataset
 
 dims = "r", "theta", "phi"
 
@@ -223,7 +225,7 @@ def gen_info(ds: xr.Dataset, index: str = "iteration") -> xr.DataArray:
     dat = np.empty(1000)
     dat[:] = np.nan
     dat[-length:] = np.random.random(length)
-    coords = {index: np.arange(-999, 1)}
+    coords: typing.Mapping[typing.Hashable, typing.Any] = {index: np.arange(-999, 1)}
     return xr.DataArray(dat, dims=index, coords=coords)
 
 
