@@ -218,12 +218,13 @@ def gen_mapping(shape):
     return da
 
 
-def gen_info(ds: xr.Dataset, index: str = "info") -> xr.DataArray:
+def gen_info(ds: xr.Dataset, index: str = "iteration") -> xr.DataArray:
     length = np.random.randint(2, 6)
     dat = np.empty(1000)
     dat[:] = np.nan
     dat[-length:] = np.random.random(length)
-    return xr.DataArray(dat, dims=index)
+    coords = {index: np.arange(-999, 1)}
+    return xr.DataArray(dat, dims=index, coords=coords)
 
 
 class rotating_circle(object):

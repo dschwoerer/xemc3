@@ -29,7 +29,7 @@ def call(cmd: str) -> None:
 @settings(**g.setting)  # type: ignore
 @given(
     g.hypo_shape(10),
-    g.hypo_vars12(skip_info=True),
+    g.hypo_vars12(),
     st.integers(min_value=1, max_value=3),
 )
 def test_append_ds(shape, v12, rep):
