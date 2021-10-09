@@ -19,9 +19,10 @@ suggestions.
    :maxdepth: 2
    :caption: Contents:
 
+   introduction
+   examples
    xemc3
    cli
-   examples
 
 Installation
 ------------
