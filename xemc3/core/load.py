@@ -1220,7 +1220,7 @@ def write_mapped(
 def read_info_file(
     fn: str,
     vars: dict,
-    index: typing.Optional[str] = "info",
+    index: str = "iteration",
     length: int = 1000,
 ) -> typing.List[xr.DataArray]:
     block = len(vars)
@@ -1236,7 +1236,10 @@ def read_info_file(
                     padded[: -len(dat)] = np.nan
                     padded[-len(dat) :] = dat
                     dat = padded
-                return [xr.DataArray(d, dims=index) for d in dat.T]
+                coords: typing.Mapping[typing.Hashable, typing.Any] = {
+                    index: xr.DataArray(np.arange(-length + 1, 1), dims=index)
+                }
+                return [xr.DataArray(d, dims=index, coords=coords) for d in dat.T]
             if not len(dat) == block:
                 print(dat)
                 print(len(dat), block)
@@ -1590,8 +1593,8 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "info":
         vars = opts.pop("vars")
         opts.pop("fmt")
-        if "info" in ds.dims and "length" not in opts:
-            opts["length"] = len(ds["info"])
+        if "iteration" in ds.dims and "length" not in opts:
+            opts["length"] = len(ds["iteration"])
         datas = read_info_file(fn, vars, **opts)
         opts = {}
     else:
