@@ -17,7 +17,7 @@ def get_data():
         )
     else:
         os.system(f"cd {basedir}; git fetch origin main --depth 1")
-        os.system(f"cd {basedir}; git checkout origin next")
+        os.system(f"cd {basedir}; git checkout origin main")
     return basedir + "emc3_example"
 
 
