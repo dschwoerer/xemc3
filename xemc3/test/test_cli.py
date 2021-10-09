@@ -33,9 +33,6 @@ def call(cmd: str) -> None:
     st.integers(min_value=1, max_value=3),
 )
 def test_append_ds(shape, v12, rep):
-    for v in v12:
-        for x in v:
-            assert not x[0].endswith("_INFO")
     do_test_append_ds(shape, v12, rep)
 
 
