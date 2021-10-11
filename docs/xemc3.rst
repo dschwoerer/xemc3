@@ -7,7 +7,7 @@ xemc3 Dataset
 
 All of the functions that are part of the EMC3DatasetAccessor can be
 accessed via the ``emc3`` dataset accessor. For a given dataset ``ds``
-they can be reached as ``ds.emc3.*``, e.g. ``ds.emc3.plot_Rz(...)``.
+they can be reached as ``ds.emc3.*``, e.g. ``ds.emc3.plot_rz(...)``.
 
 .. automodule:: xemc3.EMC3DatasetAccessor
 

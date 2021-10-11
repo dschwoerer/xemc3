@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+import warnings
 from typing import Mapping, Any
 
 from . import utils
@@ -287,7 +288,7 @@ class EMC3DatasetAccessor:
             fn, self.data._plasma_map, skip_first, ignore_broken, kinetic
         )
 
-    def plot_Rz(self, key, phi, **kwargs):
+    def plot_rz(self, key, phi, **kwargs):
         """
         Plot a R-z slice in lab coordinates.
 
@@ -325,6 +326,15 @@ class EMC3DatasetAccessor:
         from . import plot_2d
 
         return plot_2d.plot_rz(self.data, key, phi, **kwargs)
+
+    def plot_Rz(self, key, phi, **kwargs):
+        with warnings.simplefilter("always", DeprecationWarning):
+            warnings.warn(
+                "plot_Rz is deprecated. Please switch to plot_rz instead.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.plot_rz(self, key, phi, **kwargs)
 
     def plot(self, key, *args, **kw):
         """
