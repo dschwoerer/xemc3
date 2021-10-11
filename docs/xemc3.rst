@@ -11,6 +11,10 @@ xemc3 Dataset
 xemc3.load module
 -----------------
 
+.. note::
+  Please ensure that files are linked to their EMC3 names, if
+  you use alternative file names.
+
 .. automodule:: xemc3.load
 
 
