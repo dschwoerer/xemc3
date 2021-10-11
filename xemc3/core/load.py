@@ -457,10 +457,8 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
 def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dataset:
     """
     Read Target structures from a file that is in the Kisslinger
-    format as used by EMC3. It returns the coordinates as plain array
-    in the order of R, z, phi.
+    format as used by EMC3.
 
-    Parameters
     ----------
     filename : str or sequence of str
         The location of the file to read
@@ -920,7 +918,9 @@ def read_mapped(
     squeeze: bool = True,
 ) -> typing.Sequence[xr.DataArray]:
     """
-    Read a file with the EMC3 mapping.
+    Read a file with the EMC3 mapping. Note that this function does
+    not add meta-data or does normalisation of the data, thus
+    `xemc3.load.file` is generally preferred.
 
     Parameters
     ----------
@@ -948,6 +948,7 @@ def read_mapped(
         The data that has been read from the file. If squeeze is True
         and only one field is read only a single DataArray is
         returned.
+
     """
 
     if isinstance(mapping, xr.Dataset):

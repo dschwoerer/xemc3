@@ -4,14 +4,8 @@ Examples
 
 .. _general_examples:
 
-General examples
-----------------
-
-General-purpose and introductory examples from xemc3.
-
-
 .. nbgallery::
-    :caption: Examples
+    :caption: General-purpose and introductory examples from xemc3.
     :name: example-gallery
     :glob:
 
