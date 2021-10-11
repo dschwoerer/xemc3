@@ -27,14 +27,19 @@ See `an example notebook <examples/info.ipynb>`_ for more info on reading these 
 Reading the output
 ------------------
 
+``xemc3`` assumes that all files are called the way that also EMC3 is
+expecting them to be named. If you use different names, ensure that
+the files are linked to the EMC3 names, before loading the files with
+``xemc3``.
+
 Once the simulation is sufficiently converged, further analysis can start.
 For this ``xemc3`` allows to read in all the files, and store the data as a
 netcdf file. This has the advantage that successive reads are very fast, and
-is especially convienent if the data is stored in the netcdf file after
+is especially convenient if the data is stored in the netcdf file after
 running the simulation. There is a command line version, that can be
-conviniently called from shell, `xemc3-to-netcdf
+conveniently called from shell, `xemc3-to-netcdf
 <cli.html#xemc3-to-netcdf---cli-interface>`_ that is roughly equivalent to the
-folling python snippet:
+following python snippet:
 
 .. code-block:: python
 
@@ -42,8 +47,10 @@ folling python snippet:
   ds = xemc3.load.all(path)
   ds.to_netcdf(path + ".nc")
 
-Besides faster loads, the netcdf also makes it easier to share the data for
-analysis, as all data is stored in a single file.
+Besides faster loads, the netcdf also makes it easier to share the
+data for analysis, as all data is stored in a single file. This also
+allows to unlink the EMC3 names, or share the data with users that
+have a different naming convention for there files.
 
 
 Post processing
