@@ -20,6 +20,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Cache example data
+      id: cache-example
+      uses: actions/cache@v2
+      with:
+        path: example-data/
+        key: ${{ runner.os }}-example
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
@@ -40,6 +46,6 @@ jobs:
         if test $(python -V | grep -Po '3.\K[0-9]*') -ge 8 ; then echo "Python new enough" && mypy xemc3 ; fi
     - name: Test with pytest
       run: |
-        mkdir example-data
+        mkdir -p example-data
         sed -e "s/examples=10/examples=30/" -i xemc3/test/gen_ds.py
         PYTHONPATH=$(pwd):$PYTHONPATH pytest
