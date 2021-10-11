@@ -69,9 +69,9 @@ xarray handles plotting already, but xemc3 extends this with some more
 specific routines, for example to plot an :math:`R\times z` slice.  The
 functionally is documented `here <xemc3.html>`_ and can be accessed via the
 ``emc3`` accessor of a dataset, for example the
-`xemc3.EMC3DatasetAccessor.plot_Rz
-<xemc3.html#xemc3.EMC3DatasetAccessor.plot_Rz>`_ can be used by calling
-``ds.emc3.plot_Rz(...)`` with ``ds`` an `xr.Dataset
+`xemc3.EMC3DatasetAccessor.plot_rz
+<xemc3.html#xemc3.EMC3DatasetAccessor.plot_rz>`_ can be used by calling
+``ds.emc3.plot_rz(...)`` with ``ds`` an `xr.Dataset
 <https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html>`_.
 Plotting in simulation coordinates can be done using `xr.DataArray.plot
 <https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html>`_ as e.g.

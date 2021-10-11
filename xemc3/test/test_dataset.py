@@ -230,7 +230,7 @@ class Test_eval_at_rpz(object):
                     if not t:
                         import matplotlib.pyplot as plt  # type: ignore
 
-                        self.ds.emc3.plot_Rz(key=None, phi=p[i] % (np.pi * 2 / 5))
+                        self.ds.emc3.plot_rz(key=None, phi=p[i] % (np.pi * 2 / 5))
                         plt.plot(R[i], z[i], "rx")
                         plt.show()
             assert isgood, f"""{expl} <  {got} < {exp}
