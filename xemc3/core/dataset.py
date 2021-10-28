@@ -337,13 +337,14 @@ class EMC3DatasetAccessor:
         return plot_2d.plot_rz(self.data, key, phi, **kwargs)
 
     def plot_Rz(self, key, phi, **kwargs):
-        with warnings.simplefilter("always", DeprecationWarning):
+        with warnings.catch_warnings():
+            warnings.simplefilter("always", DeprecationWarning)
             warnings.warn(
                 "plot_Rz is deprecated. Please switch to plot_rz instead.",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
-        return self.plot_rz(self, key, phi, **kwargs)
+        return self.plot_rz(key, phi, **kwargs)
 
     def plot(self, key, *args, **kw):
         """
