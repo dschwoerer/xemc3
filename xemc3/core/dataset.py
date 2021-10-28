@@ -211,10 +211,19 @@ class EMC3DatasetAccessor:
                 var_list[key].append(self.data[key])
         for i in range(len(next(iter(var_list.values())))):
             ds = self.data.copy()
+            phid = ds["phi_dims"].data
+            xd = ds["x_dims"].data
             for key in var_list:
                 ds[key] = var_list[key][i]
-            for j in range(ds.dims["plate_ind"]):
-                yield ds.isel(plate_ind=j)
+            if len(phid.shape) == 1:
+                assert phid.shape == xd.shape
+                for j in range(ds.dims["plate_ind"]):
+                    yield ds.isel(
+                        plate_ind=j, phi=slice(None, phid[j]), x=slice(None, xd[j])
+                    )
+            else:
+                for j in range(ds.dims["plate_ind"]):
+                    yield ds.isel(plate_ind=j)
 
     def plot_div(self, index, **kwargs):
         """Plot divertor data."""
