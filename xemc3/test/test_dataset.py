@@ -7,7 +7,7 @@ import pytest
 import warnings
 
 try:
-    import matplotlib
+    import matplotlib  # type: ignore
 except ImportError:
     matplotlib = None
 
