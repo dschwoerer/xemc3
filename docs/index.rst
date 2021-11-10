@@ -23,6 +23,7 @@ suggestions.
    examples
    xemc3
    cli
+   citing
 
 Installation
 ------------
