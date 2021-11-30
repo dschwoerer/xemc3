@@ -1,8 +1,28 @@
 Getting started
 ===============
 
+Installing
+----------
+To get the full install including plotting run:
+
+.. code-block:: bash
+
+  pip install --user 'xemc3[full]'
+
+If you want a minimal install without plotting capabilities you can run:
+
+.. code-block:: bash
+
+  pip install --user xemc3
+
+Note that without matplotlib plotting will not be available.
+
+
+Basic tasks
+-----------
+
 Checking convergence
---------------------
+~~~~~~~~~~~~~~~~~~~~
 
 If you have run a simulations, typically the first thing you want to do, is
 check the ``*_INFO`` files to check whether the simulation is converged.
@@ -25,7 +45,7 @@ See `an example notebook <examples/info.ipynb>`_ for more info on reading these 
 
 
 Reading the output
-------------------
+~~~~~~~~~~~~~~~~~~
 
 ``xemc3`` assumes that all files are called the way that also EMC3 is
 expecting them to be named. If you use different names, ensure that
@@ -54,7 +74,7 @@ have a different naming convention for there files.
 
 
 Post processing
----------------
+~~~~~~~~~~~~~~~
 
 `xarray <https://pypi.org/project/xarray/>`_ provides a wide variety of
 functionality for post processing.  Good `documentation
@@ -63,7 +83,7 @@ functionality for post processing.  Good `documentation
 
 
 Plotting
---------
+~~~~~~~~
 
 xarray handles plotting already, but xemc3 extends this with some more
 specific routines, for example to plot an :math:`R\times z` slice.  The
@@ -77,3 +97,12 @@ Plotting in simulation coordinates can be done using `xr.DataArray.plot
 <https://xarray.pydata.org/en/stable/generated/xarray.Dataset.html>`_ as e.g.
 ``ds["Te"].isel(r=-3).plot()`` to plot the third outermost slice of the
 electron temperature.
+
+
+Exercises
+---------
+
+To get an overview what is possible with xemc3, you can try the exercises.
+
+You can find them in the ``docs/exercises/`` folder or try them `online
+<https://mybinder.org/v2/gh/dschwoerer/xemc3/next?filepath=docs%2Fexercises>`_.

@@ -3,6 +3,13 @@ import xarray as xr
 import numpy as np
 from . import gen_ds
 from timeit import timeit
+import pytest
+import warnings
+
+try:
+    import matplotlib  # type: ignore
+except ImportError:
+    matplotlib = None
 
 
 def test_sel():
@@ -426,6 +433,30 @@ class Test_eval_at_rpz(object):
             assert all(result.coords["y"] == y)
             assert result["var"].dims == ("x", "y")
             assert result["var"].shape == (5, 6)
+
+    def test_plot_rz(self):
+        """
+        Ensure no error is raised.
+        """
+        if matplotlib is None:
+            pytest.skip("matplotlib missing")
+        self.setup()
+        ret = self.ds.emc3.plot_rz(key=None, phi=0.3)
+        assert isinstance(ret, matplotlib.collections.QuadMesh)
+
+    def test_plot_Rz(self):
+        """
+        Ensure no error is raised.
+        """
+        if matplotlib is None:
+            pytest.skip("matplotlib missing")
+        self.setup()
+        with warnings.catch_warnings(record=True) as w:
+            ret = self.ds.emc3.plot_Rz(key=None, phi=0.3)
+            assert len(w) == 1
+            assert issubclass(w[-1].category, DeprecationWarning)
+            assert "plot_rz" in str(w[-1].message)
+        assert isinstance(ret, matplotlib.collections.QuadMesh)
 
 
 if __name__ == "__main__":
