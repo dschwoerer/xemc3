@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-import xarray as xr
-import numpy as np
 import typing
 
-from hypothesis import assume, strategies as st
+import numpy as np
+import xarray as xr
+from hypothesis import assume
+from hypothesis import strategies as st
 
-from ..core import utils, load, dataset
+from ..core import dataset, load, utils
 
 dims = "r", "theta", "phi"
 

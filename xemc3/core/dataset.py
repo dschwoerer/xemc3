@@ -1,10 +1,10 @@
-import xarray as xr
-import numpy as np
 import warnings
-from typing import Mapping, Any
+from typing import Any, Mapping
 
-from . import utils
-from . import load
+import numpy as np
+import xarray as xr
+
+from . import load, utils
 
 
 def identity(x):

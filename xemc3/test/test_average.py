@@ -1,9 +1,12 @@
-from .. import write, load
+import tempfile
+
+import xarray as xr
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+
+from .. import load, write
 from ..cli.append_time import append_time as append
 from . import gen_ds as g
-import tempfile
-import xarray as xr
-from hypothesis import given, settings, assume, strategies as st
 from .test_write_load import assert_ds_are_equal
 
 

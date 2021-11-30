@@ -1,9 +1,11 @@
-from .utils import from_interval, to_interval, timeit, prod, rrange, open
 import os
-import xarray as xr
-import numpy as np
 import re
 import typing
+
+import numpy as np
+import xarray as xr
+
+from .utils import from_interval, open, prod, rrange, timeit, to_interval
 
 try:
     from numba import jit  # type: ignore

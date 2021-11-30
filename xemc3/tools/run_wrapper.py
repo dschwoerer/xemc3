@@ -16,13 +16,12 @@
     along with boututils.  If not, see <https://www.gnu.org/licenses/>.
 """
 
-from builtins import str
 import os
 import pathlib
 import re
 import subprocess
-from subprocess import call, Popen, STDOUT, PIPE
-
+from builtins import str
+from subprocess import PIPE, STDOUT, Popen, call
 
 if os.name == "nt":
     # Default on Windows

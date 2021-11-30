@@ -4,13 +4,11 @@ import sys as _sys
 import types as _types
 
 # Actual implementation is in load.py
-from ..core.load import (
-    write_magnetic_field as magnetic_field,
-    write_locations as coordinates,
-    write_plates_mag as plates_mag,
-    write_mapped_nice as mapped,
-    write_all_fortran as all,
-)
+from ..core.load import write_all_fortran as all
+from ..core.load import write_locations as coordinates
+from ..core.load import write_magnetic_field as magnetic_field
+from ..core.load import write_mapped_nice as mapped
+from ..core.load import write_plates_mag as plates_mag
 
 
 class _all(_types.ModuleType):

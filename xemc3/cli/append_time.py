@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
-import xarray as xr
-from ..core.load import load_all
-from ..core import dataset
-import sys
 import os
+import sys
+from argparse import ArgumentParser
+
+import xarray as xr
+
+from ..core import dataset
+from ..core.load import load_all
 
 
 def append_time(d: str, verbose: bool = False) -> None:

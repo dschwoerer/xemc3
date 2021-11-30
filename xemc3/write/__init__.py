@@ -1,3 +1,1 @@
-from . import fortran
-
-from . import nc
+from . import fortran, nc
