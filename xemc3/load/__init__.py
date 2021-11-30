@@ -6,18 +6,15 @@ import sys as _sys
 import types as _types
 
 # Actual implementation is in load.py
-from ..core.load import (
-    get_plates as plates,
-    read_mapped as mapped_raw,
-    read_fort_file_pub as file,
-    load_all as all,
-    read_var as var,
-    read_plate_nice as plates_geom,
-    load_any as any,
-    # Removed in 0.0.5
-    #    read_mappings as mappings,
-    #    read_mapped_nice as mapped,
-)
+from ..core.load import \
+    get_plates as \
+    plates  # Removed in 0.0.5; read_mappings as mappings,; read_mapped_nice as mapped,
+from ..core.load import load_all as all
+from ..core.load import load_any as any
+from ..core.load import read_fort_file_pub as file
+from ..core.load import read_mapped as mapped_raw
+from ..core.load import read_plate_nice as plates_geom
+from ..core.load import read_var as var
 
 # write_magnetic_field as magnetic_field,
 # write_locations as coordinates,

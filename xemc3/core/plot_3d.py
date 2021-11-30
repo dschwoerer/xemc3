@@ -1,10 +1,12 @@
-import numpy as np
-import mayavi.mlab as mlab  # type: ignore
-from .utils import rrange
 import itertools
 import sys
+
+import mayavi.mlab as mlab  # type: ignore
+import numpy as np
 import xarray as xr
 from tvtk.api import tvtk  # type: ignore
+
+from .utils import rrange
 
 
 def _pprint(*a, **k):

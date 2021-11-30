@@ -1,9 +1,11 @@
-import xemc3
 import os
-import pytest
-from xarray.testing import assert_identical
-import xarray as xr
+
 import numpy as np
+import pytest
+import xarray as xr
+from xarray.testing import assert_identical
+
+import xemc3
 
 
 def get_data():

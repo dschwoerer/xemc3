@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
-from ..core.load import load_all, archive
-import xarray as xr
-import sys
 import os
+import sys
+from argparse import ArgumentParser
+
+import xarray as xr
+
+from ..core.load import archive, load_all
 
 
 def to_archive(d: str, quiet: bool, geom: bool, mapping: bool, delete: bool) -> None:

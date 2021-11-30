@@ -1,6 +1,6 @@
 import os
-import matplotlib.pyplot as plt
 
+import matplotlib.pyplot as plt
 
 if "DOCUTILSCONFIG" in os.environ:
     get_ipython().run_line_magic("matplotlib", "inline")

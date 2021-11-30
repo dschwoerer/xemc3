@@ -1,10 +1,12 @@
-from ..core import dataset
-import xarray as xr
-import numpy as np
-from . import gen_ds
-from timeit import timeit
-import pytest
 import warnings
+from timeit import timeit
+
+import numpy as np
+import pytest
+import xarray as xr
+
+from ..core import dataset
+from . import gen_ds
 
 try:
     import matplotlib  # type: ignore

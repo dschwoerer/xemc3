@@ -1,8 +1,9 @@
-from xemc3.core import utils
+import hypothesis.strategies as strat
 import numpy as np
 import xarray as xr
-from hypothesis import given, assume
-import hypothesis.strategies as strat
+from hypothesis import assume, given
+
+from xemc3.core import utils
 
 
 @given(strat.lists(strat.integers(min_value=1, max_value=10000)))

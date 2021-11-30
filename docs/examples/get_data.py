@@ -1,5 +1,6 @@
-import xarray as xr
 import os
+
+import xarray as xr
 
 
 def download_file():

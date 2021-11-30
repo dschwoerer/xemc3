@@ -8,13 +8,13 @@ of temperatures that are in eV.
 
 __all__ = ["load", "utils", "write"]
 
-from . import load
+from . import load, write
+from .core.dataset import EMC3DatasetAccessor
 
 # assert callable(load)
 # assert callable(load.plates)
 
 
-from . import write
 
 
 # # should be deprecated
@@ -25,19 +25,16 @@ from . import write
 # load.write_mapped = _load.write_mapped
 
 
-from .core.dataset import EMC3DatasetAccessor
 
 
 try:
-    from importlib.metadata import (  # type: ignore
-        version as _version,
-        PackageNotFoundError as _PackageNotFoundError,
-    )
+    from importlib.metadata import \
+        PackageNotFoundError as _PackageNotFoundError
+    from importlib.metadata import version as _version  # type: ignore
 except ModuleNotFoundError:
-    from importlib_metadata import (  # type: ignore
-        version as _version,
-        PackageNotFoundError as _PackageNotFoundError,
-    )
+    from importlib_metadata import \
+        PackageNotFoundError as _PackageNotFoundError
+    from importlib_metadata import version as _version  # type: ignore
 try:
     __version__ = _version(__name__)
 except _PackageNotFoundError:
