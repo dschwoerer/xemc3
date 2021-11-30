@@ -15,16 +15,12 @@ from .core.dataset import EMC3DatasetAccessor
 # assert callable(load.plates)
 
 
-
-
 # # should be deprecated
 # load.read_plate = _load.read_plate
 # load.read_plate = _load.read_plate
 # load.read_mappings = _load.read_mappings
 # load.read_mapped = _load.read_mapped
 # load.write_mapped = _load.write_mapped
-
-
 
 
 try:
