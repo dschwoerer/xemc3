@@ -1,12 +1,13 @@
-import os
-import sys
 import copy
+import os
 import runpy
-import warnings
+import sys
 import tempfile
+import warnings
 
 import xarray as xr
-from hypothesis import given, settings, strategies as st
+from hypothesis import given, settings
+from hypothesis import strategies as st
 
 from .. import write
 from . import gen_ds as g

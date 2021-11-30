@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
-from ..core.load import load_all
-from ..core import dataset
 import sys
+from argparse import ArgumentParser
+
+from ..core import dataset
+from ..core.load import load_all
 
 
 def to_netcdf(d: str, quiet: bool = True) -> None:

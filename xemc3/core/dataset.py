@@ -1,10 +1,10 @@
-import xarray as xr
-import numpy as np
 import warnings
-from typing import Mapping, Any
+from typing import Any, Mapping
 
-from . import utils
-from . import load
+import numpy as np
+import xarray as xr
+
+from . import load, utils
 
 
 def identity(x):
@@ -211,10 +211,19 @@ class EMC3DatasetAccessor:
                 var_list[key].append(self.data[key])
         for i in range(len(next(iter(var_list.values())))):
             ds = self.data.copy()
+            phid = ds["phi_dims"].data
+            xd = ds["x_dims"].data
             for key in var_list:
                 ds[key] = var_list[key][i]
-            for j in range(ds.dims["plate_ind"]):
-                yield ds.isel(plate_ind=j)
+            if len(phid.shape) == 1:
+                assert phid.shape == xd.shape
+                for j in range(ds.dims["plate_ind"]):
+                    yield ds.isel(
+                        plate_ind=j, phi=slice(None, phid[j]), x=slice(None, xd[j])
+                    )
+            else:
+                for j in range(ds.dims["plate_ind"]):
+                    yield ds.isel(plate_ind=j)
 
     def plot_div(self, index, **kwargs):
         """Plot divertor data."""
@@ -328,13 +337,14 @@ class EMC3DatasetAccessor:
         return plot_2d.plot_rz(self.data, key, phi, **kwargs)
 
     def plot_Rz(self, key, phi, **kwargs):
-        with warnings.simplefilter("always", DeprecationWarning):
+        with warnings.catch_warnings():
+            warnings.simplefilter("always", DeprecationWarning)
             warnings.warn(
                 "plot_Rz is deprecated. Please switch to plot_rz instead.",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
-        return self.plot_rz(self, key, phi, **kwargs)
+        return self.plot_rz(key, phi, **kwargs)
 
     def plot(self, key, *args, **kw):
         """

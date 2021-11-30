@@ -1,8 +1,11 @@
-import xemc3
-from . import gen_ds
 import tempfile
+
 import numpy as np
-from hypothesis import settings, given
+from hypothesis import given, settings
+
+import xemc3
+
+from . import gen_ds
 
 
 def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):

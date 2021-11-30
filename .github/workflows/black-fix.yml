@@ -15,21 +15,25 @@ jobs:
       with:
         ref: ${{ github.head_ref }}
 
-    - name: Install black
+    - name: Installing
       run: |
         sudo apt update -y
         sudo apt -y install python3-pip python3-setuptools python3-wheel
-        pip3 install black
+        pip3 install black isort
 
     - name: Version
       run: |
         python3 --version
         $HOME/.local/bin/black --version
+        $HOME/.local/bin/isort --version
 
-    - name: Run black
+    - name: Run black and isort
       run: |
         $HOME/.local/bin/black . $(grep '^#!.*/bin/.*python.*$' . -Ir|cut -d: -f1)
+        $HOME/.local/bin/isort . $(grep '^#!.*/bin/.*python.*$' . -Ir|cut -d: -f1)
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: "[skip ci] Apply black changes"
+        commit_message: "Apply black and isort changes
+
+[skip ci]"

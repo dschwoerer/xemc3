@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
-import sys
-import xemc3
 import os
+import sys
+from argparse import ArgumentParser
+
 import xarray as xr
+
+import xemc3
 
 long_names = {
     "f_n": "Particle flux",

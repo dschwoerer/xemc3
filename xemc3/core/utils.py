@@ -1,9 +1,10 @@
 import itertools
+import os
 import time
+from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
+
 import numpy as np
 import xarray as xr
-import os
-from typing import Mapping, Any, Dict, Optional, Tuple, Callable, List
 
 _open_formats: List[Tuple[Callable, str]] = []
 try:

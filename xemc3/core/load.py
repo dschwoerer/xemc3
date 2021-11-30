@@ -1,9 +1,11 @@
-from .utils import from_interval, to_interval, timeit, prod, rrange, open
 import os
-import xarray as xr
-import numpy as np
 import re
 import typing
+
+import numpy as np
+import xarray as xr
+
+from .utils import from_interval, open, prod, rrange, timeit, to_interval
 
 try:
     from numba import jit  # type: ignore
@@ -224,11 +226,22 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
     shape = [x.shape[0] for x in [ds.r, ds.theta, ds.phi]]
     ret = np.zeros(shape, dtype=bool)
     with open(fn) as f:
-        for line in f:
+        last = None
+        for i, line in enumerate(f):
             lines = [int(x) for x in line.split()]
+            if last:
+                lines = last + lines
             zone, r, theta, num = lines[:4]
             assert zone == 0
             assert num % 2 == 0
+            if num + 4 > len(lines):
+                last = lines
+                continue
+            assert num + 4 == len(lines), (
+                f"failed to parse line {i+1}{' (continued from previous incomplete line)' if last else ''}"
+                f" from {fn}: {' '.join([str(x) for x in lines])}"
+            )
+            last = None
             for t in range(num // 2):
                 a, b = lines[4 + 2 * t : 6 + 2 * t]
                 ret[r, theta, a : b + 1] = True
