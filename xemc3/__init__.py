@@ -11,26 +11,17 @@ __all__ = ["load", "utils", "write"]
 from . import load, write
 from .core.dataset import EMC3DatasetAccessor
 
-# assert callable(load)
-# assert callable(load.plates)
-
-
-# # should be deprecated
-# load.read_plate = _load.read_plate
-# load.read_plate = _load.read_plate
-# load.read_mappings = _load.read_mappings
-# load.read_mapped = _load.read_mapped
-# load.write_mapped = _load.write_mapped
-
 
 try:
-    from importlib.metadata import \
-        PackageNotFoundError as _PackageNotFoundError
-    from importlib.metadata import version as _version  # type: ignore
+    from importlib.metadata import (  # type: ignore
+        PackageNotFoundError as _PackageNotFoundError,
+        version as _version,
+    )
 except ModuleNotFoundError:
-    from importlib_metadata import \
-        PackageNotFoundError as _PackageNotFoundError
-    from importlib_metadata import version as _version  # type: ignore
+    from importlib_metadata import (  # type: ignore
+        PackageNotFoundError as _PackageNotFoundError,
+        version as _version,
+    )
 try:
     __version__ = _version(__name__)
 except _PackageNotFoundError:
