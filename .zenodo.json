@@ -5,13 +5,13 @@
     }, 
     "creators": [
       {
-        "name": "David Bold"
-        "orcid": "0000-0003-0911-8606", 
-        "affiliation": "IPP Greifswald", 
+        "name": "David Bold",
+        "orcid": "0000-0003-0911-8606",
+        "affiliation": "IPP Greifswald"
       }, 
       {
-        "name": "johanage"
-        "affiliation": "IPP Greifswald", 
+        "name": "johanage",
+        "affiliation": "IPP Greifswald"
       }
     ]
   }
