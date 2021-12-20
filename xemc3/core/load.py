@@ -368,7 +368,7 @@ def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     return ds
 
 
-def scrape(f: typing.TextIO, *, ignore=None, verbose=False) -> str:
+def scrape(f: typing.TextIO, *, ignore="!", verbose=False) -> str:
     """read next data line from configuration file (skip lines with
     leading *)
 
@@ -539,20 +539,20 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
         The read data as a list of datasets
     """
     with open(cwd + fn) as f:
-        s = scrape(f, ignore="!").split()
+        s = scrape(f).split()
         _, num_plates = [int(i) for i in s]
         plates = []
         for plate in range(num_plates):
-            s = scrape(f, ignore="!").split()
+            s = scrape(f).split()
             assert len(s) == 2, f"{plate} : {s}"
             _, geom = s
             r, z, phi = read_plate(cwd + geom)
             nx, ny = r.shape
             nx -= 1
             ny -= 1
-            s = scrape(f, ignore="!").split()
+            s = scrape(f).split()
             total = np.array([float(i) for i in s])
-            s = scrape(f, ignore="!").split()
+            s = scrape(f).split()
             if len(s) == 3:
                 items, yref, xref = [int(i) for i in s]
                 nxr = nx * xref
