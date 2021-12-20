@@ -472,6 +472,7 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
     Read Target structures from a file that is in the Kisslinger
     format as used by EMC3.
 
+    Parameters
     ----------
     filename : str or sequence of str
         The location of the file to read
