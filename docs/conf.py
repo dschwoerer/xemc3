@@ -26,8 +26,8 @@ on_rtd = os.environ.get("READTHEDOCS") == "True"
 import xemc3
 
 project = "xemc3"
-copyright = "2018, Tom Nicholas, 2021, David Schwörer, IPP"
-author = "David Schwörer"
+copyright = "2018, Tom Nicholas, 2021, David Bold, IPP"
+author = "David Bold"
 
 # The short X.Y version
 version = xemc3.__version__
@@ -170,7 +170,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "xemc3.tex", "xemc3 Documentation", "David Schwörer", "manual"),
+    (master_doc, "xemc3.tex", "xemc3 Documentation", "David Bold", "manual"),
 ]
 
 
