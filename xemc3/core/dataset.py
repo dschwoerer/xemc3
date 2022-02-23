@@ -499,7 +499,7 @@ class EMC3DatasetAccessor:
         See evaluate_at_rpz for options. Unlike evaluate_at_rpz the
         coordinates are given here in cartesian coordinates.
         """
-        r = np.sqrt(x ** 2 + y ** 2)
+        r = np.sqrt(x**2 + y**2)
         phi = np.arctan2(y, x)
         return self.evaluate_at_rpz(r, phi, z, *args, **kwargs)
 
