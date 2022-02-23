@@ -32,6 +32,4 @@ jobs:
 
     - uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: "Apply black and isort changes
-
-[skip ci]"
+        commit_message: "Apply black changes"
