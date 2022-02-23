@@ -445,9 +445,12 @@ class EMC3DatasetAccessor:
                     dim=dk
                 )
                 for co in ds.coords:
-                    ds_[co] = (
-                        ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
-                    ).sum(dim=dk)
+                    if dk in ds.coords[co].dims:
+                        ds_[co] = (
+                            ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
+                        ).sum(dim=dk)
+                    else:
+                        ds_[co] = ds[co]
                 ds = ds_
         return ds
 
