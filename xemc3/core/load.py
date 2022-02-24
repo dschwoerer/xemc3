@@ -635,7 +635,7 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                         newpos[ix::xref, iy::yref, :] = pos @ A
 
                     corrs[i] = newpos
-                corrs = [
+                corrs_da = [
                     xr.DataArray(
                         data=a.reshape(nxr, nyr, 2, 2),
                         dims=("phi", "x", "delta_phi", "delta_x"),
@@ -644,12 +644,12 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 ]
             else:
                 assert mode == 1
-                corrs = [to_interval(("phi", "x"), a) for a in coordinates]
+                corrs_da = [to_interval(("phi", "x"), a) for a in coordinates]
 
             coords = {
-                "R_bounds": corrs[0],
-                "z_bounds": corrs[1],
-                "phi_bounds": corrs[2],
+                "R_bounds": corrs_da[0],
+                "z_bounds": corrs_da[1],
+                "phi_bounds": corrs_da[2],
             }
             ds = xr.Dataset(coords=coords)  # type: ignore
             ds.coords["R_bounds"].attrs["units"] = "m"
