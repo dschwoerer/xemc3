@@ -150,10 +150,9 @@ def test_mean_dtype():
 
 class Test_eval_at_rpz(object):
     def setup(self, shape=None, **kwargs):
-        if shape is None:
-            self.shape = (2, 20, 4)
-        else:
-            self.shape = shape
+        if not isinstance(shape, tuple):
+            shape = None
+        self.shape = shape or (2, 20, 4)
         self.geom = gen_ds.rotating_circle(5, **kwargs)
         self.ds = self.geom.gends(self.shape)
         self.dims = self.ds["_plasma_map"].dims
