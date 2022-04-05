@@ -70,7 +70,14 @@ following python snippet:
 Besides faster loads, the netcdf also makes it easier to share the
 data for analysis, as all data is stored in a single file. This also
 allows to unlink the EMC3 names, or share the data with users that
-have a different naming convention for there files.
+have a different naming convention for their files.
+The netcdf files can then be read again via
+
+.. code-block:: python
+
+  import xarray as xr
+  ds = xr.open_dataset(path + ".nc")
+
 
 
 Post processing
