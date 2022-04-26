@@ -36,14 +36,6 @@ def test_load_all():
     assert_identical(result, expected)
 
 
-# simple regression test
-def test_load_plates():
-    bd = get_data()
-    result = xemc3.load.plates(bd, cache=False)
-    expected = xemc3.load.plates(bd, cache=True)
-    assert_identical(result, expected)
-
-
 def test_iter_plates():
     bd = get_data()
     ds = xemc3.load.plates(bd)

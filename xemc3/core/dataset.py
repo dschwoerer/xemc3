@@ -36,6 +36,24 @@ class EMC3DatasetAccessor:
         )
         return text
 
+    def _get_crop(self, dims, getDA=False, skip=[]):
+        for d in dims:
+            if d in skip:
+                continue
+            try:
+                if getDA:
+                    yield self.data[f"_{d}_dims"]
+                else:
+                    yield self.data[f"_{d}_dims"].data
+            except KeyError:
+                try:
+                    if getDA:
+                        yield self.data[f"{d}_dims"]
+                    else:
+                        yield self.data[f"{d}_dims"].data
+                except KeyError:
+                    yield None
+
     def _get(self, var):
         """Load a single var."""
         transform = identity
@@ -53,14 +71,7 @@ class EMC3DatasetAccessor:
             else:
                 raise
         if "plate_ind" in dims:
-            crop = []
-            for d in dims:
-                if d == "plate_ind":
-                    continue
-                try:
-                    crop.append(self.data[d + "_dims"].data)
-                except KeyError:
-                    crop.append(None)
+            crop = list(self._get_crop(dims, skip=["plate_ind"]))
             ret = []
             for i in range(len(self.data["plate_ind"])):
                 slcr = tuple(
@@ -81,12 +92,7 @@ class EMC3DatasetAccessor:
                 )
                 ret.append(transform(data))
             return ret
-        crop = []
-        for d in dims:
-            try:
-                crop.append(slice(None, self.data[d + "_dims"].data))
-            except KeyError:
-                crop.append(slice(None))
+        crop = [slice(None, x) for x in self._get_crop(dims)]
         data = self.data[var][tuple(crop)]
         return transform(data)
 
@@ -161,6 +167,16 @@ class EMC3DatasetAccessor:
         """
         return self._set(var, data)
 
+    def _get_alt_name(self, var_name, suffix=""):
+        var_suffix = ["_bounds", "", "_plus1"]
+        var_prefix = ["", "_plate_", "plate_"]
+        for extra_suffix in var_suffix:
+            for prefix in var_prefix:
+                cur = prefix + var_name + extra_suffix + suffix
+                if cur in self.data:
+                    return cur
+        assert False, f"Didn't find variable for {var_name} coordinate!"
+
     def iter_plates(self, *, symmetry=False, segments=1):
         """
         Iterate over all plates.
@@ -182,19 +198,8 @@ class EMC3DatasetAccessor:
         iterator of xr.Dataset
             The plates of the divertor plates
         """
-        var_exts = ["_bounds", ""]
-        var_names = ["phi", "z"]
-        var_list = {}
-        basevar = {}
-        for var_name in var_names:
-            found = False
-            for var_ext in var_exts:
-                cur = var_name + var_ext
-                if var_name + var_ext in self.data:
-                    var_list[cur] = []
-                    basevar[cur] = var_name
-                    found = True
-            assert found, f"Didn't find variable for {var_name} coordinate!"
+        basevar = {k: self._get_alt_name(k) for k in ("phi", "z")}
+        var_list = {k: [] for k in basevar.values()}
 
         if segments != 1 or symmetry:
             for phioffset in np.linspace(0, 2 * np.pi, segments, endpoint=False):
@@ -203,7 +208,7 @@ class EMC3DatasetAccessor:
                         tmp = self.data[key].copy()
                         if sym:
                             tmp *= -1
-                        if phioffset != 0 and basevar[key] == "phi":
+                        if phioffset != 0 and basevar["phi"] == key:
                             tmp += phioffset
                         var_list[key].append(tmp)
         else:
@@ -211,15 +216,23 @@ class EMC3DatasetAccessor:
                 var_list[key].append(self.data[key])
         for i in range(len(next(iter(var_list.values())))):
             ds = self.data.copy()
-            phid = ds["phi_dims"].data
-            xd = ds["x_dims"].data
+            dims = ds.dims
+            crop = self._get_crop(dims, True)
+            crop = {
+                d: c.data
+                for d, c in zip(dims, crop)
+                if c is not None and c.dims == ("plate_ind",)
+            }
+            phid = ds[self._get_alt_name("phi", "_dims")].data
+            xd = ds[self._get_alt_name("x", "_dims")].data
+
             for key in var_list:
                 ds[key] = var_list[key][i]
             if len(phid.shape) == 1:
                 assert phid.shape == xd.shape
                 for j in range(ds.dims["plate_ind"]):
                     yield ds.isel(
-                        plate_ind=j, phi=slice(None, phid[j]), x=slice(None, xd[j])
+                        plate_ind=j, **{k: slice(None, v[j]) for k, v in crop.items()}
                     )
             else:
                 for j in range(ds.dims["plate_ind"]):
@@ -568,12 +581,17 @@ class EMC3DatasetAccessor:
             keys = key
         ret = xr.Dataset(coords=at.coords)
         fill = at["phi"].data == -1
+        filldims = at["phi"].dims
         dofill = np.any(fill)
         for k in keys:
             if not lazy:
                 self.data[k].data
             ret[k] = self.data[k].isel(**at)
             if dofill:
+                # fillthis = fill if filldims == ret[k].dims else ret[k].data
+                assert (
+                    ret[k].dims == filldims
+                ), f"Got dimensions {ret[k].dims} but expected {filldims} for key {k}"
                 if fill_value is None:
                     try:
                         ret[k].data[fill] = np.nan

@@ -26,7 +26,7 @@ def hypo_shape(draw, max=1000):
 def hypo_vars(draw, skip=[]):
     files = []
     for v in load.files:
-        if v in ("BFIELD_STRENGTH", "fort.70"):
+        if v in ("BFIELD_STRENGTH", "fort.70", "ADD_SF_N0", "TARGET_PROFILES"):
             continue
         if v in skip:
             continue
@@ -102,6 +102,7 @@ def gen_rand(shape, files):
     for k in "R_bounds", "z_bounds":
         ds[k].attrs["units"] = "m"
     ds.emc3["phi_corners"] = ("phi",), np.random.random(shape[2] + 1)
+    ds["phi_bounds"].attrs["units"] = "radian"
 
     def get_attrs(vsv):
         out = {}
@@ -113,6 +114,8 @@ def gen_rand(shape, files):
         return out
 
     for f in load.files:
+        if f in ["ADD_SF_N0", "TARGET_PROFILES"]:
+            continue
         ids = 3
         if files is not None:
             for f2 in files:
