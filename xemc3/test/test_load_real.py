@@ -33,6 +33,14 @@ def test_load_all():
         for a in [a for a in result[k].attrs]:
             if a not in expected[k].attrs:
                 del result[k].attrs[a]
+    for a in result.attrs:
+        if a not in expected.attrs:
+            del result.attrs[a]
+    # Remove changing attributes
+    for a in "software_version", "date_created", "id":
+        del result.attrs[a]
+        del expected.attrs[a]
+
     assert_identical(result, expected)
 
 
