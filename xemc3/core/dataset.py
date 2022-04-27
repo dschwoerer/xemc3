@@ -445,9 +445,12 @@ class EMC3DatasetAccessor:
                     dim=dk
                 )
                 for co in ds.coords:
-                    ds_[co] = (
-                        ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
-                    ).sum(dim=dk)
+                    if dk in ds.coords[co].dims:
+                        ds_[co] = (
+                            ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
+                        ).sum(dim=dk)
+                    else:
+                        ds_[co] = ds[co]
                 ds = ds_
         return ds
 
@@ -496,7 +499,7 @@ class EMC3DatasetAccessor:
         See evaluate_at_rpz for options. Unlike evaluate_at_rpz the
         coordinates are given here in cartesian coordinates.
         """
-        r = np.sqrt(x ** 2 + y ** 2)
+        r = np.sqrt(x**2 + y**2)
         phi = np.arctan2(y, x)
         return self.evaluate_at_rpz(r, phi, z, *args, **kwargs)
 
