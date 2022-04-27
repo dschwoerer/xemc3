@@ -1,6 +1,8 @@
+import datetime
 import os
 import re
 import typing
+import uuid
 
 import numpy as np
 import xarray as xr
@@ -325,6 +327,20 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     return da
 
 
+def add_metadata(ds: xr.Dataset):
+    # Delay import to avoid circular dependency
+    from .. import __version__
+
+    ds.attrs.update(
+        title="EMC3-EIRENE Simulation data",
+        software_name="xemc3",
+        software_version=__version__,
+        date_created=datetime.datetime.utcnow().isoformat(),
+        id=str(uuid.uuid1()),
+        references="https://doi.org/10.5281/zenodo.5562265",
+    )
+
+
 def write_mappings(da: xr.DataArray, fn: str) -> None:
     """Write the mappings data to fortran"""
     with open(fn, "w") as f:
@@ -366,6 +382,7 @@ def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     ds.emc3.unit("z_bounds", "m")
     ds.emc3.unit("phi_bounds", "radian")
     assert isinstance(ds, xr.Dataset)
+    add_metadata(ds)
     return ds
 
 
