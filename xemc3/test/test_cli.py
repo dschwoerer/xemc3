@@ -51,10 +51,12 @@ def do_test_append_ds(shape, v12, rep):
             write.fortran(org, dir)
             call("append_time " + dir + "///")
         nc = dir + ".nc"
-        read = xr.open_dataset(nc)
-        for i, org in enumerate(orgs):
-            assert_ds_are_equal(org, read.isel(time=i), True, 1e-2, 1e-2)
-        del read
+        with xr.open_dataset(nc) as read:
+            if "time" not in read.dims:
+                assert_ds_are_equal(orgs[0], read, True, 1e-2, 1e-2)
+            else:
+                for i, org in enumerate(orgs):
+                    assert_ds_are_equal(org, read.isel(time=i), True, 1e-2, 1e-2)
 
 
 @settings(**g.setting)  # type: ignore
