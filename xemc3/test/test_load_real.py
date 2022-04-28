@@ -30,10 +30,10 @@ def test_load_all():
     expected = xr.open_dataset(bd + ".nc")
     # Remove new attributes, so we don't have to regenerate the data that often
     for k in list(result) + list(result.coords):
-        for a in [a for a in result[k].attrs]:
+        for a in list(result[k].attrs):
             if a not in expected[k].attrs:
                 del result[k].attrs[a]
-    for a in result.attrs:
+    for a in list(result.attrs):
         if a not in expected.attrs:
             del result.attrs[a]
     # Remove changing attributes
