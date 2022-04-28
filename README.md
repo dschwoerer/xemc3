@@ -1,4 +1,3 @@
-[![Build Status](https://github.com/dschwoerer/xemc3/actions/workflows/tests.yml/badge.svg?branch=next)](https://github.com/dschwoerer/xemc3/actions)
 [![License](https://img.shields.io/badge/license-GPL-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
 [![pypiversion](https://img.shields.io/pypi/v/xemc3.svg)](https://pypi.python.org/pypi/xemc3)
 [![py3comp](https://img.shields.io/badge/py3-compatible-brightgreen.svg)](https://img.shields.io/badge/py3-compatible-brightgreen.svg)
