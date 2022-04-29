@@ -1519,6 +1519,22 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
             "TOTAL_RAD": dict(long_name="Total radiation", units="W"),
         },
     ),
+    "ENERGY_TRANSPORT": dict(type = "mapping",
+                             vars = {"qconve": dict(units="Wm^{-2}", long_name="Parallel electron convective heat flux"),
+                                     "qconvi": dict(units="Wm^{-2}", long_name="Parallel ion convective heat flux"),
+                                     "qconde": dict(units="Wm^{-2}", long_name="Parallel electron conductive heat flux"),
+                                     "qcondi": dict(units="Wm^{-2}", long_name="Parallel ion conductive heat flux")}),
+    "ENERGY_BALANCE": dict(type = "mapping",
+                           vars = {"div_qconve": dict(units="Wcm^{-3}", long_name="Divergence of parallel electron convective heat flux"),
+                                   "div_qconvi": dict(units="Wcm^{-3}", long_name="Divergence of parallel ion convective heat flux"),
+                                   "div_qconde": dict(units="Wcm^{-3}", long_name="Divergence of parallel ion conductive heat flux"),
+                                   "div_qcondi": dict(units="Wcm^{-3}", long_name="Divergence of parallel ion conductive heat flux"),
+                                   "div_qcross": dict(units="Wcm^{-3}", long_name="Divergence of cross-field heat flux")}),
+    "PARTICLE_TRANSPORT": dict(type="mapping",
+                               vars = {"Gpara": dict(units="cm^{-2}s^{-1}", long_name="Particle flux along field lines")}),
+    "PARTICLE_BALANCE": dict(type="mapping",
+                             vars = {"div_Gpara" : dict(units="cm^{-3}s^{-1}", long_name="Divergence of parallel particle flux"),
+                                     "div_Gcross" : dict(units="cm^{-3}s^{-1}", long_name="Divergence of cross-field particle flux")}),
 }
 
 if False:
