@@ -1542,26 +1542,26 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
             "div_qconve": dict(
                 units="Wm^{-3}",
                 long_name="Divergence of parallel electron convective heat flux",
-                scale=1e-6
+                scale=1e6
             ),
             "div_qconvi": dict(
                 units="Wm^{-3}",
                 long_name="Divergence of parallel ion convective heat flux",
-                scale=1e-6
+                scale=1e6
             ),
             "div_qconde": dict(
                 units="Wm^{-3}",
                 long_name="Divergence of parallel ion conductive heat flux",
-                scale=1e-6
+                scale=1e6
             ),
             "div_qcondi": dict(
                 units="Wm^{-3}",
                 long_name="Divergence of parallel ion conductive heat flux",
-                scale=1e-6
+                scale=1e6
             ),
             "div_qcross": dict(
                 units="Wm^{-3}", long_name="Divergence of cross-field heat flux"
-                scale=1e-6
+                scale=1e6
             ),
         },
     ),
@@ -1570,7 +1570,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         vars={
             "Gpara": dict(
                 units="m^{-2}s^{-1}", long_name="Particle flux along field lines",
-                scale=1e-4
+                scale=1e4
             )
         },
     ),
@@ -1580,12 +1580,12 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
             "div_Gpara": dict(
                 units="m^{-3}s^{-1}",
                 long_name="Divergence of parallel particle flux",
-                scale=1e-6
+                scale=1e6
             ),
             "div_Gcross": dict(
                 units="m^{-3}s^{-1}",
                 long_name="Divergence of cross-field particle flux",
-                scale=1e-6
+                scale=1e6
             ),
         },
     ),
