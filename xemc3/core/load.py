@@ -1572,7 +1572,8 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "div_Gpara": dict(
-                units="10^{-6}m^{-3}s^{-1}", long_name="Divergence of parallel particle flux"
+                units="10^{-6}m^{-3}s^{-1}",
+                long_name="Divergence of parallel particle flux",
             ),
             "div_Gcross": dict(
                 units="10^{-6}m^{-3}s^{-1}",
