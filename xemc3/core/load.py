@@ -1540,23 +1540,28 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "div_qconve": dict(
-                units="10^{-6}Wm^{-3}",
+                units="Wm^{-3}",
                 long_name="Divergence of parallel electron convective heat flux",
+                scale=1e-6
             ),
             "div_qconvi": dict(
-                units="10^{-6}Wm^{-3}",
+                units="Wm^{-3}",
                 long_name="Divergence of parallel ion convective heat flux",
+                scale=1e-6,
             ),
             "div_qconde": dict(
-                units="10^{-6}Wm^{-3}",
+                units="Wm^{-3}",
                 long_name="Divergence of parallel ion conductive heat flux",
+                scale=1e-6.
             ),
             "div_qcondi": dict(
-                units="10^{-6}Wm^{-3}",
+                units="Wm^{-3}",
                 long_name="Divergence of parallel ion conductive heat flux",
+                scale=1e-6,
             ),
             "div_qcross": dict(
-                units="10^{-6}Wm^{-3}", long_name="Divergence of cross-field heat flux"
+                units="Wm^{-3}", long_name="Divergence of cross-field heat flux"
+                scale=1e-6,
             ),
         },
     ),
@@ -1564,7 +1569,8 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "Gpara": dict(
-                units="10^{-4}m^{-2}s^{-1}", long_name="Particle flux along field lines"
+                units="m^{-2}s^{-1}", long_name="Particle flux along field lines",
+                scale=1e-4
             )
         },
     ),
@@ -1572,12 +1578,14 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "div_Gpara": dict(
-                units="10^{-6}m^{-3}s^{-1}",
+                units="m^{-3}s^{-1}",
                 long_name="Divergence of parallel particle flux",
+                scale=1e-6,
             ),
             "div_Gcross": dict(
-                units="10^{-6}m^{-3}s^{-1}",
+                units="m^{-3}s^{-1}",
                 long_name="Divergence of cross-field particle flux",
+                scale=1e-6,
             ),
         },
     ),
