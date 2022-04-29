@@ -1540,23 +1540,23 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "div_qconve": dict(
-                units="Wcm^{-3}",
+                units="10^{-6}Wm^{-3}",
                 long_name="Divergence of parallel electron convective heat flux",
             ),
             "div_qconvi": dict(
-                units="Wcm^{-3}",
+                units="10^{-6}Wm^{-3}",
                 long_name="Divergence of parallel ion convective heat flux",
             ),
             "div_qconde": dict(
-                units="Wcm^{-3}",
+                units="10^{-6}Wm^{-3}",
                 long_name="Divergence of parallel ion conductive heat flux",
             ),
             "div_qcondi": dict(
-                units="Wcm^{-3}",
+                units="10^{-6}Wm^{-3}",
                 long_name="Divergence of parallel ion conductive heat flux",
             ),
             "div_qcross": dict(
-                units="Wcm^{-3}", long_name="Divergence of cross-field heat flux"
+                units="10^{-6}Wm^{-3}", long_name="Divergence of cross-field heat flux"
             ),
         },
     ),
@@ -1564,7 +1564,7 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "Gpara": dict(
-                units="cm^{-2}s^{-1}", long_name="Particle flux along field lines"
+                units="10^{-4}m^{-2}s^{-1}", long_name="Particle flux along field lines"
             )
         },
     ),
@@ -1572,10 +1572,10 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapping",
         vars={
             "div_Gpara": dict(
-                units="cm^{-3}s^{-1}", long_name="Divergence of parallel particle flux"
+                units="10^{-6}m^{-3}s^{-1}", long_name="Divergence of parallel particle flux"
             ),
             "div_Gcross": dict(
-                units="cm^{-3}s^{-1}",
+                units="10^{-6}m^{-3}s^{-1}",
                 long_name="Divergence of cross-field particle flux",
             ),
         },
