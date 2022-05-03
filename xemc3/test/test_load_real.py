@@ -28,19 +28,23 @@ def test_load_all():
     bd = get_data()
     result = xemc3.load.all(bd)
     expected = xr.open_dataset(bd + ".nc")
+
+    # Remove changing attributes
+    changing = "software_version", "date_created", "id"
+    for a in changing:
+        assert a in result.attrs
+        result.attrs.pop(a, None)
+        expected.attrs.pop(a, None)
+
     # Remove new attributes, so we don't have to regenerate the data that often
     for k in list(result) + list(result.coords):
-        for a in [a for a in result[k].attrs]:
+        for a in list(result[k].attrs):
             if a not in expected[k].attrs:
                 del result[k].attrs[a]
-    assert_identical(result, expected)
+    for a in list(result.attrs):
+        if a not in expected.attrs:
+            del result.attrs[a]
 
-
-# simple regression test
-def test_load_plates():
-    bd = get_data()
-    result = xemc3.load.plates(bd, cache=False)
-    expected = xemc3.load.plates(bd, cache=True)
     assert_identical(result, expected)
 
 

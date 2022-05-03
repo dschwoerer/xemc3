@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional, Tuple
 
 import numpy as np
 import xarray as xr
+import warnings
 
 _open_formats: List[Tuple[Callable, str]] = []
 try:
@@ -39,11 +40,18 @@ def format_time(secs):
 
 
 class rrange2(object):
-    def __init__(self, args, *, update=100):
+    def __init__(self, args, *, update=None):
+        if update is not None:
+            # This is no forther needed, the update is now based on time.
+            warnings.warn(
+                "passing the `update` keyword to rrange2 is deprecateed.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
         self.args = [int(a) for a in args]
         self.total = 1
         self.t0 = time.time()
-        self.update = int(update)
+        self.tnext = self.t0 + 1
         for a in self.args:
             self.total *= a
         self._has_returned = 0
@@ -54,14 +62,14 @@ class rrange2(object):
         if len(self.state) > 0:
             self.state[0] = -1
         self.tstate = -1
-        self.tnext = 0
         return self
 
     def __next__(self):
         self.tstate += 1
-        if self.tstate == self.tnext:
-            self.tnext += ((self.total - 1) // self.update) + 1
-            needed = time.time() - self.t0
+        self.tnow = time.time()
+        if self.tnow >= self.tnext:
+            self.tnext = self.tnow + 1
+            needed = self.tnow - self.t0
             prog = self.tstate / self.total
             print(
                 f"{prog * 100:6.2f} % ... {format_time(needed)}>{format_time(needed / (prog) - needed) if prog else 0}",

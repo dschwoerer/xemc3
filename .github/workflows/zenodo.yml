@@ -1,0 +1,20 @@
+name: zenodo
+
+on: [push, pull_request]
+
+jobs:
+  zenodo:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.head_ref }}
+
+    - name: Version
+      run: |
+        python3 --version
+
+    - name: Check json
+      run: |
+        python3 -c 'import json ; f = open(".zenodo.json") ; json.load(f)'

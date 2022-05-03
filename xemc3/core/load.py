@@ -1,6 +1,8 @@
+import datetime
 import os
 import re
 import typing
+import uuid
 
 import numpy as np
 import xarray as xr
@@ -325,6 +327,20 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     return da
 
 
+def add_metadata(ds: xr.Dataset):
+    # Delay import to avoid circular dependency
+    from .. import __version__
+
+    ds.attrs.update(
+        title="EMC3-EIRENE Simulation data",
+        software_name="xemc3",
+        software_version=__version__,
+        date_created=datetime.datetime.utcnow().isoformat(),
+        id=str(uuid.uuid1()),
+        references="https://doi.org/10.5281/zenodo.5562265",
+    )
+
+
 def write_mappings(da: xr.DataArray, fn: str) -> None:
     """Write the mappings data to fortran"""
     with open(fn, "w") as f:
@@ -364,11 +380,13 @@ def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
         ds[x].attrs["xemc3_type"] = "geom"
     ds.emc3.unit("R_bounds", "m")
     ds.emc3.unit("z_bounds", "m")
+    ds.emc3.unit("phi_bounds", "radian")
     assert isinstance(ds, xr.Dataset)
+    add_metadata(ds)
     return ds
 
 
-def scrape(f: typing.TextIO, *, ignore=None, verbose=False) -> str:
+def scrape(f: typing.TextIO, *, ignore="!", verbose=False) -> str:
     """read next data line from configuration file (skip lines with
     leading *)
 
@@ -472,6 +490,7 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
     Read Target structures from a file that is in the Kisslinger
     format as used by EMC3.
 
+    Parameters
     ----------
     filename : str or sequence of str
         The location of the file to read
@@ -485,6 +504,43 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
         return read_plate_ds(filename)
     dss = [read_plate_ds(fn) for fn in filename]
     return merge_blocks(dss)
+
+
+def read_add_sf_n0(filename: str) -> xr.Dataset:
+    """
+    Read the ADD_SF_N0 file and return the referenced geometry.
+
+    Parameters
+    ----------
+    filename : str
+        The path of the file
+
+    Returns
+    -------
+    xr.Dataset
+        The coordinates
+    """
+    if "/" in filename:
+        dir = "/".join(filename.split("/")[:-1]) + "/"
+    else:
+        dir = ""
+    files = []
+    with open(filename) as f:
+        num = int(scrape(f))
+        for _ in range(num):
+            line = scrape(f)
+            lines = line.split()
+            assert len(lines) == 3, f"Unexpected content in {filename}: {line}"
+            assert [int(x) for x in lines] == [
+                0,
+                -4,
+                1,
+            ], f"Unexpected content in {filename}: {line}"
+            files.append(dir + scrape(f).strip())
+    return read_plate_nice(files)
+
+
+plate_prefix = "plate_"
 
 
 def read_plate_ds(filename: str) -> xr.Dataset:
@@ -511,10 +567,11 @@ def read_plate_ds(filename: str) -> xr.Dataset:
         else:
             assert len(dat.shape) == 1
             dims = ["phi"]
-        out[f"{name}"] = [f"{d}_plus1" for d in dims], dat
-    out["R"].attrs["units"] = "m"
-    out["z"].attrs["units"] = "m"
-    out["phi"].attrs["units"] = "radian"
+        out = out.assign_coords(
+            {f"{plate_prefix}{name}": ([f"{plate_prefix}{d}_plus1" for d in dims], dat)}
+        )
+    for var, attrs in files["ADD_SF_N0"]["vars"].items():
+        out[var].attrs.update(attrs)
 
     return out
 
@@ -539,20 +596,20 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
         The read data as a list of datasets
     """
     with open(cwd + fn) as f:
-        s = scrape(f, ignore="!").split()
+        s = scrape(f).split()
         _, num_plates = [int(i) for i in s]
         plates = []
         for plate in range(num_plates):
-            s = scrape(f, ignore="!").split()
+            s = scrape(f).split()
             assert len(s) == 2, f"{plate} : {s}"
             _, geom = s
             r, z, phi = read_plate(cwd + geom)
             nx, ny = r.shape
             nx -= 1
             ny -= 1
-            s = scrape(f, ignore="!").split()
+            s = scrape(f).split()
             total = np.array([float(i) for i in s])
-            s = scrape(f, ignore="!").split()
+            s = scrape(f).split()
             if len(s) == 3:
                 items, yref, xref = [int(i) for i in s]
                 nxr = nx * xref
@@ -644,44 +701,28 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 ]
             else:
                 assert mode == 1
-                corrs_da = [to_interval(("phi", "x"), a) for a in coordinates]
+                corrs_da = [
+                    to_interval((plate_prefix + "phi", plate_prefix + "x"), a)
+                    for a in coordinates
+                ]
 
             coords = {
-                "R_bounds": corrs_da[0],
-                "z_bounds": corrs_da[1],
-                "phi_bounds": corrs_da[2],
+                plate_prefix + "R_bounds": corrs_da[0],
+                plate_prefix + "z_bounds": corrs_da[1],
+                plate_prefix + "phi_bounds": corrs_da[2],
             }
             ds = xr.Dataset(coords=coords)  # type: ignore
-            ds.coords["R_bounds"].attrs["units"] = "m"
-            ds.coords["z_bounds"].attrs["units"] = "m"
-            ds.coords["phi_bounds"].attrs["units"] = "radian"
-            long_names = {
-                "f_n": "Particle flux",
-                "f_E": "Energy flux",
-                "avg_n": "Averge density",
-                "avg_Te": "Average electron temperature",
-                "avg_Ti": "Average ion temperature",
-            }
-            fac = {
-                "f_n": 1,
-                "f_E": 1e4,
-                "avg_n": 1e6,
-                "avg_Te": 1,
-                "avg_Ti": 1,
-            }
-            units = {
-                "f_n": None,
-                "f_E": "W/m²",
-                "avg_n": "m^-3",
-                "avg_Te": "eV",
-                "avg_Ti": "eV",
-            }
+            ds.coords[plate_prefix + "R_bounds"].attrs["units"] = "m"
+            ds.coords[plate_prefix + "z_bounds"].attrs["units"] = "m"
+            ds.coords[plate_prefix + "phi_bounds"].attrs["units"] = "radian"
 
-            for i, l in enumerate(plates_labels):
-                ds[l] = ("phi", "x"), data[i] * fac[l]
-                if units[l] is not None:
-                    ds[l].attrs["units"] = units[l]
-                ds[l].attrs["long_name"] = long_names[l]
+            vars = files["TARGET_PROFILES"]["vars"].copy()
+            for i, (l, meta) in enumerate(vars.items()):
+                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.pop(
+                    "scale", 1
+                )
+                for k in meta:
+                    ds[l].attrs[k] = meta[k]
             for i, l in enumerate(["tot_n", "tot_P"]):
                 ds[l] = total[i]
             plates.append(ds)
@@ -691,7 +732,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
     return plates
 
 
-def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Dataset:
+def merge_blocks(
+    dss: typing.Sequence[xr.Dataset], axes=plate_prefix + "ind"
+) -> xr.Dataset:
     """
     Convert a list of datasets to one dataset
 
@@ -727,7 +770,7 @@ def merge_blocks(dss: typing.Sequence[xr.Dataset], axes="plate_ind") -> xr.Datas
                 matching[k] = False
         if not matching[k]:
             assert isinstance(k, str)
-            ds[k + "_dims"] = (axes, org_dims)
+            ds[f"_{k}_dims"] = (axes, org_dims)
 
     dims[axes] = len(dss)
 
@@ -769,10 +812,8 @@ def load_plates(dir: str, fn: str = "TARGET_PROFILES") -> xr.Dataset:
     """
     if dir[-1] != "/":
         dir += "/"
-    with timeit("\nReading raw: %f"):
-        plates = read_plates_raw(dir, fn)
-    with timeit("To xarray: %f"):
-        return merge_blocks(plates)
+    plates = read_plates_raw(dir, fn)
+    return merge_blocks(plates)
 
 
 def write_plates(dir: str, plates: xr.Dataset) -> None:
@@ -815,7 +856,11 @@ def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     if os.path.isdir(dir):
         fn = "TARGET_PROFILES"
     else:
-        dir, fn = dir.rsplit("/", 1)
+        if "/" in dir:
+            dir, fn = dir.rsplit("/", 1)
+        else:
+            fn = dir
+            dir = "."
     if cache:
         try:
             if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
@@ -1519,6 +1564,32 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
             "TOTAL_RAD": dict(long_name="Total radiation", units="W"),
         },
     ),
+    "ADD_SF_N0": dict(
+        type="surfaces",
+        vars={
+            plate_prefix + "phi": dict(units="radian"),
+            plate_prefix + "R": dict(units="m"),
+            plate_prefix + "z": dict(units="m"),
+        },
+    ),
+    "GRID_3D_DATA": dict(
+        type="geom",
+        vars={
+            "R_bounds": dict(units="m"),
+            "z_bounds": dict(units="m"),
+            "phi_bounds": dict(units="radian"),
+        },
+    ),
+    "TARGET_PROFILES": dict(
+        type="target_flux",
+        vars={
+            "f_n": dict(long_name="Particle flux"),
+            "f_E": dict(units="W/m²", scale=1e4, long_name="Energy flux"),
+            "avg_n": dict(units="m^-3", scale=1e6, long_name="Averge density"),
+            "avg_Te": dict(units="eV", long_name="Average electron temperature"),
+            "avg_Ti": dict(units="eV", long_name="Average ion temperature"),
+        },
+    ),
 }
 
 if False:
@@ -1581,13 +1652,10 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
 
     """
     assert files == _files_bak
+    datas = None
     if type == "mapping":
         opts.pop("vars", False)
         ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
-        assert opts == {}, "Unexpected arguments: " + ", ".join(
-            [f"{k}={v}" for k, v in opts.items()]
-        )
-        return ds
     elif type == "mapped":
         vars = opts.pop("vars")
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
@@ -1599,8 +1667,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
     elif type == "geom":
-        ds_ = read_locations(fn)
-        ds.assign_coords(ds_.coords)
+        ds_ = read_locations(fn.rsplit("/", 1)[0])
+        _ = opts.pop("vars")
+        ds = ds.assign_coords(ds_.coords)
         assert opts == {}, "Unexpected arguments: " + ", ".join(
             [f"{k}={v}" for k, v in opts.items()]
         )
@@ -1611,12 +1680,28 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
             opts["length"] = len(ds["iteration"])
         datas = read_info_file(fn, vars, **opts)
         opts = {}
+    elif type == "surfaces":
+        vars = opts.pop("vars", None)
+        ds_ = read_add_sf_n0(fn)
+        ds = ds.assign_coords(ds_.coords)
+        for k in ds_:
+            ds[k] = ds_[k]
+        datas = None
+    elif type == "target_flux":
+        vars = opts.pop("vars", None)
+        ds_ = get_plates(fn, False)
+        ds = ds.assign_coords(ds_.coords)
+        for k in ds_:
+            ds[k] = ds_[k]
+        datas = None
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
     assert opts == {}, "Unexpected arguments: " + ", ".join(
         [f"{k}={v}" for k, v in opts.items()]
     )
+    if datas is None:
+        return ds
     vars = vars.copy()
     assert files == _files_bak
     assert opts == {}
@@ -1787,9 +1872,6 @@ def load_any(path: str, *args, **kwargs) -> xr.Dataset:
     """
     if os.path.isdir(path):
         return load_all(path, *args, **kwargs)
-    dir, fname = path.rsplit("/", 1)
-    if fname == "TARGET_PROFILES":
-        return get_plates(dir, *args, **kwargs)
     return read_fort_file_pub(path, *args, **kwargs)
 
 
@@ -1809,6 +1891,9 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
         write_plates_mag(f"{dir}/{fn}", ds)
     elif type == "info":
         write_info_file(f"{dir}/{fn}", ds)
+    elif type == "geom":
+        assert fn == "GRID_3D_DATA"
+        write_locations(ds, f"{dir}/{fn}")
     else:
         raise RuntimeError(f"Unexpected type {type}")
 

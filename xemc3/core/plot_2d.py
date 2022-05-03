@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 
 from . import utils
+from .load import plate_prefix
 
 
 def plot_rz(
@@ -16,8 +17,10 @@ def plot_rz(
     zmax=None,
     aspect=True,
     figsize=None,
+    target=False,
     **kwargs,
 ):
+
     phis = ds["phi_bounds"]
     if phi < np.min(phis.data) or phi > np.max(phis.data):
         raise RuntimeError(
@@ -54,13 +57,7 @@ def plot_rz(
             kwargs["edgecolors"] = "k"
     r = utils.from_interval(das[0])
     z = utils.from_interval(das[1])
-    if figsize is not None:
-        assert (
-            ax is None
-        ), "Passing in an axes object and specifing the figure size cannot be combined"
-        plt.figure(figsize=figsize)
-    if ax is None:
-        ax = plt.axes(label=np.random.bytes(20))
+    ax = _get_ax(figsize, ax)
     p = ax.pcolormesh(r, z, data, **kwargs)
     # plt.xlabel(xr.plot.utils.label_from_attrs(r))
     if aspect:
@@ -73,4 +70,47 @@ def plot_rz(
     if zmin is not None or zmax is not None:
         ax.set_ylim(zmin, zmax)
     p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[-1]))
+    if target:
+        plot_target(ds, phi, ax=ax, fmt="r-" if key is None else "k-", aspect=aspect)
     return p
+
+
+def plot_target(ds, phi, fmt=None, ax=None, figsize=None, aspect=True):
+    ax = _get_ax(figsize, ax)
+    if aspect:
+        ax.set_aspect(1)
+    das = xr.Dataset()
+    for k in "R", "phi", "z":
+        k1 = f"{plate_prefix}{k}"
+        das[k] = ds[k1]
+    for k in ds:
+        if k.endswith("_dims") and k.startswith(f"_{plate_prefix}"):
+            das[k] = ds[k]
+    for p in das.emc3.iter_plates(symmetry=True, segments=5):
+        assert len(p.phi.shape) == 1
+        if not (p.phi.min() <= phi <= p.phi.max()):
+            continue
+        p["plate_phi_plus1"] = p.phi
+        p = p.interp(
+            plate_phi_plus1=phi, assume_sorted=False, kwargs=dict(bounds_error=True)
+        )
+        # except ValueError as e:
+        #    assert "value in x_new is" in e.args[0]
+        #    continue
+
+        assert np.isclose(p.plate_phi, phi), f"{phi} expected but got {p.plate_phi}"
+        ax.plot(p.plate_R, p.plate_z, fmt or "k-")
+
+    ax.set_xlabel("R [m]")
+    ax.set_ylabel("z [m]")
+
+
+def _get_ax(figsize, ax):
+    if figsize is not None:
+        assert (
+            ax is None
+        ), "Passing in an axes object and specifing the figure size cannot be combined"
+        plt.figure(figsize=figsize)
+    if ax is None:
+        ax = plt.axes(label=np.random.bytes(20))
+    return ax

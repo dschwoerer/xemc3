@@ -7,6 +7,9 @@ check: flake mypy
 recheck:
 	python3 -m pytest xemc3 --last-failed --new-first
 
+debug-failure:
+	python3 -m pytest xemc3 --last-failed --new-first --pdb
+
 flake:
 	flake8 xemc3 --count --select=E9,F63,F7,F82 --show-source --statistics
 # W503 : line break before binary operator
