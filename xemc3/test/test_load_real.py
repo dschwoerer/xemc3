@@ -28,6 +28,14 @@ def test_load_all():
     bd = get_data()
     result = xemc3.load.all(bd)
     expected = xr.open_dataset(bd + ".nc")
+
+    # Remove changing attributes
+    changing = "software_version", "date_created", "id"
+    for a in changing:
+        assert a in result.attrs
+        result.attrs.pop(a, None)
+        expected.attrs.pop(a, None)
+
     # Remove new attributes, so we don't have to regenerate the data that often
     for k in list(result) + list(result.coords):
         for a in list(result[k].attrs):
@@ -36,10 +44,6 @@ def test_load_all():
     for a in list(result.attrs):
         if a not in expected.attrs:
             del result.attrs[a]
-    # Remove changing attributes
-    for a in "software_version", "date_created", "id":
-        del result.attrs[a]
-        del expected.attrs[a]
 
     assert_identical(result, expected)
 
