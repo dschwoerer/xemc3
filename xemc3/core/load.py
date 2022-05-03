@@ -1613,36 +1613,6 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
                            scale=1e6
                           )
                      ),
-    "DENSITY_A":dict(type="mapping", 
-                      dict(units="m^{-3}",
-                           long_name="H density"
-                          )
-                    ),
-    "DENSITY_M":dict(type="mapping", 
-                      dict(units="m^{-3}",
-                           long_name="H2 density"
-                          )
-                    ),
-    "DENSITY_I":dict(type="mapping", 
-                      dict(units="m^{-3}",
-                           long_name="H2+ density"
-                          )
-                    ),
-    "TEMPERATURE_A":dict(type="mapping", 
-                         dict(units="eV",
-                              long_name="H temperature"
-                             )
-                        )
-    "TEMPERATURE_M":dict(type="mapping",
-                         dict(units="eV",
-                              long_name="H2 temperature"
-                             )
-                        ),
-    "TEMPERATURE_I":dict(type="mapping",
-                         dict(units="eV",
-                              long_name="H2+ temperature"
-                             )
-                        ),
     "TOTAL_FLUX": dict(type="scalar",
                        vars = {"pflux_total": dict(units="A", 
                                                    long_name="Total particle flux")
