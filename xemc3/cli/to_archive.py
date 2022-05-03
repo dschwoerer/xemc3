@@ -7,45 +7,40 @@ from argparse import ArgumentParser
 import xarray as xr
 
 from ..core.load import archive, load_all
+from ._common import commonparser, iter_dir
+
+ext = "arch.nc"
 
 
-def to_archive(d: str, quiet: bool, geom: bool, mapping: bool, delete: bool) -> None:
-    while d[-1] == "/":
-        d = d[:-1]
+def to_archive(
+    read: str, name: str, quiet: bool, geom: bool, mapping: bool, delete: bool
+) -> None:
     fromds = False
     if not quiet:
-        print(f"Loading {d} ...", end="")
+        print(f"Loading {read} ...", end="")
         sys.stdout.flush()
-    if os.path.isdir(d):
-        ds = load_all(d)
+    if os.path.isdir(read):
+        ds = load_all(read)
     else:
-        ds = xr.open_dataset(d)
-        dorg = d
-        d = ".".join(d.split(".")[:-1])
+        ds = xr.open_dataset(read)
         fromds = True
     if not quiet:
         print(" writing ...", end="")
         sys.stdout.flush()
-    archive(ds, d + ".arch.nc", geom, mapping)
+    archive(ds, f"{name}.{ext}", geom, mapping)
     if delete and fromds:
         if not quiet:
             print(" deleting ...", end="")
             sys.stdout.flush()
-        os.unlink(dorg)
+        os.unlink(read)
     if not quiet:
         print(" done")
 
 
 def parser() -> ArgumentParser:
-    parser = ArgumentParser(
-        description="Archive the data from EMC3 simulations as a netcdf file."
+    parser = commonparser(
+        "Archive the data from EMC3 simulations as a netcdf file.", ext=ext
     )
-    parser.add_argument(
-        "path",
-        nargs="+",
-        help="Path of the directory to load or a netcdf file. The netcdf file will be called dir.arc.nc if the folder was called dir.",
-    )
-    parser.add_argument("-q", "--quiet", action="store_true", help="Be less verbose")
     parser.add_argument(
         "-g", "--geometry", action="store_true", help="Also store geometry"
     )
@@ -59,7 +54,8 @@ def parser() -> ArgumentParser:
         "-d",
         "--delete",
         action="store_true",
-        help="Delete the uncompressed input file. Only used if the input was a netcdf file",
+        help="Delete the uncompressed input file. "
+        "Only used if the input was a netcdf file",
     )
     return parser
 
@@ -67,9 +63,10 @@ def parser() -> ArgumentParser:
 def main() -> None:
     args = parser().parse_args()
 
-    for d in args.path:
+    for d, n in iter_dir(args):
         to_archive(
             d,
+            n,
             args.quiet,
             geom=args.geometry,
             mapping=not args.no_mapping,

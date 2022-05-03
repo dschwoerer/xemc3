@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import os
 import sys
 from argparse import ArgumentParser
@@ -8,60 +7,51 @@ import xarray as xr
 
 from ..core import dataset
 from ..core.load import load_all
+from ._common import commonparser, iter_dir
 
 
-def append_time(d: str, verbose: bool = False) -> None:
-    while d[-1] == "/":
-        d = d[:-1]
+def append_time(read: str, name: str, verbose: bool = False) -> None:
     try:
-        os.replace(d + ".nc", d + ".old.nc")
-        old = xr.open_dataset(d + ".old.nc")
+        os.replace(name + ".nc", name + ".old.nc")
+        old = xr.open_dataset(name + ".old.nc")
     except FileNotFoundError:
         old = None
     try:
         if verbose:
-            print(f"Loading {d} ...", end="")
+            print(f"Loading {read} ...", end="")
             sys.stdout.flush()
-        ds = load_all(d)
+        ds = load_all(read)
         if old is not None:
             ds = xr.concat([old, ds], "time", "different")
         if verbose:
             print(" writing ...", end="")
             sys.stdout.flush()
-        ds.emc3.to_netcdf(d + ".nc")
+        ds.emc3.to_netcdf(name + ".nc")
     except Exception:
         if old is not None:
-            os.replace(d + ".old.nc", d + ".nc")
+            os.replace(name + ".old.nc", name + ".nc")
         raise
     if old is not None:
-        os.remove(d + ".old.nc")
+        os.remove(name + ".old.nc")
     if verbose:
         print(" done")
 
 
 def parser() -> ArgumentParser:
-    parser = ArgumentParser(
-        description="""
+    return commonparser(
+        """
         Load the data from EMC3 simulations and store as netcdf file. The
         data is appended for each simulation to the netcdf file, which
         will be created if it does not yet exists.
         """
     )
-    parser.add_argument(
-        "path",
-        nargs="+",
-        help="""Path of the directory to load. The netcdf file will be
-        called dir.nc if the folder was called dir.""",
-    )
-    parser.add_argument("-q", "--quiet", action="store_true", help="Be less verbose")
-    return parser
 
 
 def main() -> None:
     args = parser().parse_args()
 
-    for d in args.path:
-        append_time(d, not args.quiet)
+    for d, n in iter_dir(args):
+        append_time(d, n, not args.quiet)
 
 
 if __name__ == "__main__":
