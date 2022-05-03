@@ -344,7 +344,14 @@ def add_metadata(ds: xr.Dataset):
 def write_mappings(da: xr.DataArray, fn: str) -> None:
     """Write the mappings data to fortran"""
     with open(fn, "w") as f:
-        infos = da.attrs["numcells"], da.attrs["plasmacells"], da.attrs["other"]
+        at_keys = "numcells", "plasmacells", "other"
+        for key in at_keys:
+            assert key in da.attrs, (
+                "Writing requires to be the following attributes to be present:"
+                + ", ".join([f'"{k}"' for k in at_keys])
+                + ". Please ensure that they are copied over from the read file."
+            )
+        infos = tuple([da.attrs[k] for k in at_keys])
         f.write("%12d %11d %11d\n" % infos)
         _block_write(f, da.data.flatten(order="F") + 1, " %11d", 6)
 
@@ -836,6 +843,14 @@ def read_plates(dir: str) -> xr.Dataset:
     return ds
 
 
+def _dir_of(fn: str) -> str:
+    if os.path.isdir(fn):
+        return fn
+    if "/" in fn:
+        return fn.rsplit("/", 1)[0]
+    return "."
+
+
 def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     """
     Read the target fluxes from the EMC3_post processing routine
@@ -853,14 +868,8 @@ def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     xr.Dataset
         The target profiles
     """
-    if os.path.isdir(dir):
-        fn = "TARGET_PROFILES"
-    else:
-        if "/" in dir:
-            dir, fn = dir.rsplit("/", 1)
-        else:
-            fn = dir
-            dir = "."
+    dir = _dir_of(dir)
+
     if cache:
         try:
             if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
@@ -1010,6 +1019,7 @@ def read_mapped(
     """
 
     if isinstance(mapping, xr.Dataset):
+        mapping = ensure_mapping(_dir_of(fn), mapping)
         mapping = mapping["_plasma_map"]
     if kinetic:
         max = np.max(mapping.data) + 1
@@ -1258,6 +1268,10 @@ def write_mapped(
     if skip_first is not None:
         for d in datas:
             if skip_first:
+                assert "print_before" in d.attrs, (
+                    'The "print_before" attribute is needed for writing. '
+                    "Please ensure it is preserved or copied from the read data."
+                )
                 assert d.attrs["print_before"] != ""
             else:
                 if "print_before" in d.attrs:
@@ -1658,6 +1672,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
     elif type == "mapped":
         vars = opts.pop("vars")
+        ds = ensure_mapping(_dir_of(fn), ds)
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
@@ -1667,7 +1682,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
     elif type == "geom":
-        ds_ = read_locations(fn.rsplit("/", 1)[0])
+        ds_ = read_locations(_dir_of(fn))
         _ = opts.pop("vars")
         ds = ds.assign_coords(ds_.coords)
         assert opts == {}, "Unexpected arguments: " + ", ".join(
