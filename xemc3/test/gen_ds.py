@@ -138,6 +138,7 @@ def gen_rand(shape, files):
                 "full": gen_bf,
                 "plates_mag": gen_plates_mag,
                 "info": gen_info,
+                "raw": gen_raw,
             }[load.files[f].get("type", "mapped")]
             if load.files[f].get("kinetic", False):
                 assert genf == gen_mapped
@@ -231,6 +232,14 @@ def gen_info(ds: xr.Dataset, index: str = "iteration") -> xr.DataArray:
     dat[-length:] = np.random.random(length)
     coords: typing.Mapping[typing.Hashable, typing.Any] = {index: np.arange(-999, 1)}
     return xr.DataArray(dat, dims=index, coords=coords)
+
+
+def gen_raw(ds: xr.Dataset) -> xr.DataArray:
+    text = """Some text.
+Sooo random.
+With linebreaks 🎉
+"""
+    return xr.DataArray(text)
 
 
 class rotating_circle(object):

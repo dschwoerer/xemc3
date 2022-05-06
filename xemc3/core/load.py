@@ -349,6 +349,16 @@ def write_mappings(da: xr.DataArray, fn: str) -> None:
         _block_write(f, da.data.flatten(order="F") + 1, " %11d", 6)
 
 
+def read_raw(fn: str) -> xr.DataArray:
+    with open(fn) as f:
+        return xr.DataArray(f.read())
+
+
+def write_raw(da: xr.DataArray, fn: str) -> None:
+    with open(fn, "w") as f:
+        f.write(str(da.data))
+
+
 def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
     """
     Read locations from folder path and add to dataset (if given).
@@ -1404,6 +1414,26 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         kinetic=True,
         vars={"DENSITY_E_M_%d": dict()},
     ),
+    "fort.1": dict(
+        type="raw",
+        vars={"fort.1": dict(long_name="Geometry input file")},
+    ),
+    "fort.2": dict(
+        type="raw",
+        vars={
+            "fort.2": dict(
+                long_name="Plasma parameters, boundary and initial conditions input file"
+            )
+        },
+    ),
+    "fort.3": dict(
+        type="raw",
+        vars={"fort.3": dict(long_name="Control flow input file")},
+    ),
+    "fort.4": dict(
+        type="raw",
+        vars={"fort.4": dict(long_name="Neutrals input file for EIRENE")},
+    ),
     "fort.40": dict(
         type="mapped",
         vars={"fort.40_%d": dict()},
@@ -1653,47 +1683,42 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     """
     assert files == _files_bak
     datas = None
+    vars = opts.pop("vars")
     if type == "mapping":
-        opts.pop("vars", False)
         ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
     elif type == "mapped":
-        vars = opts.pop("vars")
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
-        vars = opts.pop("vars")
         datas = [read_magnetic_field(fn, ds)]
     elif type == "plates_mag":
-        vars = opts.pop("vars")
         datas = [read_plates_mag(fn, ds)]
     elif type == "geom":
         ds_ = read_locations(fn.rsplit("/", 1)[0])
-        _ = opts.pop("vars")
         ds = ds.assign_coords(ds_.coords)
         assert opts == {}, "Unexpected arguments: " + ", ".join(
             [f"{k}={v}" for k, v in opts.items()]
         )
     elif type == "info":
-        vars = opts.pop("vars")
         opts.pop("fmt")
         if "iteration" in ds.dims and "length" not in opts:
             opts["length"] = len(ds["iteration"])
         datas = read_info_file(fn, vars, **opts)
         opts = {}
     elif type == "surfaces":
-        vars = opts.pop("vars", None)
         ds_ = read_add_sf_n0(fn)
         ds = ds.assign_coords(ds_.coords)
         for k in ds_:
             ds[k] = ds_[k]
         datas = None
     elif type == "target_flux":
-        vars = opts.pop("vars", None)
         ds_ = get_plates(fn, False)
         ds = ds.assign_coords(ds_.coords)
         for k in ds_:
             ds[k] = ds_[k]
         datas = None
+    elif type == "raw":
+        datas = [read_raw(fn)]
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
@@ -1896,6 +1921,12 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
     elif type == "geom":
         assert fn == "GRID_3D_DATA"
         write_locations(ds, f"{dir}/{fn}")
+    elif type == "raw":
+        vars = opts.pop("vars")
+        assert len(vars) == 1
+        write_raw(ds[list(vars.keys())[0]], f"{dir}/{fn}")
+    elif type in ["surfaces", "target_flux"]:
+        print(f"writing {fn} is not yet implemented. (PRs welcome)")
     else:
         raise RuntimeError(f"Unexpected type {type}")
 
