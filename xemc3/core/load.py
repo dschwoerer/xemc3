@@ -1877,6 +1877,7 @@ def load_any(path: str, *args, **kwargs) -> xr.Dataset:
 
 def write_fort_file(ds, dir, fn, type="mapped", **opts):
     if type == "mapping":
+        assert list(opts["vars"].keys()) == ["_plasma_map"]
         write_mappings(ds["_plasma_map"], f"{dir}/{fn}")
     elif type == "mapped":
         write_mapped_nice(ds, dir, fn)
@@ -1888,6 +1889,7 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
             write_magnetic_field(f"{dir}/{fn}", ds)
     elif type == "plates_mag":
         vars = opts.pop("vars")
+        assert list(vars.keys()) == ["PLATES_MAG"]
         write_plates_mag(f"{dir}/{fn}", ds)
     elif type == "info":
         write_info_file(f"{dir}/{fn}", ds)
