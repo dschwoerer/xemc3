@@ -87,10 +87,10 @@ def plot_target(ds, phi, fmt=None, ax=None, figsize=None, aspect=True):
         if k.endswith("_dims") and k.startswith(f"_{plate_prefix}"):
             das[k] = ds[k]
     for p in das.emc3.iter_plates(symmetry=True, segments=5):
-        assert len(p.phi.shape) == 1
-        if not (p.phi.min() <= phi <= p.phi.max()):
+        assert len(p.plate_phi.shape) == 1
+        if not (p.plate_phi.min() <= phi <= p.plate_phi.max()):
             continue
-        p["plate_phi_plus1"] = p.phi
+        p["plate_phi_plus1"] = p.plate_phi
         p = p.interp(
             plate_phi_plus1=phi, assume_sorted=False, kwargs=dict(bounds_error=True)
         )
