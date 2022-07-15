@@ -127,6 +127,9 @@ def parser() -> ArgumentParser:
         # ],
         help="Data to plot",
     )
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"xemc3 {xemc3.__version__}"
+    )
     parser.add_argument("path", nargs=1, help="Path of data")
     return parser
 

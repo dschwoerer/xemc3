@@ -1,6 +1,8 @@
 import os
 from argparse import ArgumentParser
 
+from .. import __version__
+
 
 def commonparser(desc, ext="nc") -> ArgumentParser:
     parser = ArgumentParser(description=desc)
@@ -16,6 +18,9 @@ def commonparser(desc, ext="nc") -> ArgumentParser:
         "--name",
         help=f"Specify the name for the output file. Defaults to `dir.{ext}` "
         f"when not given. Otherwise `name.{ext}` is used.",
+    )
+    parser.add_argument(
+        "-V", "--version", action="version", version=f"xemc3 {__version__}"
     )
     return parser
 
