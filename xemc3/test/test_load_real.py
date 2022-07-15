@@ -38,6 +38,9 @@ def test_load_all():
 
     # Remove new attributes, so we don't have to regenerate the data that often
     for k in list(result) + list(result.coords):
+        if k not in expected:
+            del result[k]
+            continue
         for a in list(result[k].attrs):
             if a not in expected[k].attrs:
                 del result[k].attrs[a]
