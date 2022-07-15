@@ -24,11 +24,17 @@ def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
 
 
 def assert_da_are_equal(d1, d2, k, check_attrs, rtol, atol):
-    slc = np.isfinite(d1.data)
+    if d1.dtype == float:
+        slc = np.isfinite(d1.data)
+    else:
+        slc = slice(None)
     if (
-        d1.shape != d2.shape
-        or not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol, atol=atol).all()
-    ):
+        d1.dtype == float
+        and (
+            d1.shape != d2.shape
+            or not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol, atol=atol).all()
+        )
+    ) or (d1.dtype != float and (d1.shape != d2.shape or np.any(d1.data != d2.data))):
         raise AssertionError(
             f"""var {k} is changed.
 
