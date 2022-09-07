@@ -1,5 +1,12 @@
 import warnings
-from typing import Any, Mapping, Union, Literal
+from typing import Any, Mapping, Union
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
 
 import numpy as np
 import xarray as xr
