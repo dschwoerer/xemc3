@@ -31,8 +31,6 @@ def hypo_vars(draw, skip=[]):
             "fort.70",
             "ADD_SF_N0",
             "TARGET_PROFILES",
-            "ENERGY_DEPO",
-            "PARTICLE_DEPO",
         ):
             continue
         if v in skip:
@@ -121,11 +119,9 @@ def gen_rand(shape, files):
         return out
 
     for f in load.files:
-        if f in ["ADD_SF_N0", "TARGET_PROFILES", "PARTICLE_DEPO", "ENERGY_DEPO"]:
+        if f in ["ADD_SF_N0", "TARGET_PROFILES"]:
             continue
         ids = 3
-        if f in ("PARTICLE_DEPO", "ENERGY_DEPO"):
-            ids = 6
         if files is not None:
             for f2 in files:
                 if f2[0] == f:
@@ -136,6 +132,8 @@ def gen_rand(shape, files):
                     break
             else:
                 continue
+        if f in ("PARTICLE_DEPO", "ENERGY_DEPO"):
+            ids = 6
         i = 0
         vs = load.files[f]["vars"]
         for v in vs:
@@ -170,6 +168,9 @@ def gen_rand(shape, files):
                 ds[v].attrs.update(get_attrs(vs[v]))
                 if pre:
                     ds[v].attrs["print_before"] = "   %d\n" % i
+                if genf == gen_depo and i == 0:
+                    ds[v].attrs["description"] = "True means +1, False means -1"
+
             i += 1
     return ds
 
@@ -259,6 +260,7 @@ gen_depo_map = None
 
 def gen_depo(ds: xr.Dataset, index=None):
     shape = ds["_plasma_map"].data.shape
+    shape = [x + 1 for x in shape]
     dtype = bool if index in (0, 6) else float
     out = np.empty(shape, dtype=dtype)
     fill = np.nan
@@ -273,7 +275,7 @@ def gen_depo(ds: xr.Dataset, index=None):
     if index == 0 or index == 6:
         gen_depo_map = np.random.random(shape) > 0.8
 
-    rand = np.random.random[gen_depo_map]
+    rand = np.random.random(shape)[gen_depo_map]
     if index == 0:
         out[gen_depo_map] = rand > 0.5
     elif index == 6:
@@ -281,7 +283,7 @@ def gen_depo(ds: xr.Dataset, index=None):
     else:
         out[gen_depo_map] = rand
 
-    return out
+    return tuple([f"{x}_plus1" for x in ds["_plasma_map"].dims]), out
 
 
 class rotating_circle(object):

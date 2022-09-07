@@ -40,9 +40,7 @@ def tocoo(data):
 def nnz(data):
     if sparse:
         return data.nnz
-    ret = np.sum(np.isfinite(data))
-    assert ret
-    return ret
+    return np.sum(np.isfinite(data))
 
 
 def keys(data):
@@ -55,12 +53,9 @@ def keys(data):
             yield ijk
         return
     except AttributeError:
-        found = 0
         for ijk in rrange(data.shape):
             if np.isfinite(data[ijk]):
                 yield ijk
-                found += 1
-        assert found
 
 
 def sparseCOO(locs, data, shape, fill_value):
@@ -149,7 +144,6 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
 
         while True:
             line = bad.sub(r"\1E\2", f.readline()).split()
-            i += 1
             if line == []:
                 break
             ints = [int(x) for x in line[:7]]
@@ -172,10 +166,10 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
     if sparse:
         assert any([d.nnz for d in out["other"]]) == hasother
         assert any([d.nnz for d in out2["other"]]) == hasother2
-    if not hasother:
-        out["other"] = []
-    if not hasother2:
-        out2["other"] = []
+    # if not hasother:
+    # out["other"] = []
+    assert not hasother2
+    out2["other"] = []
 
     ret = [
         xr.DataArray(data=tocoo(d), dims=dims)
@@ -184,7 +178,7 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
         xr.DataArray(data=tocoo(d), dims=dims)
         for d in [out2["surftype"], out2["flux"], *out2["other"]]
     ]
-    assert len(ret[0]) == 6
+    assert len(ret[0]) == 6, f"{len(ret[0])}"
     assert len(ret[1]) == 2
     return ret[0] + ret[1]
 
