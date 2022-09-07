@@ -1,5 +1,12 @@
 import warnings
-from typing import Any, Mapping
+from typing import Any, Mapping, Union
+import sys
+
+if sys.version_info >= (3, 8):
+    from typing import Literal
+else:
+    from typing_extensions import Literal
+
 
 import numpy as np
 import xarray as xr
@@ -432,7 +439,9 @@ class EMC3DatasetAccessor:
         self,
         indexers: Mapping[str, Any] = None,
         drop: bool = False,
-        missing_dims: str = "raise",
+        missing_dims: Union[
+            Literal["raise"], Literal["warn"], Literal["ignore"]
+        ] = "raise",
         **indexers_kwargs: Any,
     ) -> xr.Dataset:
         ds = self.data
