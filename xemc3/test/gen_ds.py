@@ -26,7 +26,12 @@ def hypo_shape(draw, max=1000):
 def hypo_vars(draw, skip=[]):
     files = []
     for v in load.files:
-        if v in ("BFIELD_STRENGTH", "fort.70", "ADD_SF_N0", "TARGET_PROFILES"):
+        if v in (
+            "BFIELD_STRENGTH",
+            "fort.70",
+            "ADD_SF_N0",
+            "TARGET_PROFILES",
+        ):
             continue
         if v in skip:
             continue
@@ -87,7 +92,7 @@ def gen_ds(shape):
     return ds
 
 
-def gen_full(shape):
+def gen_full(shape, index=None):
     return gen_rand(shape, None)
 
 
@@ -127,18 +132,22 @@ def gen_rand(shape, files):
                     break
             else:
                 continue
+        if f in ("PARTICLE_DEPO", "ENERGY_DEPO"):
+            ids = 6
         i = 0
         vs = load.files[f]["vars"]
         for v in vs:
             if v in ds:
                 ds[v].attrs.update(get_attrs(vs[v]))
                 continue
+
             genf = {
                 "mapped": gen_mapped,
                 "full": gen_bf,
                 "plates_mag": gen_plates_mag,
                 "info": gen_info,
                 "raw": gen_raw,
+                "depo": gen_depo,
             }[load.files[f].get("type", "mapped")]
             if load.files[f].get("kinetic", False):
                 assert genf == gen_mapped
@@ -148,38 +157,41 @@ def gen_rand(shape, files):
 
             if "%" in v:
                 for i in range(i, i + ids):
-                    ds[v % i] = genf(ds)
-                    if dtype != float:
+                    ds[v % i] = genf(ds, index=i)
+                    if dtype != float and genf != gen_depo:
                         ds[v % i] = genf(ds)[0], np.round(genf(ds)[1] * 20)
                     ds[v % i].attrs.update(get_attrs(vs[v]))
                     if pre:
                         ds[v % i].attrs["print_before"] = "   %d\n" % i
             else:
-                ds[v] = genf(ds)
+                ds[v] = genf(ds, index=i)
                 ds[v].attrs.update(get_attrs(vs[v]))
                 if pre:
                     ds[v].attrs["print_before"] = "   %d\n" % i
+                if genf == gen_depo and i == 0:
+                    ds[v].attrs["description"] = "True means +1, False means -1"
+
             i += 1
     return ds
 
 
-def gen_bf(shape):
+def gen_bf(shape, index=None):
     if isinstance(shape, xr.Dataset):
         shape = shape["_plasma_map"].data.shape
     return dims, 0.5 + 2 * np.random.random([i + 1 for i in shape])
 
 
-def gen_plates_mag(shape):
+def gen_plates_mag(shape, index=None):
     if isinstance(shape, xr.Dataset):
         shape = shape["_plasma_map"].data.shape
     return dims, (0.5 + 1 * np.random.random(shape) > 1)
 
 
-def gen_kinetic(ds):
+def gen_kinetic(ds, index=None):
     return gen_mapped(ds, True)
 
 
-def gen_mapped(ds, kinetic=False):
+def gen_mapped(ds, kinetic=False, index=None):
     key = "other" if kinetic else "plasmacells"
     map = ds["_plasma_map"]
     shape = map.shape
@@ -211,7 +223,7 @@ def gen_updated(org: xr.Dataset, var) -> xr.Dataset:
     return d2
 
 
-def gen_mapping(shape):
+def gen_mapping(shape, index=None):
     dat = np.zeros(shape, dtype=int)
     i = 0
     for ijk in utils.rrange(shape):
@@ -225,7 +237,8 @@ def gen_mapping(shape):
     return da
 
 
-def gen_info(ds: xr.Dataset, index: str = "iteration") -> xr.DataArray:
+def gen_info(ds: xr.Dataset, index=None) -> xr.DataArray:
+    index = "iteration"
     length = np.random.randint(2, 6)
     dat = np.empty(1000)
     dat[:] = np.nan
@@ -234,12 +247,43 @@ def gen_info(ds: xr.Dataset, index: str = "iteration") -> xr.DataArray:
     return xr.DataArray(dat, dims=index, coords=coords)
 
 
-def gen_raw(ds: xr.Dataset) -> xr.DataArray:
+def gen_raw(ds: xr.Dataset, index=None) -> xr.DataArray:
     text = """Some text.
 Sooo random.
 With linebreaks 🎉
 """
     return xr.DataArray(text)
+
+
+gen_depo_map = None
+
+
+def gen_depo(ds: xr.Dataset, index=None):
+    shape = ds["_plasma_map"].data.shape
+    shape = [x + 1 for x in shape]
+    dtype = bool if index in (0, 6) else float
+    out = np.empty(shape, dtype=dtype)
+    fill = np.nan
+    if index == 0:
+        fill = True
+    if index == 6:
+        fill = False
+    out[:] = fill
+
+    global gen_depo_map
+
+    if index == 0 or index == 6:
+        gen_depo_map = np.random.random(shape) > 0.8
+
+    rand = np.random.random(shape)[gen_depo_map]
+    if index == 0:
+        out[gen_depo_map] = rand > 0.5
+    elif index == 6:
+        out[gen_depo_map] = True
+    else:
+        out[gen_depo_map] = rand
+
+    return tuple([f"{x}_plus1" for x in ds["_plasma_map"].dims]), out
 
 
 class rotating_circle(object):
