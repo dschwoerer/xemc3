@@ -1,18 +1,16 @@
 {
-  "metadata": {
-    "license": {
-      "id": "GPL-3.0+"
+  "license": {
+    "id": "GPL-3.0+"
+  },
+  "creators": [
+    {
+      "name": "David Bold",
+      "orcid": "0000-0003-0911-8606",
+      "affiliation": "IPP Greifswald"
     }, 
-    "creators": [
-      {
-        "name": "David Bold",
-        "orcid": "0000-0003-0911-8606",
-        "affiliation": "IPP Greifswald"
-      }, 
-      {
-        "name": "johanage",
-        "affiliation": "IPP Greifswald"
-      }
-    ]
-  }
+    {
+      "name": "johanage",
+      "affiliation": "IPP Greifswald"
+    }
+  ]
 }
