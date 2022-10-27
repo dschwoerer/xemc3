@@ -733,7 +733,7 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
 
             vars = files["TARGET_PROFILES"]["vars"].copy()
             for i, (l, meta) in enumerate(vars.items()):
-                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.pop(
+                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
                     "scale", 1
                 )
                 for k in meta:
