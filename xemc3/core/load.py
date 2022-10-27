@@ -316,7 +316,7 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
         # dims =  [int(i) for i in f.readline().split()]
         dat = f.readline()
         infos = [int(i) for i in dat.split()]
-        t = _fromfile(f, dtype=int, count=np.prod(dims), sep=" ")
+        t = _fromfile(f, dtype=int, count=int(np.prod(dims)), sep=" ")
         # fortran indexing
         t -= 1
         t = t.reshape(dims, order="F")
