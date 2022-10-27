@@ -313,16 +313,13 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
         The mapping information
     """
     with open(fn) as f:
-        # dims =  [int(i) for i in f.readline().split()]
         dat = f.readline()
         infos = [int(i) for i in dat.split()]
-        # print(infos, prod(dims))
         t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
         # fortran indexing
         t -= 1
         t = t.reshape(dims, order="F")
         _assert_eof(f, fn)
-    # print(infos, prod(dims), np.max(t), np.min(t))
     da = xr.DataArray(dims=("r", "theta", "phi"), data=t)
     da.attrs = dict(numcells=infos[0], plasmacells=infos[1], other=infos[2])
     return da

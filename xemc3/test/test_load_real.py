@@ -1,16 +1,9 @@
 import os
 
-import numpy as np
-import pytest
-import xarray as xr
-from xarray.testing import assert_identical
 
-import xemc3
-
-
-def get_data():
+def get_data(force=False):
     basedir = "./example-data/"
-    if not os.path.isdir(basedir):
+    if not os.path.isdir(basedir) and not force:
         pytest.skip("create {basedir} to enable testing on real data")
         return
     if not os.path.isdir(basedir + ".git"):
@@ -22,6 +15,20 @@ def get_data():
         os.system(f"cd {basedir}; git checkout origin main")
     return basedir + "emc3_example"
 
+
+if __name__ == "__main__":
+    import sys
+
+    get_data(force=True)
+    sys.exit(0)
+
+
+import numpy as np
+import pytest
+import xarray as xr
+from xarray.testing import assert_identical
+
+import xemc3
 
 # simple regression test
 def test_load_all():
