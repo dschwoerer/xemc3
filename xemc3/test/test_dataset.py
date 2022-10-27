@@ -159,9 +159,6 @@ class Test_eval_at_rpz(object):
         self.dphi = 2 * np.pi / self.shape[2] / 5
 
     def rand_rpt(self, i):
-        """
-        create a random point within the grid in (R phi theta) space
-        """
         slc = [slice(None)]
         if isinstance(i, np.ndarray):
             slc += [None] * len(i.shape)
@@ -175,9 +172,6 @@ class Test_eval_at_rpz(object):
         return r, p, t
 
     def rand(self, i):
-        """
-        create a random point within the grid in (xyz) space
-        """
         return self.geom.rpt_to_rpz(*self.rand_rpt(i))
 
     def phi_test_value(self, a, b):

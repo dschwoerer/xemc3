@@ -7,7 +7,7 @@ import uuid
 import numpy as np
 import xarray as xr
 
-from .utils import from_interval, open, rrange, timeit, to_interval
+from .utils import from_interval, open, prod, rrange, timeit, to_interval
 from .depo import read_depo_raw, write_depo_raw
 
 try:
@@ -313,10 +313,9 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
         The mapping information
     """
     with open(fn) as f:
-        # dims =  [int(i) for i in f.readline().split()]
         dat = f.readline()
         infos = [int(i) for i in dat.split()]
-        t = _fromfile(f, dtype=int, count=int(np.prod(dims)), sep=" ")
+        t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
         # fortran indexing
         t -= 1
         t = t.reshape(dims, order="F")
