@@ -98,13 +98,6 @@ def rrange(args):
     return itertools.product(*ranges)
 
 
-def prod(args):
-    ret = 1
-    for arg in args:
-        ret *= arg
-    return ret
-
-
 def to_interval(dims, data=None) -> xr.DataArray:
     """Transforms a N-D i_1+1 x ... x i_N+1 mesh to an
     i_1 x ... x i_N x 2 x ... x 2 mesh of quads

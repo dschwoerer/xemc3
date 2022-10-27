@@ -8,7 +8,7 @@ from xemc3.core import utils
 
 @given(strat.lists(strat.integers(min_value=1, max_value=10000)))
 def test_rrange(shape):
-    assume(utils.prod(shape) < 1e5)
+    assume(np.prod(shape) < 1e5)
     dat = np.zeros(shape, dtype=int)
     for ijk in utils.rrange(shape):
         dat[ijk] += 1
@@ -17,7 +17,7 @@ def test_rrange(shape):
 
 @given(strat.lists(strat.integers(min_value=1, max_value=100), min_size=0))
 def test_rrange2(shape):
-    assume(utils.prod(shape) < 1e4)
+    assume(np.prod(shape) < 1e4)
     dat = np.zeros(shape, dtype=int)
     print(dat)
     for ijk in utils.rrange2(shape):

@@ -126,7 +126,7 @@ def get_out_shape(*data):
                         coords[dim] = d.coords[dim]
             else:
                 assert (
-                    utils.prod(np.shape(d)) == 1
+                    np.prod(np.shape(d)) == 1
                 ), "Cannot mix `xr.DataArray`s and `np.ndarray`s"
         outzero = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
         out = [outzero + d for d in data]
