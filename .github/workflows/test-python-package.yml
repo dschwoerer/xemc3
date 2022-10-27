@@ -9,8 +9,21 @@ on:
     branches: [ main ]
 
 jobs:
+  download:
+    steps:
+    - uses: actions/checkout@v2
+    - name: Cache example data
+      id: cache-example
+      uses: actions/cache@v2
+      with:
+        path: example-data/
+        key: example-data
+    - name: Download
+      run: python xemc3/test/test_load_real.py
+
   build:
     runs-on: ubuntu-latest
+    needs: download
     timeout-minutes: 15
     strategy:
       matrix:
@@ -25,7 +38,7 @@ jobs:
       uses: actions/cache@v2
       with:
         path: example-data/
-        key: ${{ runner.os }}-example
+        key: example-data
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
