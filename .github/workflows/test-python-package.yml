@@ -17,14 +17,13 @@ jobs:
       id: get-sha
       run: |
         echo "sha=$(git ls-remote https://oauth2:uQ7_vw_m5fo4UFQrenUs@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
-      shell: bash
     - name: Cache example data
       id: cache-example
       uses: actions/cache@v3
       with:
         path: example-data/
         key: example-data-${{ steps.get-sha.outputs.sha }}
-        restore-key: |
+        restore-keys: |
           example-data
     - uses: actions/checkout@main
       if: steps.cache-primes.outputs.cache-hit != 'true'
@@ -44,12 +43,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Get Remote SHA
+      id: get-sha
+      run: |
+        echo "sha=$(git ls-remote https://oauth2:uQ7_vw_m5fo4UFQrenUs@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
     - name: Cache example data
       id: cache-example
       uses: actions/cache@v2
       with:
         path: example-data/
-        key: example-data
+        key: example-data-${{ steps.get-sha.outputs.sha }}
     - name: Set up Python ${{ matrix.python-version }}
       uses: actions/setup-python@v2
       with:
