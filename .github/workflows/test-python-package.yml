@@ -13,14 +13,23 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-    - uses: actions/checkout@v2
+    - name: Get Remote SHA
+      id: get-sha
+      run: |
+        echo "sha=$(git ls-remote https://oauth2:uQ7_vw_m5fo4UFQrenUs@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
+      shell: bash
     - name: Cache example data
       id: cache-example
-      uses: actions/cache@v2
+      uses: actions/cache@v3
       with:
         path: example-data/
-        key: example-data
+        key: example-data-${{ steps.get-sha.outputs.sha }}
+        restore-key: |
+          example-data
+    - uses: actions/checkout@main
+      if: steps.cache-primes.outputs.cache-hit != 'true'
     - name: Download
+      if: steps.cache-primes.outputs.cache-hit != 'true'
       run: python xemc3/test/test_load_real.py
 
   build:
