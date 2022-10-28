@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 
 from .utils import from_interval, open, prod, rrange, timeit, to_interval
+from .depo import read_depo_raw, write_depo_raw
 
 try:
     from numba import jit  # type: ignore
@@ -312,16 +313,13 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
         The mapping information
     """
     with open(fn) as f:
-        # dims =  [int(i) for i in f.readline().split()]
         dat = f.readline()
         infos = [int(i) for i in dat.split()]
-        # print(infos, prod(dims))
         t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
         # fortran indexing
         t -= 1
         t = t.reshape(dims, order="F")
         _assert_eof(f, fn)
-    # print(infos, prod(dims), np.max(t), np.min(t))
     da = xr.DataArray(dims=("r", "theta", "phi"), data=t)
     da.attrs = dict(numcells=infos[0], plasmacells=infos[1], other=infos[2])
     return da
@@ -735,7 +733,7 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
 
             vars = files["TARGET_PROFILES"]["vars"].copy()
             for i, (l, meta) in enumerate(vars.items()):
-                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.pop(
+                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
                     "scale", 1
                 )
                 for k in meta:
@@ -1624,6 +1622,22 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
             "phi_bounds": dict(units="radian"),
         },
     ),
+    "PARTICLE_DEPO": dict(
+        type="depo",
+        vars={
+            "surftype_ne": dict(description="True means +1, False means -1"),
+            "flux_ne": dict(long_name="Outflux of particles", units="s^-1"),
+            "PARTICLE_DEPO_%d": dict(),
+        },
+    ),
+    "ENERGY_DEPO": dict(
+        type="depo",
+        vars={
+            "surftype_Te": dict(description="True means +1, False means -1"),
+            "flux_P": dict(long_name="Outflux of energy", units="W"),
+            "ENERGY_DEPO_%d": dict(),
+        },
+    ),
     "TARGET_PROFILES": dict(
         type="target_flux",
         vars={
@@ -1734,6 +1748,8 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         datas = None
     elif type == "raw":
         datas = [read_raw(fn)]
+    elif type == "depo":
+        datas = read_depo_raw(ds, fn)
     else:
         raise RuntimeError(f"Unexpected type {type}")
     assert files == _files_bak
@@ -1766,7 +1782,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
 
         attrs = varopts.pop("attrs", {})
         attrs["xemc3_type"] = type
-        for k in "long_name", "units", "notes":
+        for k in "long_name", "units", "notes", "description":
             if k in varopts:
                 attrs[k] = varopts.pop(k)
 
@@ -1940,6 +1956,10 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
         vars = opts.pop("vars")
         assert len(vars) == 1
         write_raw(ds[list(vars.keys())[0]], f"{dir}/{fn}")
+    elif type == "depo":
+        vars = get_vars_for_file(ds, opts.pop("vars"))
+        datas = [ds[k] for k, _ in vars]
+        write_depo_raw(datas, f"{dir}/{fn}")
     elif type in ["surfaces", "target_flux"]:
         print(f"writing {fn} is not yet implemented. (PRs welcome)")
     else:

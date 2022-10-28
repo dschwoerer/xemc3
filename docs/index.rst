@@ -22,6 +22,7 @@ suggestions.
    introduction
    examples
    xemc3
+   xarray
    cli
    citing
 
