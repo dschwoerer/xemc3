@@ -176,7 +176,7 @@ class EMC3DatasetAccessor:
 
     def _get_alt_name(self, var_name, suffix=""):
         var_suffix = ["_bounds", "", "_plus1"]
-        var_prefix = ["", "_plate_", "plate_"]
+        var_prefix = ["plate_", "_plate_", ""]
         for extra_suffix in var_suffix:
             for prefix in var_prefix:
                 cur = prefix + var_name + extra_suffix + suffix
