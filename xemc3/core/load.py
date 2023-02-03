@@ -1736,7 +1736,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     datas = None
     vars = opts.pop("vars")
     if type == "mapping":
-        ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
+        ds["_plasma_map"] = read_mappings(
+            fn, tuple([len(ds[k]) for k in ("r", "theta", "phi")])
+        )
     elif type == "mapped":
         # Ensure file is present before we try to read mapping
         # This is because missing mapping is handled differently.
