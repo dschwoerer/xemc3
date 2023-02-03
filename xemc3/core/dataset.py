@@ -236,7 +236,10 @@ class EMC3DatasetAccessor:
             for key in var_list:
                 ds[key] = var_list[key][i]
             if len(phid.shape) == 1:
-                assert phid.shape == xd.shape
+                assert phid.shape == xd.shape, (
+                    f"Expected phi.shape = {phi.shape} == x.shape= {x.shape} to match."
+                    + utils.raise_issue
+                )
                 for j in range(ds.dims["plate_ind"]):
                     yield ds.isel(
                         plate_ind=j, **{k: slice(None, v[j]) for k, v in crop.items()}
@@ -395,7 +398,6 @@ class EMC3DatasetAccessor:
         from . import plot_3d
 
         if "plate_ind" in self.data.dims:
-            # assert args == []
             return plot_3d.divertor(self.data, key, *args, **kw)
 
         init = {}
@@ -489,7 +491,9 @@ class EMC3DatasetAccessor:
         for k in indexers.keys():
             val = indexers[k]
             if "delta_" + k in ds.dims and k + "_bounds" in ds:
-                assert k in ds.dims
+                assert (
+                    k in ds.dims
+                ), f"Expected {k} in {ds.dims} - maybe you already selected in {k} dim?"
                 assert (
                     len(ds[k + "_bounds"].dims) == 2
                 ), "Only 1D bounds are currently supported. Maybe try isel."
@@ -513,7 +517,9 @@ class EMC3DatasetAccessor:
             else:
                 forisel[k] = val
         ds = ds.emc3.isel(forisel)
-        assert isinstance(ds, xr.Dataset)
+        assert isinstance(
+            ds, xr.Dataset
+        ), f"Expected to have an xr.Dataset, but instead got {type(ds)}"
         return ds
 
     def evaluate_at_xyz(self, x, y, z, *args, **kwargs):
