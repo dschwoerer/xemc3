@@ -237,7 +237,7 @@ class EMC3DatasetAccessor:
                 ds[key] = var_list[key][i]
             if len(phid.shape) == 1:
                 assert phid.shape == xd.shape, (
-                    f"Expected phi.shape = {phi.shape} == x.shape= {x.shape} to match."
+                    f"Expected phi.shape = {phid.shape} == x.shape = {xd.shape} to match."
                     + utils.raise_issue
                 )
                 for j in range(ds.dims["plate_ind"]):
