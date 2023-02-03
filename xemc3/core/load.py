@@ -7,7 +7,7 @@ import uuid
 import numpy as np
 import xarray as xr
 
-from .utils import from_interval, open, prod, rrange, timeit, to_interval
+from .utils import from_interval, open, prod, rrange, timeit, to_interval, raise_issue
 from .depo import read_depo_raw, write_depo_raw
 
 try:
@@ -235,14 +235,17 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             if last:
                 lines = last + lines
             zone, r, theta, num = lines[:4]
-            assert zone == 0
-            assert num % 2 == 0
+            if zone != 0:
+                raise ValueError(
+                    "Multiple zones are currently not supported." + raise_issue
+                )
+            assert num % 2 == 0, f"Unexpected input in {fn}:{i} `line`" + raise_issue
             if num + 4 > len(lines):
                 last = lines
                 continue
             assert num + 4 == len(lines), (
                 f"failed to parse line {i+1}{' (continued from previous incomplete line)' if last else ''}"
-                f" from {fn}: {' '.join([str(x) for x in lines])}"
+                f" from {fn}: {' '.join([str(x) for x in lines])}" + raise_issue
             )
             last = None
             for t in range(num // 2):
@@ -450,7 +453,7 @@ def _assert_eof(f: typing.TextIO, fn: str) -> None:
         if the file is not at the end.
     """
     test = _fromfile(f, dtype=float, count=2, sep=" ")
-    assert len(test) == 0, f"Expected EOF, but found more data in {fn}"
+    assert len(test) == 0, f"Expected EOF, but found more data in {fn}" + raise_issue
 
 
 def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
@@ -477,9 +480,11 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
         # first line is a comment ...
         _ = next(f)
         setup = next(f).split()
-        assert len(setup) == 5, f"Expected 5 values but got {setup}"
+        assert len(setup) == 5, f"Expected 5 values but got {setup}" + raise_issue
         for zero in setup[3:]:
-            assert float(zero) == 0.0
+            assert float(zero) == 0.0, (
+                f"A shifted divertor is currently not supported in xemc3." + raise_issue
+            )
         nx, ny, nz = [int(i) for i in setup[:3]]
         r = np.empty((nx, ny))
         z = np.empty((nx, ny))
@@ -545,12 +550,18 @@ def read_add_sf_n0(filename: str) -> xr.Dataset:
         for _ in range(num):
             line = scrape(f)
             lines = line.split()
-            assert len(lines) == 3, f"Unexpected content in {filename}: {line}"
-            assert [int(x) for x in lines] == [
-                0,
-                -4,
-                1,
-            ], f"Unexpected content in {filename}: {line}"
+            assert len(lines) == 3, (
+                f"Unexpected content in {filename}:{line}." + raise_issue
+            )
+            if int(lines[0]) != 0:
+                raise ValueError(
+                    f"Only Kisslinger files are currently supported, not triangulated meshes - while reading {filename}:{line}"
+                )
+            # assert [int(x) for x in lines] == [
+            #     0,
+            #     -4,
+            #     1,
+            # ], f"Unexpected content in {filename}: {line}"
             files.append(dir + scrape(f).strip())
     return read_plate_nice(files)
 
@@ -580,7 +591,9 @@ def read_plate_ds(filename: str) -> xr.Dataset:
         if len(dat.shape) == 2:
             dims = ["phi", "x"]
         else:
-            assert len(dat.shape) == 1
+            assert len(dat.shape) == 1, (
+                f"Unexpected number of dimensions {dat.shape}." + raise_issue
+            )
             dims = ["phi"]
         out = out.assign_coords(
             {f"{plate_prefix}{name}": ([f"{plate_prefix}{d}_plus1" for d in dims], dat)}
@@ -616,7 +629,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
         plates = []
         for plate in range(num_plates):
             s = scrape(f).split()
-            assert len(s) == 2, f"{plate} : {s}"
+            assert len(s) == 2, (
+                f"Unexpected string `{s}` while reading {plate}." + raise_issue
+            )
             _, geom = s
             r, z, phi = read_plate(cwd + geom)
             nx, ny = r.shape
@@ -631,7 +646,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 nyr = ny * yref
                 mode = 2
             else:
-                assert len(s) == 2, f"Unexpected string `{s}` while reading {cwd + fn}"
+                assert len(s) == 2, (
+                    f"Unexpected string `{s}` while reading {cwd + fn}" + raise_issue
+                )
                 nyr, nxr = [int(i) for i in s]
                 xref = nxr // nx
                 yref = nyr // ny
@@ -1236,7 +1253,9 @@ def to_mapped(
     count = np.zeros(max, dtype=int)
     args = datdat, mapdat, out, count
     for arg in args:
-        assert isinstance(arg, np.ndarray)
+        assert isinstance(
+            arg, np.ndarray
+        ), f"Expected to write np.ndarray, but got {type(arg)}."
     out, count = to_mapped_core(*args, max)
     if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
         out //= count

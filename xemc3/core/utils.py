@@ -105,6 +105,9 @@ def prod(args):
     return ret
 
 
+raise_issue = " If you think the input is valid, please open a bug at https://github.com/dschwoerer/xemc3/issues"
+
+
 def to_interval(dims, data=None) -> xr.DataArray:
     """Transforms a N-D i_1+1 x ... x i_N+1 mesh to an
     i_1 x ... x i_N x 2 x ... x 2 mesh of quads
