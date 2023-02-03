@@ -483,7 +483,7 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
         assert len(setup) == 5, f"Expected 5 values but got {setup}" + raise_issue
         for zero in setup[3:]:
             assert float(zero) == 0.0, (
-                f"A shifted divertor is currently not supported in xemc3." + raise_issue
+                "A shifted divertor is currently not supported in xemc3." + raise_issue
             )
         nx, ny, nz = [int(i) for i in setup[:3]]
         r = np.empty((nx, ny))
@@ -955,12 +955,11 @@ information. Failed to open `%s`."""
     if isinstance(mapping, xr.DataArray):
         if mapping.name == "_plasma_map":
             return xr.Dataset(dict(_plasma_map=mapping))
+    assert isinstance(mapping, xr.Dataset)
     if need_mapping:
         try:
             mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
-            print("success")
         except FileNotFoundError as e:
-            print("failure")
             raise FileNotFoundError(33, error % e.filename)
     return mapping
 
