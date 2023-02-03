@@ -1,5 +1,5 @@
 import warnings
-from typing import Any, Mapping, Union
+from typing import Any, Mapping, Union, Optional
 import sys
 
 if sys.version_info >= (3, 8):
@@ -439,7 +439,7 @@ class EMC3DatasetAccessor:
 
     def isel(
         self,
-        indexers: Mapping[str, Any] = None,
+        indexers: Optional[Mapping[str, Any]] = None,
         drop: bool = False,
         missing_dims: Union[
             Literal["raise"], Literal["warn"], Literal["ignore"]
@@ -480,7 +480,7 @@ class EMC3DatasetAccessor:
 
     def sel(
         self,
-        indexers: Mapping[str, Any] = None,
+        indexers: Optional[Mapping[str, Any]] = None,
         drop: bool = False,
         missing_dims: str = "raise",
         **indexers_kwargs: Any,
@@ -539,7 +539,7 @@ class EMC3DatasetAccessor:
         key=None,
         periodicity: int = 5,
         updownsym: bool = True,
-        delta_phi: float = None,
+        delta_phi: Optional[float] = None,
         fill_value=None,
         lazy=False,
         progress=False,

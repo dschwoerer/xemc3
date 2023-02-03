@@ -367,7 +367,7 @@ def write_raw(da: xr.DataArray, fn: str) -> None:
         f.write(str(da.data))
 
 
-def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
+def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Dataset:
     """
     Read locations from folder path and add to dataset (if given).
 
@@ -1099,7 +1099,9 @@ def read_mapped(
     return das
 
 
-def write_mapped_nice(ds: xr.Dataset, dir: str, fn: str = None, **args) -> None:
+def write_mapped_nice(
+    ds: xr.Dataset, dir: str, fn: typing.Optional[str] = None, **args
+) -> None:
     """
     Write a file for EMC3 using the mapped format.
 
@@ -1904,10 +1906,9 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
         },
     )
     print(f"done with {fn}")
-    pass
 
 
-def load_all(path: str, ignore_missing: bool = None) -> xr.Dataset:
+def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Dataset:
     """
     Load all data from a path and return as dataset
 
