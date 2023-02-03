@@ -9,7 +9,6 @@ from . import utils
 
 
 def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progress):
-
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", "invalid value encountered in remainder")
         phi = phi % (np.pi * 2 / periodicity)

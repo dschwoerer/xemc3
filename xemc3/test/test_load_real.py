@@ -30,6 +30,7 @@ from xarray.testing import assert_identical
 
 import xemc3
 
+
 # simple regression test
 def test_load_all():
     bd = get_data()

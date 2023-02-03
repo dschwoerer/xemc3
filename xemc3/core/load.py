@@ -1235,7 +1235,6 @@ def to_mapped(
     kinetic: bool = False,
     dtype: typing.Union[DTypeLike, None] = None,
 ) -> np.ndarray:
-
     if kinetic:
         max = np.max(mapping.values) + 1
     else:
