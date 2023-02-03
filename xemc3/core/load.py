@@ -924,23 +924,27 @@ def ensure_mapping(
     FileNotFoundError
         If the required info could not be read
     """
+    error = f"""Reading {fn+ ' ' if fn is not None else ''}mapped requires mapping information, but the required
+information in '{dir}' could not be found.  Ensure all files are present
+in the folder or pass in a dataset that contains the mapping
+information. Failed to open `%s`."""
     if dir == "":
         dir = "."
     if mapping is None:
         try:
             mapping = read_locations(dir)
-            if need_mapping:
-                mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
-        except FileNotFoundError:
-            raise FileNotFoundError(
-                f"""Reading {fn+ ' ' if fn is not None else ''} mapped requires mapping information, but the required
-information in '{dir}' could not be found.  Ensure all files are present
-in the folder or pass in a dataset that contains the mapping
-information."""
-            )
-    else:
-        if isinstance(mapping, xr.DataArray):
-            mapping = xr.Dataset(dict(_plasma_map=mapping))
+        except FileNotFoundError as e:
+            raise FileNotFoundError(33, error % e.filename)
+    if isinstance(mapping, xr.DataArray):
+        if mapping.name == "_plasma_map":
+            return xr.Dataset(dict(_plasma_map=mapping))
+    if need_mapping:
+        try:
+            mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+            print("success")
+        except FileNotFoundError as e:
+            print("failure")
+            raise FileNotFoundError(33, error % e.filename)
     return mapping
 
 
@@ -977,7 +981,9 @@ def read_var(
                 and var.startswith(v[:-2])
                 and var[len(v[:-2]) :].isdigit()
             ):
-                ds = ensure_mapping(dir, ds, fd.get("type", "mapped") == "mapped")
+                ds = ensure_mapping(
+                    dir, ds, fd.get("type", "mapped") == "mapped", fn=fn
+                )
                 assert isinstance(ds, xr.Dataset)
                 return read_fort_file(ds, f"{dir}/{fn}", **fd)
     raise ValueError(f"Don't know how to read {var}")
@@ -1027,7 +1033,7 @@ def read_mapped(
     """
 
     if isinstance(mapping, xr.Dataset):
-        mapping = ensure_mapping(_dir_of(fn), mapping)
+        mapping = ensure_mapping(_dir_of(fn), mapping, fn=fn)
         mapping = mapping["_plasma_map"]
     if kinetic:
         max = np.max(mapping.data) + 1
@@ -1699,7 +1705,7 @@ def read_fort_file_pub(
         if not isinstance(ds, xr.Dataset):
             ds = xr.Dataset()
         return read_fort_file(ds, fn, **defaults)
-    ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped")
+    ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
     assert isinstance(ds, xr.Dataset)
     return read_fort_file(ds, fn, **defaults)
 
@@ -1715,7 +1721,11 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     if type == "mapping":
         ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
     elif type == "mapped":
-        ds = ensure_mapping(_dir_of(fn), ds)
+        # Ensure file is present before we try to read mapping
+        # This is because missing mapping is handled differently.
+        with open(fn):
+            pass
+        ds = ensure_mapping(_dir_of(fn), ds, fn=fn)
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
@@ -1906,7 +1916,9 @@ def load_all(path: str, ignore_missing: bool = None) -> xr.Dataset:
         opts = opts.copy()
         try:
             ds = read_fort_file(ds, f"{path}/{fn}", **opts)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            if e.args[0] == 33:
+                raise
             if ignore_missing is None:
                 if not opts.get("ignore_missing", True):
                     raise
