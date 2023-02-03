@@ -20,7 +20,6 @@ def plot_rz(
     target=False,
     **kwargs,
 ):
-
     phis = ds["phi_bounds"]
     if phi < np.min(phis.data) or phi > np.max(phis.data):
         raise RuntimeError(
