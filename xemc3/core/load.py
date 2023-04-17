@@ -1068,7 +1068,11 @@ def read_mapped(
         while True:
             if skip_first:
                 first = ""
-                for _ in range(skip_first):
+                if isinstance(skip_first, int):
+                    sf = skip_first
+                else:
+                    sf = skip_first[min(len(raws), len(skip_first) - 1)]
+                for _ in range(sf):
                     first += f.readline()
                 firsts.append(first)
             raw = _fromfile(f, dtype=dtype, count=max, sep=" ")
