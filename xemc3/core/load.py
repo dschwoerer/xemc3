@@ -1473,6 +1473,12 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         kinetic=True,
         vars={"DENSITY_E_M_%d": dict()},
     ),
+    "NEUTRAL_DENSITY": dict(
+        type="mapped",
+        skip_first=[3, 2],
+        unmapped=True,
+        vars={"NEUTRAL_DENSITY_%d": dict()},
+    ),
     "fort.1": dict(
         type="raw",
         vars={"fort.1": dict(long_name="Geometry input file")},
