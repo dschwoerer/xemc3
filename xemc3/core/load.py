@@ -1011,6 +1011,7 @@ def read_mapped(
     skip_first: int = 0,
     ignore_broken: bool = False,
     kinetic: bool = False,
+    unmapped: bool = False,
     dtype: DTypeLike = float,
     squeeze: bool = True,
 ) -> typing.Sequence[xr.DataArray]:
@@ -1033,6 +1034,9 @@ def read_mapped(
     kinetic : bool (optional)
         The file contains also data for cells that are only evolved by
         EIRENE, rather then EMC3. Default: False
+    unmapped : bool (optional)
+        The file contains unmapped data, i.e. on value for each cell.
+        Default: False
     dtype : datatype (optional)
         The type of the data, e.g. float or int. Is passed to
         numpy. Default: float
@@ -1052,7 +1056,10 @@ def read_mapped(
         mapping = ensure_mapping(_dir_of(fn), mapping, fn=fn)
         mapping = mapping["_plasma_map"]
     if kinetic:
+        assert unmapped == False
         max = np.max(mapping.data) + 1
+    elif unmapped:
+        max = mapping.attrs["numcells"]
     else:
         max = mapping.attrs["plasmacells"]
     firsts = []
@@ -1061,7 +1068,11 @@ def read_mapped(
         while True:
             if skip_first:
                 first = ""
-                for _ in range(skip_first):
+                if isinstance(skip_first, int):
+                    sf = skip_first
+                else:
+                    sf = skip_first[min(len(raws), len(skip_first) - 1)]
+                for _ in range(sf):
                     first += f.readline()
                 firsts.append(first)
             raw = _fromfile(f, dtype=dtype, count=max, sep=" ")
@@ -1081,7 +1092,7 @@ def read_mapped(
                     f"Incomplete dataset found ({len(raw)} out of {max}) after reading {len(raws)} datasets of file {fn}"
                 )
 
-    def to_da(raw):
+    def to_da_mapped(raw):
         out = np.ones(mapping.shape) * np.nan
         mapdat = mapping.data
         for ijk in rrange(mapping.shape):
@@ -1090,6 +1101,10 @@ def read_mapped(
                 out[ijk] = raw[mapid]
         return xr.DataArray(data=out, dims=mapping.dims)
 
+    def to_da_unmapped(raw):
+        return xr.DataArray(data=raw.reshape(mapping.shape), dims=mapping.dims)
+
+    to_da = to_da_unmapped if unmapped else to_da_mapped
     das = [to_da(raw) for raw in raws]
     if skip_first:
         for first, da in zip(firsts, das):
@@ -1272,6 +1287,7 @@ def write_mapped(
     skip_first=0,
     ignore_broken=False,
     kinetic=False,
+    unmapped=False,
     dtype=None,
     fmt=None,
 ):
@@ -1293,6 +1309,8 @@ def write_mapped(
         ignored.
     kinetic : bool
         If true the data is defined also outside of the plasma region.
+    unmapped : bool
+        If true the data is not mapped
     dtype : any
         if not None, it needs to match the dtype of the data
     fmt : None or str
@@ -1311,7 +1329,11 @@ def write_mapped(
                     assert d.attrs["print_before"] == ""
     if not isinstance(datas, (list, tuple)):
         datas = [datas]
-    out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
+    if unmapped:
+        assert kinetic == False
+        out = [np.ravel(x) for x in datas]
+    else:
+        out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
         for i, da in zip(out, datas):
             if "print_before" in da.attrs:
@@ -1450,6 +1472,12 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapped",
         kinetic=True,
         vars={"DENSITY_E_M_%d": dict()},
+    ),
+    "NEUTRAL_DENSITY": dict(
+        type="mapped",
+        skip_first=[3, 2],
+        unmapped=True,
+        vars={"NEUTRAL_DENSITY_%d": dict()},
     ),
     "fort.1": dict(
         type="raw",

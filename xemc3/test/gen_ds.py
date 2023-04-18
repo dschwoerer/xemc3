@@ -155,19 +155,26 @@ def gen_rand(shape, files):
             pre = load.files[f].get("skip_first", 0)
             dtype = load.files[f].get("dtype", float)
 
+            def add_pre(ds, k, pre, i):
+                if pre:
+                    if isinstance(pre, int):
+                        pret = pre
+                    else:
+                        pret = pre[min(len(pre) - 1, i)]
+                    ds[k].attrs["print_before"] = ("   %d\n" % i) * pret
+                return ds
+
             if "%" in v:
                 for i in range(i, i + ids):
                     ds[v % i] = genf(ds, index=i)
                     if dtype != float and genf != gen_depo:
                         ds[v % i] = genf(ds)[0], np.round(genf(ds)[1] * 20)
                     ds[v % i].attrs.update(get_attrs(vs[v]))
-                    if pre:
-                        ds[v % i].attrs["print_before"] = "   %d\n" % i
+                    ds = add_pre(ds, v % i, pre, i)
             else:
                 ds[v] = genf(ds, index=i)
                 ds[v].attrs.update(get_attrs(vs[v]))
-                if pre:
-                    ds[v].attrs["print_before"] = "   %d\n" % i
+                ds = add_pre(ds, v, pre, i)
                 if genf == gen_depo and i == 0:
                     ds[v].attrs["description"] = "True means +1, False means -1"
 
