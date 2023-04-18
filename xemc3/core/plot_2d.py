@@ -20,6 +20,7 @@ def plot_rz(
     figsize=None,
     target=False,
     log=False,
+    robust=False,
     **kwargs,
 ):
     phis = ds["phi_bounds"]
@@ -56,9 +57,8 @@ def plot_rz(
         if robust:
             vmin, vmax = np.nanpercentile(data, [1, 99])
         else:
-            pass
-        vmin = np.nanmin(data)
-        vmax = np.nanmax(data)
+            vmin = np.nanmin(data)
+            vmax = np.nanmax(data)
         vmin = kwargs.pop("vmin", vmin)
         vmax = kwargs.pop("vmax", vmax)
         if log and vmin <= 0:
