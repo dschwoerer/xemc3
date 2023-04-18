@@ -46,14 +46,19 @@ def plot_rz(
     norm = None
     if key:
         data = das[2].data
-        if "time" in ds[key].dims:
+        if "time" in das[2].dims:
             raise ValueError(
                 "Unexpected dimension `time` - animation is not yet supported!"
             )
-        if len(ds[key].dims) != 2:
-            raise ValueError(
-                f"Expected 2 dimensions for R-z plot, but found {len(ds[key].dims)}: {ds[key].dims}!"
-            )
+        if len(das[2].dims) != 2:
+            if das[2].dims == das[0].dims:
+                data = utils.from_interval(das[2])
+                if "shading" not in kwargs:
+                    kwargs["shading"] = "gouraud"
+            else:
+                raise ValueError(
+                    f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
+                )
         if robust:
             vmin, vmax = np.nanpercentile(data, [1, 99])
         else:
