@@ -127,6 +127,8 @@ def to_interval(dims, data=None) -> xr.DataArray:
     assert dims == len(
         in_dims
     ), f"Data mismatch - {in_dims} as dimensions given, but data is shape {data.shape} (len{len(data.shape)})"
+    # Once we drop python3.8, replace by removesuffix
+    in_dims = [x[: -len("_plus1")] if x.endswith("_plus1") else x for x in in_dims]
     out_dims = [d for d in in_dims] + ["delta_" + d for d in in_dims]
     ret = np.empty([i - 1 for i in data.shape] + [2] * dims, dtype=data.dtype)
     for ijk in itertools.product(*[range(a - 1) for a in data.shape]):
