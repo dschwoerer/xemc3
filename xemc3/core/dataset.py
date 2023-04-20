@@ -75,6 +75,19 @@ class EMC3DatasetAccessor:
                     raise e
                 var = var_
                 transform = from_interval_no_checks
+            elif var.endswith("_bounds"):
+                var = var[: -len("_bounds")]
+                try:
+                    dims = self.data[var + "_corners"].dims
+                    var = var + "_corners"
+                except KeyError:
+                    try:
+                        dims = self.data[var].dims
+                    except KeyError:
+                        raise e
+                if not any(["_plus1" in x for x in dims]):
+                    raise e
+                transform = utils.to_interval
             else:
                 raise
         if "plate_ind" in dims:
