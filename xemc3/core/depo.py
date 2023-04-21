@@ -3,7 +3,7 @@ import numpy as np
 import re
 import typing
 
-from .utils import rrange
+from .utils import rrange, raise_issue
 
 
 if 0:
@@ -86,7 +86,10 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
 
     with open(fn) as f:
         line = f.readline().split()
-        assert len(line) == 2
+        assert len(line) == 2, (
+            f"Unexpected: `{line}` at start of `{fn}` - expected 2 elements"
+            + raise_issue
+        )
         blockasize = int(line[0])
         # Lines look like this:
         # Index
@@ -110,21 +113,28 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
             line = bad.sub(r"\1E\2", f.readline()).split()
             ints = [int(x) for x in line[:7]]
             floats = [float(x) for x in line[7:]]
-            assert (
-                ints[0] == i + 1
-            ), f"Expected first index to be contigous, thus expected {i+1} but got {ints[0]}"
-            assert ints[1] == 3, f"Expected 3 but got {ints[1]}"
+            assert ints[0] == i + 1, (
+                f"Expected first index to be contigous, thus expected {i+1} but got {ints[0]} while reading {fn}"
+                + raise_issue
+            )
+            assert ints[1] == 3, (
+                f"Expected 3 but got {ints[1]} while reading `{fn}`." + raise_issue
+            )
             # print(ints[3:])
             if haszone:
                 slc = tuple(ints[3:])
             else:
-                assert ints[3] == 0, f"Expected zoneid=0 but got {ints[3]}"
+                assert ints[3] == 0, (
+                    f"Expected zoneid=0 but got {ints[3]}" + raise_issue
+                )
                 slc = tuple(ints[4:])
 
             for name, val in zip(varnames, (ints[2] == 1, floats[0])):
                 out[name][slc] = val
             if last:
-                assert not out["surftype"][last]
+                assert not out["surftype"][last], (
+                    f"Unexpected input in `{fn}`." + raise_issue
+                )
             if ints[2] != 1:
                 last = slc
             # print("a", out["surftype"][slc], ints[2] == 1)
@@ -148,11 +158,11 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
                 break
             ints = [int(x) for x in line[:7]]
             floats = [float(x) for x in line[7:]]
-            assert ints[1] == 3, f"Expected 3 but got {ints[1]}"
+            assert ints[1] == 3, f"Expected 3 but got {ints[1]}" + raise_issue
             if haszone:
                 slc = tuple(ints[3:])
             else:
-                assert ints[3] == 0
+                assert ints[3] == 0, f"Unexpected input in {fn} `line`." + raise_issue
                 slc = tuple(ints[4:])
             for name, val in zip(varnames, (ints[2] == 1, floats[0])):
                 out2[name][slc] = val
@@ -164,11 +174,11 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
                     out2["other"][j][slc] = floats[j + 1]
 
     if sparse:
-        assert any([d.nnz for d in out["other"]]) == hasother
-        assert any([d.nnz for d in out2["other"]]) == hasother2
+        assert any([d.nnz for d in out["other"]]) == hasother, raise_issue
+        assert any([d.nnz for d in out2["other"]]) == hasother2, raise_issue
     # if not hasother:
     # out["other"] = []
-    assert not hasother2
+    assert not hasother2, raise_issue
     out2["other"] = []
 
     ret = [
@@ -178,8 +188,8 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
         xr.DataArray(data=tocoo(d), dims=dims)
         for d in [out2["surftype"], out2["flux"], *out2["other"]]
     ]
-    assert len(ret[0]) == 6, f"{len(ret[0])}"
-    assert len(ret[1]) == 2
+    assert len(ret[0]) == 6, f"Expected 6 items but got {len(ret[0])}." + raise_issue
+    assert len(ret[1]) == 2, raise_issue
     return ret[0] + ret[1]
 
 
@@ -208,7 +218,9 @@ def write_depo_raw_part(datas, f, i):
 
 
 def write_depo_raw(datas, fn):
-    assert len(datas) == 8, f"Expected 8 data entries, but got { len(datas) }"
+    assert len(datas) == 8, (
+        f"Expected 8 data entries, but got { len(datas) }" + raise_issue
+    )
     datas = datas[:6], datas[6:]
     i = 0
     with open(fn, "w") as f:

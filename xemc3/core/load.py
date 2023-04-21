@@ -7,7 +7,7 @@ import uuid
 import numpy as np
 import xarray as xr
 
-from .utils import from_interval, open, prod, rrange, timeit, to_interval
+from .utils import from_interval, open, prod, rrange, timeit, to_interval, raise_issue
 from .depo import read_depo_raw, write_depo_raw
 
 try:
@@ -235,14 +235,17 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             if last:
                 lines = last + lines
             zone, r, theta, num = lines[:4]
-            assert zone == 0
-            assert num % 2 == 0
+            if zone != 0:
+                raise ValueError(
+                    "Multiple zones are currently not supported." + raise_issue
+                )
+            assert num % 2 == 0, f"Unexpected input in {fn}:{i} `line`" + raise_issue
             if num + 4 > len(lines):
                 last = lines
                 continue
             assert num + 4 == len(lines), (
                 f"failed to parse line {i+1}{' (continued from previous incomplete line)' if last else ''}"
-                f" from {fn}: {' '.join([str(x) for x in lines])}"
+                f" from {fn}: {' '.join([str(x) for x in lines])}" + raise_issue
             )
             last = None
             for t in range(num // 2):
@@ -364,7 +367,7 @@ def write_raw(da: xr.DataArray, fn: str) -> None:
         f.write(str(da.data))
 
 
-def read_locations(path: str, ds: xr.Dataset = None) -> xr.Dataset:
+def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Dataset:
     """
     Read locations from folder path and add to dataset (if given).
 
@@ -450,7 +453,7 @@ def _assert_eof(f: typing.TextIO, fn: str) -> None:
         if the file is not at the end.
     """
     test = _fromfile(f, dtype=float, count=2, sep=" ")
-    assert len(test) == 0, f"Expected EOF, but found more data in {fn}"
+    assert len(test) == 0, f"Expected EOF, but found more data in {fn}" + raise_issue
 
 
 def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
@@ -477,9 +480,11 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
         # first line is a comment ...
         _ = next(f)
         setup = next(f).split()
-        assert len(setup) == 5, f"Expected 5 values but got {setup}"
+        assert len(setup) == 5, f"Expected 5 values but got {setup}" + raise_issue
         for zero in setup[3:]:
-            assert float(zero) == 0.0
+            assert float(zero) == 0.0, (
+                "A shifted divertor is currently not supported in xemc3." + raise_issue
+            )
         nx, ny, nz = [int(i) for i in setup[:3]]
         r = np.empty((nx, ny))
         z = np.empty((nx, ny))
@@ -545,12 +550,18 @@ def read_add_sf_n0(filename: str) -> xr.Dataset:
         for _ in range(num):
             line = scrape(f)
             lines = line.split()
-            assert len(lines) == 3, f"Unexpected content in {filename}: {line}"
-            assert [int(x) for x in lines] == [
-                0,
-                -4,
-                1,
-            ], f"Unexpected content in {filename}: {line}"
+            assert len(lines) == 3, (
+                f"Unexpected content in {filename}:{line}." + raise_issue
+            )
+            if int(lines[0]) != 0:
+                raise ValueError(
+                    f"Only Kisslinger files are currently supported, not triangulated meshes - while reading {filename}:{line}"
+                )
+            # assert [int(x) for x in lines] == [
+            #     0,
+            #     -4,
+            #     1,
+            # ], f"Unexpected content in {filename}: {line}"
             files.append(dir + scrape(f).strip())
     return read_plate_nice(files)
 
@@ -580,7 +591,9 @@ def read_plate_ds(filename: str) -> xr.Dataset:
         if len(dat.shape) == 2:
             dims = ["phi", "x"]
         else:
-            assert len(dat.shape) == 1
+            assert len(dat.shape) == 1, (
+                f"Unexpected number of dimensions {dat.shape}." + raise_issue
+            )
             dims = ["phi"]
         out = out.assign_coords(
             {f"{plate_prefix}{name}": ([f"{plate_prefix}{d}_plus1" for d in dims], dat)}
@@ -616,7 +629,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
         plates = []
         for plate in range(num_plates):
             s = scrape(f).split()
-            assert len(s) == 2, f"{plate} : {s}"
+            assert len(s) == 2, (
+                f"Unexpected string `{s}` while reading {plate}." + raise_issue
+            )
             _, geom = s
             r, z, phi = read_plate(cwd + geom)
             nx, ny = r.shape
@@ -631,7 +646,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 nyr = ny * yref
                 mode = 2
             else:
-                assert len(s) == 2, f"Unexpected string `{s}` while reading {cwd + fn}"
+                assert len(s) == 2, (
+                    f"Unexpected string `{s}` while reading {cwd + fn}" + raise_issue
+                )
                 nyr, nxr = [int(i) for i in s]
                 xref = nxr // nx
                 yref = nyr // ny
@@ -924,23 +941,26 @@ def ensure_mapping(
     FileNotFoundError
         If the required info could not be read
     """
+    error = f"""Reading {fn+ ' ' if fn is not None else ''}mapped requires mapping information, but the required
+information in '{dir}' could not be found.  Ensure all files are present
+in the folder or pass in a dataset that contains the mapping
+information. Failed to open `%s`."""
     if dir == "":
         dir = "."
     if mapping is None:
         try:
             mapping = read_locations(dir)
-            if need_mapping:
-                mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
-        except FileNotFoundError:
-            raise FileNotFoundError(
-                f"""Reading {fn+ ' ' if fn is not None else ''} mapped requires mapping information, but the required
-information in '{dir}' could not be found.  Ensure all files are present
-in the folder or pass in a dataset that contains the mapping
-information."""
-            )
-    else:
-        if isinstance(mapping, xr.DataArray):
-            mapping = xr.Dataset(dict(_plasma_map=mapping))
+        except FileNotFoundError as e:
+            raise FileNotFoundError(33, error % e.filename)
+    if isinstance(mapping, xr.DataArray):
+        if mapping.name == "_plasma_map":
+            return xr.Dataset(dict(_plasma_map=mapping))
+    assert isinstance(mapping, xr.Dataset)
+    if need_mapping:
+        try:
+            mapping = read_fort_file(mapping, f"{dir}/fort.70", **files["fort.70"])
+        except FileNotFoundError as e:
+            raise FileNotFoundError(33, error % e.filename)
     return mapping
 
 
@@ -977,7 +997,9 @@ def read_var(
                 and var.startswith(v[:-2])
                 and var[len(v[:-2]) :].isdigit()
             ):
-                ds = ensure_mapping(dir, ds, fd.get("type", "mapped") == "mapped")
+                ds = ensure_mapping(
+                    dir, ds, fd.get("type", "mapped") == "mapped", fn=fn
+                )
                 assert isinstance(ds, xr.Dataset)
                 return read_fort_file(ds, f"{dir}/{fn}", **fd)
     raise ValueError(f"Don't know how to read {var}")
@@ -989,6 +1011,7 @@ def read_mapped(
     skip_first: int = 0,
     ignore_broken: bool = False,
     kinetic: bool = False,
+    unmapped: bool = False,
     dtype: DTypeLike = float,
     squeeze: bool = True,
 ) -> typing.Sequence[xr.DataArray]:
@@ -1011,6 +1034,9 @@ def read_mapped(
     kinetic : bool (optional)
         The file contains also data for cells that are only evolved by
         EIRENE, rather then EMC3. Default: False
+    unmapped : bool (optional)
+        The file contains unmapped data, i.e. on value for each cell.
+        Default: False
     dtype : datatype (optional)
         The type of the data, e.g. float or int. Is passed to
         numpy. Default: float
@@ -1027,10 +1053,13 @@ def read_mapped(
     """
 
     if isinstance(mapping, xr.Dataset):
-        mapping = ensure_mapping(_dir_of(fn), mapping)
+        mapping = ensure_mapping(_dir_of(fn), mapping, fn=fn)
         mapping = mapping["_plasma_map"]
     if kinetic:
+        assert unmapped == False
         max = np.max(mapping.data) + 1
+    elif unmapped:
+        max = mapping.attrs["numcells"]
     else:
         max = mapping.attrs["plasmacells"]
     firsts = []
@@ -1039,7 +1068,11 @@ def read_mapped(
         while True:
             if skip_first:
                 first = ""
-                for _ in range(skip_first):
+                if isinstance(skip_first, int):
+                    sf = skip_first
+                else:
+                    sf = skip_first[min(len(raws), len(skip_first) - 1)]
+                for _ in range(sf):
                     first += f.readline()
                 firsts.append(first)
             raw = _fromfile(f, dtype=dtype, count=max, sep=" ")
@@ -1059,7 +1092,7 @@ def read_mapped(
                     f"Incomplete dataset found ({len(raw)} out of {max}) after reading {len(raws)} datasets of file {fn}"
                 )
 
-    def to_da(raw):
+    def to_da_mapped(raw):
         out = np.ones(mapping.shape) * np.nan
         mapdat = mapping.data
         for ijk in rrange(mapping.shape):
@@ -1068,6 +1101,10 @@ def read_mapped(
                 out[ijk] = raw[mapid]
         return xr.DataArray(data=out, dims=mapping.dims)
 
+    def to_da_unmapped(raw):
+        return xr.DataArray(data=raw.reshape(mapping.shape), dims=mapping.dims)
+
+    to_da = to_da_unmapped if unmapped else to_da_mapped
     das = [to_da(raw) for raw in raws]
     if skip_first:
         for first, da in zip(firsts, das):
@@ -1077,7 +1114,9 @@ def read_mapped(
     return das
 
 
-def write_mapped_nice(ds: xr.Dataset, dir: str, fn: str = None, **args) -> None:
+def write_mapped_nice(
+    ds: xr.Dataset, dir: str, fn: typing.Optional[str] = None, **args
+) -> None:
     """
     Write a file for EMC3 using the mapped format.
 
@@ -1212,7 +1251,6 @@ def to_mapped(
     kinetic: bool = False,
     dtype: typing.Union[DTypeLike, None] = None,
 ) -> np.ndarray:
-
     if kinetic:
         max = np.max(mapping.values) + 1
     else:
@@ -1230,7 +1268,9 @@ def to_mapped(
     count = np.zeros(max, dtype=int)
     args = datdat, mapdat, out, count
     for arg in args:
-        assert isinstance(arg, np.ndarray)
+        assert isinstance(
+            arg, np.ndarray
+        ), f"Expected to write np.ndarray, but got {type(arg)}."
     out, count = to_mapped_core(*args, max)
     if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
         out //= count
@@ -1247,6 +1287,7 @@ def write_mapped(
     skip_first=0,
     ignore_broken=False,
     kinetic=False,
+    unmapped=False,
     dtype=None,
     fmt=None,
 ):
@@ -1268,6 +1309,8 @@ def write_mapped(
         ignored.
     kinetic : bool
         If true the data is defined also outside of the plasma region.
+    unmapped : bool
+        If true the data is not mapped
     dtype : any
         if not None, it needs to match the dtype of the data
     fmt : None or str
@@ -1286,7 +1329,11 @@ def write_mapped(
                     assert d.attrs["print_before"] == ""
     if not isinstance(datas, (list, tuple)):
         datas = [datas]
-    out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
+    if unmapped:
+        assert kinetic == False
+        out = [np.ravel(x) for x in datas]
+    else:
+        out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
         for i, da in zip(out, datas):
             if "print_before" in da.attrs:
@@ -1425,6 +1472,12 @@ files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
         type="mapped",
         kinetic=True,
         vars={"DENSITY_E_M_%d": dict()},
+    ),
+    "NEUTRAL_DENSITY": dict(
+        type="mapped",
+        skip_first=[3, 2],
+        unmapped=True,
+        vars={"NEUTRAL_DENSITY_%d": dict()},
     ),
     "fort.1": dict(
         type="raw",
@@ -1699,7 +1752,7 @@ def read_fort_file_pub(
         if not isinstance(ds, xr.Dataset):
             ds = xr.Dataset()
         return read_fort_file(ds, fn, **defaults)
-    ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped")
+    ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
     assert isinstance(ds, xr.Dataset)
     return read_fort_file(ds, fn, **defaults)
 
@@ -1713,9 +1766,15 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     datas = None
     vars = opts.pop("vars")
     if type == "mapping":
-        ds["_plasma_map"] = read_mappings(fn, ds.R_bounds.data.shape[:3])
+        ds["_plasma_map"] = read_mappings(
+            fn, tuple([len(ds[k]) for k in ("r", "theta", "phi")])
+        )
     elif type == "mapped":
-        ds = ensure_mapping(_dir_of(fn), ds)
+        # Ensure file is present before we try to read mapping
+        # This is because missing mapping is handled differently.
+        with open(fn):
+            pass
+        ds = ensure_mapping(_dir_of(fn), ds, fn=fn)
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
@@ -1875,10 +1934,9 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
         },
     )
     print(f"done with {fn}")
-    pass
 
 
-def load_all(path: str, ignore_missing: bool = None) -> xr.Dataset:
+def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Dataset:
     """
     Load all data from a path and return as dataset
 
@@ -1906,7 +1964,9 @@ def load_all(path: str, ignore_missing: bool = None) -> xr.Dataset:
         opts = opts.copy()
         try:
             ds = read_fort_file(ds, f"{path}/{fn}", **opts)
-        except FileNotFoundError:
+        except FileNotFoundError as e:
+            if e.args[0] == 33:
+                raise
             if ignore_missing is None:
                 if not opts.get("ignore_missing", True):
                     raise
