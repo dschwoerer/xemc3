@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt  # type: ignore
+import matplotlib as mpl  # type: ignore
 import numpy as np
 import xarray as xr
 
@@ -18,6 +19,8 @@ def plot_rz(
     aspect=True,
     figsize=None,
     target=False,
+    log=False,
+    robust=False,
     **kwargs,
 ):
     phis = ds["phi_bounds"]
@@ -40,16 +43,35 @@ def plot_rz(
     das = [
         (da * pp).sum(dim="delta_phi") if "delta_phi" in da.dims else da for da in das
     ]
+    norm = None
     if key:
         data = das[2].data
-        if "time" in ds[key].dims:
+        if "time" in das[2].dims:
             raise ValueError(
                 "Unexpected dimension `time` - animation is not yet supported!"
             )
-        if len(ds[key].dims) != 2:
-            raise ValueError(
-                f"Expected 2 dimensions for R-z plot, but found {len(ds[key].dims)}: {ds[key].dims}!"
-            )
+        if len(das[2].dims) != 2:
+            if das[2].dims == das[0].dims:
+                data = utils.from_interval(das[2])
+                if "shading" not in kwargs:
+                    kwargs["shading"] = "gouraud"
+            else:
+                raise ValueError(
+                    f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
+                )
+        if robust:
+            vmin, vmax = np.nanpercentile(data, [1, 99])
+        else:
+            vmin = np.nanmin(data)
+            vmax = np.nanmax(data)
+        vmin = kwargs.pop("vmin", vmin)
+        vmax = kwargs.pop("vmax", vmax)
+        if log and vmin <= 0:
+            raise ValueError(f"vmin ({vmin}) is not positive but log plot requested!")
+        assert vmin < vmax, f"vmin ({vmin}) is not smaller than vmax ({vmax})"
+        norm = (mpl.colors.LogNorm if log else mpl.colors.Normalize)(
+            vmin=vmin, vmax=vmax
+        )
     else:
         data = np.zeros(das[0].shape[:2]) * np.nan
         if "edgecolors" not in kwargs:
@@ -57,7 +79,7 @@ def plot_rz(
     r = utils.from_interval(das[0])
     z = utils.from_interval(das[1])
     ax = _get_ax(figsize, ax)
-    p = ax.pcolormesh(r, z, data, **kwargs)
+    p = ax.pcolormesh(r, z, data, norm=norm, **kwargs)
     # plt.xlabel(xr.plot.utils.label_from_attrs(r))
     if aspect:
         ax.set_aspect(1)
