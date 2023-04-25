@@ -23,6 +23,8 @@ suggestions.
    examples
    xemc3
    xarray
+   config
+   filenames
    cli
    citing
 
