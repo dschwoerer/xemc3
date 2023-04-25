@@ -1,0 +1,30 @@
+name: Create versioned files.yaml file
+
+on:
+  pull_request:
+    branches:
+    - stable
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  version-yaml:
+    name: Create versioned files.yaml file
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Create or update version file
+      id: get-version
+      run: |
+        version=$(echo ${{ github.event.pull_request.title }} | grep 'v[0-9]*\.[0-9]*\.[0-9]*' -o)
+        echo version=$version >> $GITHUB_OUTPUT
+        cp xemc3/data/default.yaml xemc3/data/$version.yaml
+        git add xemc3/data/$version.yaml
+
+    - uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: "Add ${{ steps.get-version.outputs.version }}.yaml file"
