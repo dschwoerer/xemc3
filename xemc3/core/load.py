@@ -826,7 +826,7 @@ def merge_blocks(
     return ds
 
 
-def load_plates(dir: str, fn: str = None) -> xr.Dataset:
+def load_plates(dir: str, fn: typing.Optional[str] = None) -> xr.Dataset:
     """
     Read the target heatflux mapping from EMC3 Postprocessing routine.
 
@@ -1712,7 +1712,7 @@ def write_all_fortran(ds, dir):
     dir : str
         The directory to write the files to
     """
-    write_locations(ds, get_file_name(dir, geom))
+    write_locations(ds, get_file_name(dir, "geom"))
     for fn, opts in files.items():
         try:
             get_vars_for_file(ds, fn)
@@ -1722,10 +1722,10 @@ def write_all_fortran(ds, dir):
             write_fort_file(ds, dir, fn, **opts)
 
 
-def get_file_name(dir: str, type: str) -> str:
-    found = []
+def get_file_name(dir: typing.Optional[str], type: str) -> str:
+    found: typing.List[str] = []
     for file, data in files.items():
-        if data["type"] == type:
+        if data.get("type", "mapped") == type:
             found.append(file)
     assert len(found) == 1
     if dir:
@@ -1780,5 +1780,3 @@ def get_file_name(dir: str, type: str) -> str:
     #     ds["R"]=read_mapped(path + "/RECOMBINATION", map, skip_first=0, kinetic=False)[0]*1.6021765699999998e-13
     #     ds["R"].attrs["units"] = "R [s$^{-1}$ m$^{-3}$]"
     #     ds["R"].attrs["long_name"] = "R [s$^{-1}$ m$^{-3}$]"
-
-    return ds
