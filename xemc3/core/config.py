@@ -7,9 +7,9 @@ from .utils import open
 
 codedir = os.path.dirname(os.path.dirname(os.path.realpath(__file__))) + "/data"
 
-xemc3dir = "~/.local/xemc3/"
+xemc3dir = "~/.local/xemc3"
 
-configfile = xemc3dir + "config.yaml"
+configfile = xemc3dir + "/config.yaml"
 
 defaults = dict(
     filenames="default",
@@ -25,28 +25,29 @@ except FileNotFoundError:
     pass
 
 
-def get(key):
-    return config[key]
+def get(key=None):
+    if key:
+        return config[key]
+    return config
 
 
 class context:
     def __init__(self, config):
         self.old = config.copy()
-        self.state = config.copy()
 
     def __enter__(self):
-        global config
-        config = self.state
+        pass
 
     def __exit__(self, *args):
         global config
         config = self.old
 
     def set(self, *args, **kwargs):
+        global config
         if len(args) % 2 == 0:
             for key, value in zip(args[::2], args[1::2]):
                 self.state[key] = value
-        self.state.update(kwargs)
+        config.update(kwargs)
         return self
 
 
@@ -57,7 +58,6 @@ def set(*args, **kwargs):
 class Files:
     def _update(self):
         if self.source != config["filenames"]:
-            print("loading")
             self._load(config["filenames"])
         assert self.cache
 
@@ -96,6 +96,7 @@ class Files:
         ]
         found = False
         self.cache = dict()
+        eno = ()
         for fn, specific in filenames:
             try:
                 with open(fn) as f:
@@ -103,12 +104,14 @@ class Files:
                 if specific:
                     found = True
             except FileNotFoundError as e:
-                print(e)
+                if isinstance(e.args[0], int):
+                    eno = (e.args[0],)
                 pass
         if not found:
             raise FileNotFoundError(
+                *eno,
                 f"Failed to find a config file for {filename} - the following locations have been tried:"
-                + ("".join([f"\n * '{fn}'" for fn, s in filenames if s]))
+                + ("".join([f"\n * '{fn}'" for fn, s in filenames if s])),
             )
         for fn, data in self.cache.items():
             if data.get("dtype", None) == "int":
