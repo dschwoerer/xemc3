@@ -1333,7 +1333,7 @@ def write_mapped(
         datas = [datas]
     if unmapped:
         assert kinetic == False
-        out = [np.ravel(x) for x in datas]
+        out = [np.ravel(x, order="F") for x in datas]
     else:
         out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
