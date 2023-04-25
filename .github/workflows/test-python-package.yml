@@ -45,7 +45,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: Get Remote SHA
       id: get-sha
       run: |
