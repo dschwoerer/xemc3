@@ -6,9 +6,9 @@ analysing the data. The data is mostly in SI units, with the exception
 of temperatures that are in eV.
 """
 
-__all__ = ["load", "utils", "write"]
+__all__ = ["load", "write", "config"]
 
-from . import load, write
+from . import load, write, config
 from .core.dataset import EMC3DatasetAccessor
 
 
