@@ -1102,7 +1102,9 @@ def read_mapped(
         return xr.DataArray(data=out, dims=mapping.dims)
 
     def to_da_unmapped(raw):
-        return xr.DataArray(data=raw.reshape(mapping.shape), dims=mapping.dims)
+        return xr.DataArray(
+            data=raw.reshape(mapping.shape[::-1]).transpose(2, 1, 0), dims=mapping.dims
+        )
 
     to_da = to_da_unmapped if unmapped else to_da_mapped
     das = [to_da(raw) for raw in raws]
