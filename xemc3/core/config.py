@@ -116,6 +116,12 @@ class Files:
         for fn, data in self.cache.items():
             if data.get("dtype", None) == "int":
                 self.cache[fn]["dtype"] = int
+            vars = data["vars"].keys()
+            haspercentd = ["%d" in x for x in vars]
+            if any(haspercentd):
+                assert haspercentd[-1] and (
+                    not any(haspercentd[:-1])
+                ), f"Only expected '%d' in the last variable name, but instead got {vars}"
 
         self.source = filename
 
