@@ -387,7 +387,7 @@ def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Data
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
-    phi, r, z = read_locations_raw(path + "/GRID_3D_DATA")
+    phi, r, z = read_locations_raw(get_file_name(path, "geom"))
     ds = ds.assign_coords(
         {
             "R_bounds": to_interval(("r", "theta", "phi"), r),
@@ -749,7 +749,7 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
             ds.coords[plate_prefix + "z_bounds"].attrs["units"] = "m"
             ds.coords[plate_prefix + "phi_bounds"].attrs["units"] = "radian"
 
-            vars = files["TARGET_PROFILES"]["vars"].copy()
+            vars = files[get_file_name(None, "target_flux")]["vars"].copy()
             for i, (l, meta) in enumerate(vars.items()):
                 ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
                     "scale", 1
@@ -826,7 +826,7 @@ def merge_blocks(
     return ds
 
 
-def load_plates(dir: str, fn: str = "TARGET_PROFILES") -> xr.Dataset:
+def load_plates(dir: str, fn: str = None) -> xr.Dataset:
     """
     Read the target heatflux mapping from EMC3 Postprocessing routine.
 
@@ -843,6 +843,8 @@ def load_plates(dir: str, fn: str = "TARGET_PROFILES") -> xr.Dataset:
     xr.Dataset
         The read data
     """
+    if fn is None:
+        fn = get_file_name(None, "target_flux")
     if dir[-1] != "/":
         dir += "/"
     plates = read_plates_raw(dir, fn)
@@ -899,7 +901,7 @@ def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     if cache:
         try:
             if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
-                dir + "/TARGET_PROFILES"
+                get_file_name(dir, "target_flux")
             ):
                 return read_plates(dir)
         except OSError:
@@ -1684,7 +1686,6 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
     elif type == "info":
         write_info_file(f"{dir}/{fn}", ds)
     elif type == "geom":
-        assert fn == "GRID_3D_DATA"
         write_locations(ds, f"{dir}/{fn}")
     elif type == "raw":
         vars = opts.pop("vars")
@@ -1711,7 +1712,7 @@ def write_all_fortran(ds, dir):
     dir : str
         The directory to write the files to
     """
-    write_locations(ds, f"{dir}/GRID_3D_DATA")
+    write_locations(ds, get_file_name(dir, geom))
     for fn, opts in files.items():
         try:
             get_vars_for_file(ds, fn)
@@ -1720,6 +1721,16 @@ def write_all_fortran(ds, dir):
         else:
             write_fort_file(ds, dir, fn, **opts)
 
+
+def get_file_name(dir: str, type: str) -> str:
+    found = []
+    for file, data in files.items():
+        if data["type"] == type:
+            found.append(file)
+    assert len(found) == 1
+    if dir:
+        return f"{dir}/{found[0]}"
+    return found[0]
     # if False:
     #     ds["phi"] = read_mapped(path + "/POTENTIAL", map, skip_first=0, kinetic=False)[
     #         0
