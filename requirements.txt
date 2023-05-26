@@ -4,6 +4,7 @@ netcdf4>=1.4.0
 importlib-metadata<4.3,>=1.1.0; python_version < "3.8"
 numpy >= 1.13.0
 eudist
+pyyaml
 
 # for version number in non-installed package:
 setuptools>=42

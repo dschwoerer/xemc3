@@ -18,7 +18,6 @@ old
 *.fort
 
 # cython files
-data/
 build/
 *.c
 *.so

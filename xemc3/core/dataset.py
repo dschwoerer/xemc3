@@ -61,12 +61,22 @@ class EMC3DatasetAccessor:
                 except KeyError:
                     yield None
 
-    def _get(self, var):
-        """Load a single var."""
+    def _get(self, var, crop=True, resolve=True):
+        """
+        Load a single var.
+
+        crop : bool
+            Remove nan data
+        resolve : bool
+            Check alternative names to get data
+        """
+        docrop = crop
         transform = identity
         try:
             dims = self.data[var].dims
         except KeyError as e:
+            if not resolve:
+                raise e
             if var.endswith("_corners"):
                 var_ = var[: -len("_corners")] + "_bounds"
                 try:
@@ -75,9 +85,22 @@ class EMC3DatasetAccessor:
                     raise e
                 var = var_
                 transform = from_interval_no_checks
+            elif var.endswith("_bounds"):
+                var = var[: -len("_bounds")]
+                try:
+                    dims = self.data[var + "_corners"].dims
+                    var = var + "_corners"
+                except KeyError:
+                    try:
+                        dims = self.data[var].dims
+                    except KeyError:
+                        raise e
+                if not any(["_plus1" in x for x in dims]):
+                    raise e
+                transform = utils.to_interval
             else:
                 raise
-        if "plate_ind" in dims:
+        if docrop and "plate_ind" in dims:
             crop = list(self._get_crop(dims, skip=["plate_ind"]))
             ret = []
             for i in range(len(self.data["plate_ind"])):
@@ -99,8 +122,11 @@ class EMC3DatasetAccessor:
                 )
                 ret.append(transform(data))
             return ret
-        crop = [slice(None, x) for x in self._get_crop(dims)]
-        data = self.data[var][tuple(crop)]
+        if docrop:
+            crop = [slice(None, x) for x in self._get_crop(dims)]
+            data = self.data[var][tuple(crop)]
+        else:
+            data = self.data[var]
         return transform(data)
 
     def _set(self, var, data):
@@ -177,8 +203,8 @@ class EMC3DatasetAccessor:
     def _get_alt_name(self, var_name, suffix=""):
         var_suffix = ["_bounds", "", "_plus1"]
         var_prefix = ["plate_", "_plate_", ""]
-        for extra_suffix in var_suffix:
-            for prefix in var_prefix:
+        for prefix in var_prefix:
+            for extra_suffix in var_suffix:
                 cur = prefix + var_name + extra_suffix + suffix
                 if cur in self.data:
                     return cur

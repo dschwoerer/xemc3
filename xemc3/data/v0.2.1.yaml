@@ -1,0 +1,307 @@
+
+fort.70:
+  type: mapping
+  vars:
+    _plasma_map: {}
+fort.31:
+  type: mapped
+  skip_first: 1
+  kinetic: false
+  vars:
+    ne:
+      scale: 1000000.0
+      units: m$^{-3}$
+      long_name: Electron density
+    nZ%d:
+      scale: 1000000.0
+      units: m$^{-3}$
+fort.33:
+  type: mapped
+  vars:
+    M:
+      long_name: Mach number
+fort.30:
+  type: mapped
+  vars:
+    Te:
+      units: eV
+      long_name: Electron temperature
+    Ti:
+      units: eV
+      long_name: Ion temperature
+CONNECTION_LENGTH:
+  type: mapped
+  vars:
+    Lc:
+      scale: 0.01
+      units: m
+      long_name: Connection length
+DENSITY_A:
+  type: mapped
+  kinetic: true
+  vars:
+    nH:
+      scale: 1000000.0
+      units: m$^{-3}$
+      long_name: Atomic deuterium density
+DENSITY_M:
+  kinetic: true
+  vars:
+    nH2:
+      scale: 1000000.0
+      units: m$^{-3}$
+      long_name: D_2 density
+DENSITY_I:
+  kinetic: true
+  vars:
+    nH2+:
+      scale: 1000000.0
+      units: m$^{-3}$
+      long_name: D_2^+ density
+TEMPERATURE_A:
+  kinetic: true
+  vars:
+    TH:
+      units: eV
+      long_name: Atomic hydrogen temperature
+TEMPERATURE_M:
+  kinetic: true
+  vars:
+    TH:
+      units: eV
+      long_name: Atomic hydrogen temperature
+BFIELD_STRENGTH:
+  type: full
+  vars:
+    bf_bounds:
+      units: T
+      long_name: Magnetic field strength
+PLATES_MAG:
+  type: plates_mag
+  vars:
+    PLATES_MAG:
+      long_name: Cells that are within or behind plates
+TEMPERATURE_I:
+  type: mapped
+  kinetic: true
+  vars:
+    TEMPERATURE_I_%d: {}
+DENSITY_E_A:
+  type: mapped
+  kinetic: true
+  vars:
+    DENSITY_E_A_%d: {}
+DENSITY_E_I:
+  type: mapped
+  kinetic: true
+  vars:
+    DENSITY_E_I_%d: {}
+DENSITY_E_M:
+  type: mapped
+  kinetic: true
+  vars:
+    DENSITY_E_M_%d: {}
+fort.1:
+  type: raw
+  vars:
+    fort.1:
+      long_name: Geometry input file
+fort.2:
+  type: raw
+  vars:
+    fort.2:
+      long_name: Plasma parameters, boundary and initial conditions input file
+fort.3:
+  type: raw
+  vars:
+    fort.3:
+      long_name: Control flow input file
+fort.4:
+  type: raw
+  vars:
+    fort.4:
+      long_name: Neutrals input file for EIRENE
+fort.40:
+  type: mapped
+  vars:
+    fort.40_%d: {}
+fort.42:
+  type: mapped
+  vars:
+    fort.42_%d: {}
+fort.43:
+  type: mapped
+  vars:
+    fort.43_%d: {}
+fort.46:
+  type: mapped
+  vars:
+    fort.46_%d: {}
+fort.47:
+  type: mapped
+  vars:
+    fort.47_%d: {}
+IMPURITY_IONIZATION_SOURCE:
+  type: mapped
+  vars:
+    IMPURITY_IONIZATION_SOURCE_%d: {}
+IMPURITY_NEUTRAL:
+  type: mapped
+  vars:
+    IMPURITY_NEUTRAL_%d: {}
+IMP_RADIATION:
+  type: mapped
+  vars:
+    IMP_RADIATION_%d: {}
+FLUX_CONSERVATION:
+  type: mapped
+  vars:
+    FLUX_CONSERVATION_%d: {}
+LG_CELL:
+  type: mapped
+  dtype: int
+  vars:
+    LG_CELL_%d: {}
+STREAMING_INFO:
+  type: info
+  fmt: '%6.2f %5.3f %10.3E %10.3E %10.3E %10.3E %10.3E'
+  vars:
+    dens_change:
+      long_name: Relative change in density
+      scale: 0.01
+      units: ''
+      notes: Unlike in EMC3/pymc3 this is not percent.
+    flow_change:
+      long_name: Change in Flow
+      notes: Not scaled
+    part_balance:
+      long_name: Global particle balance
+      units: A
+    dens_upstream:
+      long_name: Upstream Density
+      scale: 1000000.0
+      units: m$^{-3}$
+    dens_down_back:
+      long_name: Downstream Density (backward direction)
+      scale: 1000000.0
+      units: m$^{-3}$
+    dens_down_mean:
+      long_name: Downstream Density (averaged)
+      scale: 1000000.0
+      units: m$^{-3}$
+    dens_down_fwd:
+      long_name: Downstream Density (forward direction)
+      scale: 1000000.0
+      units: m$^{-3}$
+ENERGY_INFO:
+  type: info
+  fmt: "%6.1f %11.4E %11.4E %11.4E %11.4E\n%6.1f %11.4E %11.4E %11.4E %11.4E\n   \
+    \                %11.4E %11.4E %11.4E"
+  vars:
+    Te_change:
+      long_name: Relative change in el. temperature
+      scale: 0.01
+      units: ''
+      notes: Unlike in EMC3/pymc3 this is not percent.
+    Te_upstream:
+      long_name: Upstream el. temperature
+      units: eV
+    Te_down_back:
+      long_name: Downstream el. temperature (backward direction)
+      units: eV
+    Te_down_mean:
+      long_name: Downstream el. temperature (averaged)
+      units: eV
+    Te_down_fwd:
+      long_name: Downstream el. temperature (forward direction)
+      units: eV
+    Ti_change:
+      long_name: Change in ion temperature
+      scale: 0.01
+      units: ''
+      notes: Unlike in EMC3/pymc3 this is not percent.
+    Ti_upstream:
+      long_name: Upstream ion temperature
+      units: eV
+    Ti_down_back:
+      long_name: Downstream ion temperature (backward direction)
+      units: eV
+    Ti_down_mean:
+      long_name: Downstream ion temperature (averaged)
+      units: eV
+    Ti_down_fwd:
+      long_name: Downstream ion temperature (forward direction)
+      units: eV
+    P_loss_gas:
+      long_name: Power losses (neutral gas)
+      units: W
+    P_loss_imp:
+      long_name: Power losses (impurities)
+      units: W
+    P_loss_target:
+      long_name: Power losses (target)
+      units: W
+NEUTRAL_INFO:
+  type: info
+  fmt: '%12.4E %11.4E %11.4E %11.4E %11.4E %11.4E'
+  vars:
+    ionization_core:
+      long_name: Core ionization
+    ionization_edge:
+      long_name: Edge ionization
+    ionization_electron:
+      long_name: Electron energy source / ionization
+      units: eV
+    ionization_ion:
+      long_name: Ion energy source / ionization
+      units: eV
+    ionization_moment_fwd:
+      long_name: Forward momentum source/ ionization
+    ionization_moment_bwk:
+      long_name: Backward momentum source/ ionization
+IMPURITY_INFO:
+  type: info
+  fmt: '%12.4E %11.4E'
+  vars:
+    TOTAL_FLX:
+      long_name: Total impurity flux
+    TOTAL_RAD:
+      long_name: Total radiation
+      units: W
+ADD_SF_N0:
+  type: surfaces
+  vars:
+    plate_phi:
+      units: radian
+    plate_R:
+      units: m
+    plate_z:
+      units: m
+GRID_3D_DATA:
+  type: geom
+  vars:
+    R_bounds:
+      units: m
+    z_bounds:
+      units: m
+    phi_bounds:
+      units: radian
+TARGET_PROFILES:
+  type: target_flux
+  vars:
+    f_n:
+      long_name: Particle flux
+    f_E:
+      units: W/m²
+      scale: 10000.0
+      long_name: Energy flux
+    avg_n:
+      units: m^-3
+      scale: 1000000.0
+      long_name: Averge density
+    avg_Te:
+      units: eV
+      long_name: Average electron temperature
+    avg_Ti:
+      units: eV
+      long_name: Average ion temperature

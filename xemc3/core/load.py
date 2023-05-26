@@ -9,6 +9,7 @@ import xarray as xr
 
 from .utils import from_interval, open, prod, rrange, timeit, to_interval, raise_issue
 from .depo import read_depo_raw, write_depo_raw
+from .config import files
 
 try:
     from numba import jit  # type: ignore
@@ -386,7 +387,7 @@ def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Data
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
-    phi, r, z = read_locations_raw(path + "/GRID_3D_DATA")
+    phi, r, z = read_locations_raw(get_file_name(path, "geom"))
     ds = ds.assign_coords(
         {
             "R_bounds": to_interval(("r", "theta", "phi"), r),
@@ -748,7 +749,7 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
             ds.coords[plate_prefix + "z_bounds"].attrs["units"] = "m"
             ds.coords[plate_prefix + "phi_bounds"].attrs["units"] = "radian"
 
-            vars = files["TARGET_PROFILES"]["vars"].copy()
+            vars = files[get_file_name(None, "target_flux")]["vars"].copy()
             for i, (l, meta) in enumerate(vars.items()):
                 ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
                     "scale", 1
@@ -825,7 +826,7 @@ def merge_blocks(
     return ds
 
 
-def load_plates(dir: str, fn: str = "TARGET_PROFILES") -> xr.Dataset:
+def load_plates(dir: str, fn: typing.Optional[str] = None) -> xr.Dataset:
     """
     Read the target heatflux mapping from EMC3 Postprocessing routine.
 
@@ -842,6 +843,8 @@ def load_plates(dir: str, fn: str = "TARGET_PROFILES") -> xr.Dataset:
     xr.Dataset
         The read data
     """
+    if fn is None:
+        fn = get_file_name(None, "target_flux")
     if dir[-1] != "/":
         dir += "/"
     plates = read_plates_raw(dir, fn)
@@ -898,7 +901,7 @@ def get_plates(dir: str, cache: bool = True) -> xr.Dataset:
     if cache:
         try:
             if os.path.getmtime(dir + "/TARGET_PROFILES.nc") > os.path.getmtime(
-                dir + "/TARGET_PROFILES"
+                get_file_name(dir, "target_flux")
             ):
                 return read_plates(dir)
         except OSError:
@@ -1056,7 +1059,7 @@ def read_mapped(
         mapping = ensure_mapping(_dir_of(fn), mapping, fn=fn)
         mapping = mapping["_plasma_map"]
     if kinetic:
-        assert unmapped == False
+        assert unmapped is False
         max = np.max(mapping.data) + 1
     elif unmapped:
         max = mapping.attrs["numcells"]
@@ -1102,7 +1105,9 @@ def read_mapped(
         return xr.DataArray(data=out, dims=mapping.dims)
 
     def to_da_unmapped(raw):
-        return xr.DataArray(data=raw.reshape(mapping.shape), dims=mapping.dims)
+        return xr.DataArray(
+            data=raw.reshape(mapping.shape[::-1]).transpose(2, 1, 0), dims=mapping.dims
+        )
 
     to_da = to_da_unmapped if unmapped else to_da_mapped
     das = [to_da(raw) for raw in raws]
@@ -1330,8 +1335,8 @@ def write_mapped(
     if not isinstance(datas, (list, tuple)):
         datas = [datas]
     if unmapped:
-        assert kinetic == False
-        out = [np.ravel(x) for x in datas]
+        assert kinetic is False
+        out = [np.ravel(x, order="F") for x in datas]
     else:
         out = [to_mapped(x, mapping, kinetic, dtype) for x in datas]
     with open(fn, "w") as f:
@@ -1398,328 +1403,6 @@ def write_info_file(fn: str, ds: xr.Dataset) -> None:
             f.write(fmt % tuple(d) + "\n")
 
 
-files: typing.Dict[str, typing.Dict[str, typing.Any]] = {
-    "fort.70": dict(type="mapping", vars={"_plasma_map": dict()}),
-    "fort.31": dict(
-        type="mapped",
-        skip_first=1,
-        kinetic=False,
-        vars={
-            "ne": dict(scale=1e6, units="m$^{-3}$", long_name="Electron density"),
-            "nZ%d": dict(scale=1e6, units="m$^{-3}$"),
-        },
-    ),
-    "fort.33": dict(type="mapped", vars={"M": dict(long_name="Mach number")}),
-    "fort.30": dict(
-        type="mapped",
-        vars={
-            "Te": dict(units="eV", long_name="Electron temperature"),
-            "Ti": dict(units="eV", long_name="Ion temperature"),
-        },
-    ),
-    "CONNECTION_LENGTH": dict(
-        type="mapped",
-        vars={"Lc": dict(scale=1e-2, units="m", long_name="Connection length")},
-    ),
-    "DENSITY_A": dict(
-        type="mapped",
-        kinetic=True,
-        vars=dict(
-            nH=dict(scale=1e6, units="m$^{-3}$", long_name="Atomic deuterium density")
-        ),
-    ),
-    "DENSITY_M": dict(
-        kinetic=True,
-        vars=dict(nH2=dict(scale=1e6, units="m$^{-3}$", long_name="D_2 density")),
-    ),
-    "DENSITY_I": dict(
-        kinetic=True,
-        vars={"nH2+": dict(scale=1e6, units="m$^{-3}$", long_name="D_2^+ density")},
-    ),
-    "TEMPERATURE_A": dict(
-        kinetic=True,
-        vars={"TH": dict(units="eV", long_name="Atomic hydrogen temperature")},
-    ),
-    "TEMPERATURE_M": dict(
-        kinetic=True,
-        vars={"TH": dict(units="eV", long_name="Atomic hydrogen temperature")},
-    ),
-    "BFIELD_STRENGTH": dict(
-        type="full",
-        vars={"bf_bounds": dict(units="T", long_name="Magnetic field strength")},
-    ),
-    "PLATES_MAG": dict(
-        type="plates_mag",
-        vars={"PLATES_MAG": dict(long_name="Cells that are within or behind plates")},
-    ),
-    # Some files - but don't know what they are
-    "TEMPERATURE_I": dict(
-        type="mapped",
-        kinetic=True,
-        vars={"TEMPERATURE_I_%d": dict()},
-    ),
-    "DENSITY_E_A": dict(
-        type="mapped",
-        kinetic=True,
-        vars={"DENSITY_E_A_%d": dict()},
-    ),
-    "DENSITY_E_I": dict(
-        type="mapped",
-        kinetic=True,
-        vars={"DENSITY_E_I_%d": dict()},
-    ),
-    "DENSITY_E_M": dict(
-        type="mapped",
-        kinetic=True,
-        vars={"DENSITY_E_M_%d": dict()},
-    ),
-    "NEUTRAL_DENSITY": dict(
-        type="mapped",
-        skip_first=[3, 2],
-        unmapped=True,
-        vars={"NEUTRAL_DENSITY_%d": dict()},
-    ),
-    "fort.1": dict(
-        type="raw",
-        vars={"fort.1": dict(long_name="Geometry input file")},
-    ),
-    "fort.2": dict(
-        type="raw",
-        vars={
-            "fort.2": dict(
-                long_name="Plasma parameters, boundary and initial conditions input file"
-            )
-        },
-    ),
-    "fort.3": dict(
-        type="raw",
-        vars={"fort.3": dict(long_name="Control flow input file")},
-    ),
-    "fort.4": dict(
-        type="raw",
-        vars={"fort.4": dict(long_name="Neutrals input file for EIRENE")},
-    ),
-    "fort.40": dict(
-        type="mapped",
-        vars={"fort.40_%d": dict()},
-    ),
-    "fort.42": dict(
-        type="mapped",
-        vars={"fort.42_%d": dict()},
-    ),
-    "fort.43": dict(
-        type="mapped",
-        vars={"fort.43_%d": dict()},
-    ),
-    "fort.46": dict(
-        type="mapped",
-        vars={"fort.46_%d": dict()},
-    ),
-    "fort.47": dict(
-        type="mapped",
-        vars={"fort.47_%d": dict()},
-    ),
-    "IMPURITY_IONIZATION_SOURCE": dict(
-        type="mapped",
-        vars={"IMPURITY_IONIZATION_SOURCE_%d": dict()},
-    ),
-    "IMPURITY_NEUTRAL": dict(
-        type="mapped",
-        vars={"IMPURITY_NEUTRAL_%d": dict()},
-    ),
-    "IMP_RADIATION": dict(
-        type="mapped",
-        vars={"IMP_RADIATION_%d": dict()},
-    ),
-    "FLUX_CONSERVATION": dict(
-        type="mapped",
-        vars={"FLUX_CONSERVATION_%d": dict()},
-    ),
-    "LG_CELL": dict(
-        type="mapped",
-        dtype=int,
-        vars={"LG_CELL_%d": dict()},
-    ),
-    "STREAMING_INFO": dict(
-        type="info",
-        fmt="%6.2f %5.3f %10.3E %10.3E %10.3E %10.3E %10.3E",
-        vars={
-            "dens_change": dict(
-                long_name="Relative change in density",
-                scale=1e-2,
-                units="",
-                notes="Unlike in EMC3/pymc3 this is not percent.",
-            ),
-            "flow_change": dict(
-                long_name="Change in Flow",
-                notes="Not scaled",
-            ),
-            "part_balance": dict(
-                long_name="Global particle balance",
-                units="A",
-            ),
-            "dens_upstream": dict(
-                long_name="Upstream Density",
-                scale=1e6,
-                units="m$^{-3}$",
-            ),
-            "dens_down_back": dict(
-                long_name="Downstream Density (backward direction)",
-                scale=1e6,
-                units="m$^{-3}$",
-            ),
-            "dens_down_mean": dict(
-                long_name="Downstream Density (averaged)",
-                scale=1e6,
-                units="m$^{-3}$",
-            ),
-            "dens_down_fwd": dict(
-                long_name="Downstream Density (forward direction)",
-                scale=1e6,
-                units="m$^{-3}$",
-            ),
-        },
-    ),
-    "ENERGY_INFO": dict(
-        type="info",
-        fmt=("%6.1f" + " %11.4E" * 4 + "\n") * 2 + " " * 18 + 3 * " %11.4E",
-        vars={
-            "Te_change": dict(
-                long_name="Relative change in el. temperature",
-                scale=1e-2,
-                units="",
-                notes="Unlike in EMC3/pymc3 this is not percent.",
-            ),
-            "Te_upstream": dict(
-                long_name="Upstream el. temperature",
-                units="eV",
-            ),
-            "Te_down_back": dict(
-                long_name="Downstream el. temperature (backward direction)", units="eV"
-            ),
-            "Te_down_mean": dict(
-                long_name="Downstream el. temperature (averaged)", units="eV"
-            ),
-            "Te_down_fwd": dict(
-                long_name="Downstream el. temperature (forward direction)",
-                units="eV",
-            ),
-            "Ti_change": dict(
-                long_name="Change in ion temperature",
-                scale=1e-2,
-                units="",
-                notes="Unlike in EMC3/pymc3 this is not percent.",
-            ),
-            "Ti_upstream": dict(
-                long_name="Upstream ion temperature",
-                units="eV",
-            ),
-            "Ti_down_back": dict(
-                long_name="Downstream ion temperature (backward direction)", units="eV"
-            ),
-            "Ti_down_mean": dict(
-                long_name="Downstream ion temperature (averaged)", units="eV"
-            ),
-            "Ti_down_fwd": dict(
-                long_name="Downstream ion temperature (forward direction)",
-                units="eV",
-            ),
-            "P_loss_gas": dict(long_name="Power losses (neutral gas)", units="W"),
-            "P_loss_imp": dict(long_name="Power losses (impurities)", units="W"),
-            "P_loss_target": dict(long_name="Power losses (target)", units="W"),
-        },
-    ),
-    "NEUTRAL_INFO": dict(
-        type="info",
-        fmt="%12.4E" + (" %11.4E" * 5),
-        vars={
-            "ionization_core": dict(long_name="Core ionization"),
-            "ionization_edge": dict(long_name="Edge ionization"),
-            "ionization_electron": dict(
-                long_name="Electron energy source / ionization",
-                units="eV",
-            ),
-            "ionization_ion": dict(
-                long_name="Ion energy source / ionization",
-                units="eV",
-            ),
-            "ionization_moment_fwd": dict(
-                long_name="Forward momentum source/ ionization"
-            ),
-            "ionization_moment_bwk": dict(
-                long_name="Backward momentum source/ ionization"
-            ),
-        },
-    ),
-    "IMPURITY_INFO": dict(
-        type="info",
-        fmt="%12.4E %11.4E",
-        vars={
-            "TOTAL_FLX": dict(long_name="Total impurity flux"),
-            "TOTAL_RAD": dict(long_name="Total radiation", units="W"),
-        },
-    ),
-    "ADD_SF_N0": dict(
-        type="surfaces",
-        vars={
-            plate_prefix + "phi": dict(units="radian"),
-            plate_prefix + "R": dict(units="m"),
-            plate_prefix + "z": dict(units="m"),
-        },
-    ),
-    "GRID_3D_DATA": dict(
-        type="geom",
-        vars={
-            "R_bounds": dict(units="m"),
-            "z_bounds": dict(units="m"),
-            "phi_bounds": dict(units="radian"),
-        },
-    ),
-    "PARTICLE_DEPO": dict(
-        type="depo",
-        vars={
-            "surftype_ne": dict(description="True means +1, False means -1"),
-            "flux_ne": dict(long_name="Outflux of particles", units="s^-1"),
-            "PARTICLE_DEPO_%d": dict(),
-        },
-    ),
-    "ENERGY_DEPO": dict(
-        type="depo",
-        vars={
-            "surftype_Te": dict(description="True means +1, False means -1"),
-            "flux_P": dict(long_name="Outflux of energy", units="W"),
-            "ENERGY_DEPO_%d": dict(),
-        },
-    ),
-    "TARGET_PROFILES": dict(
-        type="target_flux",
-        vars={
-            "f_n": dict(long_name="Particle flux"),
-            "f_E": dict(units="W/m²", scale=1e4, long_name="Energy flux"),
-            "avg_n": dict(units="m^-3", scale=1e6, long_name="Averge density"),
-            "avg_Te": dict(units="eV", long_name="Average electron temperature"),
-            "avg_Ti": dict(units="eV", long_name="Average ion temperature"),
-        },
-    ),
-}
-
-if False:
-    _files_bak = files.copy()
-    for k in files:
-        _files_bak[k] = files[k].copy()
-        if isinstance(files[k], dict):
-            for l in files[k]:
-                try:
-                    _files_bak[k][l] = files[k][l].copy()
-                except:  # noqa: E722
-                    try:
-                        _files_bak[k][l] = files[k][l][:]
-                    except:  # noqa: E722
-                        pass
-else:
-    _files_bak = files
-
-
 def read_fort_file_pub(
     fn: str, ds: typing.Union[None, xr.Dataset, xr.DataArray] = None, **opts
 ) -> xr.Dataset:
@@ -1762,7 +1445,6 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     Read an EMC3 simulation file and add to a dataset.
 
     """
-    assert files == _files_bak
     datas = None
     vars = opts.pop("vars")
     if type == "mapping":
@@ -1811,14 +1493,12 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         datas = read_depo_raw(ds, fn)
     else:
         raise RuntimeError(f"Unexpected type {type}")
-    assert files == _files_bak
     assert opts == {}, "Unexpected arguments: " + ", ".join(
         [f"{k}={v}" for k, v in opts.items()]
     )
     if datas is None:
         return ds
     vars = vars.copy()
-    assert files == _files_bak
     assert opts == {}
     keys = [k for k in vars]
     if "%" in keys[-1]:
@@ -1826,12 +1506,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         flexi = vars.pop(key)
         for i in range(len(vars), len(datas)):
             vars[key % i] = flexi
-
-    assert files == _files_bak
     assert len(vars) == len(
         datas
     ), f"in file {fn} we found {len(datas)} fields but only {len(vars)} vars are given!"
-    assert files == _files_bak
     for (var, varopts), data in zip(vars.items(), datas):
         ds[var] = data
         varopts = varopts.copy()
@@ -1849,7 +1526,6 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         assert (
             varopts == {}
         ), f"variable {var} has options {varopts} but didn't expect anything"
-    assert files == _files_bak
     return ds
 
 
@@ -2010,7 +1686,6 @@ def write_fort_file(ds, dir, fn, type="mapped", **opts):
     elif type == "info":
         write_info_file(f"{dir}/{fn}", ds)
     elif type == "geom":
-        assert fn == "GRID_3D_DATA"
         write_locations(ds, f"{dir}/{fn}")
     elif type == "raw":
         vars = opts.pop("vars")
@@ -2037,7 +1712,7 @@ def write_all_fortran(ds, dir):
     dir : str
         The directory to write the files to
     """
-    write_locations(ds, f"{dir}/GRID_3D_DATA")
+    write_locations(ds, get_file_name(dir, "geom"))
     for fn, opts in files.items():
         try:
             get_vars_for_file(ds, fn)
@@ -2046,6 +1721,16 @@ def write_all_fortran(ds, dir):
         else:
             write_fort_file(ds, dir, fn, **opts)
 
+
+def get_file_name(dir: typing.Optional[str], type: str) -> str:
+    found: typing.List[str] = []
+    for file, data in files.items():
+        if data.get("type", "mapped") == type:
+            found.append(file)
+    assert len(found) == 1
+    if dir:
+        return f"{dir}/{found[0]}"
+    return found[0]
     # if False:
     #     ds["phi"] = read_mapped(path + "/POTENTIAL", map, skip_first=0, kinetic=False)[
     #         0
@@ -2095,5 +1780,3 @@ def write_all_fortran(ds, dir):
     #     ds["R"]=read_mapped(path + "/RECOMBINATION", map, skip_first=0, kinetic=False)[0]*1.6021765699999998e-13
     #     ds["R"].attrs["units"] = "R [s$^{-1}$ m$^{-3}$]"
     #     ds["R"].attrs["long_name"] = "R [s$^{-1}$ m$^{-3}$]"
-
-    return ds
