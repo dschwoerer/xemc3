@@ -329,11 +329,27 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     return da
 
 
+def ensure_metadata(ds: xr.Dataset):
+    if not ds:
+        return ds
+    meta = get_default_metadata()
+    for k in meta:
+        if k not in ds.attrs:
+            ds.attrs.update(meta)
+            return ds
+    return ds
+
+
 def add_metadata(ds: xr.Dataset):
+    ds.attrs.update(get_default_metadata())
+    return ds
+
+
+def get_default_metadata():
     # Delay import to avoid circular dependency
     from .. import __version__
 
-    ds.attrs.update(
+    return dict(
         title="EMC3-EIRENE Simulation data",
         software_name="xemc3",
         software_version=__version__,
@@ -401,8 +417,7 @@ def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Data
     ds.emc3.unit("z_bounds", "m")
     ds.emc3.unit("phi_bounds", "radian")
     assert isinstance(ds, xr.Dataset)
-    add_metadata(ds)
-    return ds
+    return add_metadata(ds)
 
 
 def scrape(f: typing.TextIO, *, ignore="!", verbose=False) -> str:
@@ -1505,7 +1520,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         [f"{k}={v}" for k, v in opts.items()]
     )
     if datas is None:
-        return ds
+        return ensure_metadata(ds)
     vars = vars.copy()
     assert opts == {}
     keys = [k for k in vars]
@@ -1534,7 +1549,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         assert (
             varopts == {}
         ), f"variable {var} has options {varopts} but didn't expect anything"
-    return ds
+    return ensure_metadata(ds)
 
 
 def guess_type(ds: xr.Dataset, key: typing.Hashable) -> str:
