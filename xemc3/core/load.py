@@ -634,7 +634,9 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 f"Unexpected string `{s}` while reading {plate}." + raise_issue
             )
             _, geom = s
-            r, z, phi = read_plate(cwd + geom)
+            if not geom.startswith("/"):
+                geom = cwd + geom
+            r, z, phi = read_plate(geom)
             nx, ny = r.shape
             nx -= 1
             ny -= 1
