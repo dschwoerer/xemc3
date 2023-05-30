@@ -1437,7 +1437,10 @@ def read_fort_file_pub(
         if not isinstance(ds, xr.Dataset):
             ds = xr.Dataset()
         return read_fort_file(ds, fn, **defaults)
-    ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
+    if type == "target_flux":
+        ds = ds or xr.Dataset()
+    else:
+        ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
     assert isinstance(ds, xr.Dataset)
     return read_fort_file(ds, fn, **defaults)
 
