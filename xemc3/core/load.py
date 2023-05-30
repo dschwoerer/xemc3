@@ -329,7 +329,7 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     return da
 
 
-def ensure_metadata(ds: xr.Dataset):
+def ensure_metadata(ds: xr.Dataset) -> xr.Dataset:
     if not ds:
         return ds
     meta = get_default_metadata()
@@ -340,12 +340,12 @@ def ensure_metadata(ds: xr.Dataset):
     return ds
 
 
-def add_metadata(ds: xr.Dataset):
+def add_metadata(ds: xr.Dataset) -> xr.Dataset:
     ds.attrs.update(get_default_metadata())
     return ds
 
 
-def get_default_metadata():
+def get_default_metadata() -> dict:
     # Delay import to avoid circular dependency
     from .. import __version__
 
