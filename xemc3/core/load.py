@@ -730,7 +730,10 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 corrs_da = [
                     xr.DataArray(
                         data=a.reshape(nxr, nyr, 2, 2),
-                        dims=("phi", "x", "delta_phi", "delta_x"),
+                        dims=[
+                            plate_prefix + x
+                            for x in ("phi", "x", "delta_phi", "delta_x")
+                        ],
                     )
                     for a in corrs
                 ]
