@@ -742,13 +742,12 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                         newpos[ix::xref, iy::yref, :] = pos @ A
 
                     corrs[i] = newpos
+                dims = [plate_prefix + x for x in ("phi", "x")]
+                dims += ["delta_" + x for x in dims]
                 corrs_da = [
                     xr.DataArray(
                         data=a.reshape(nxr, nyr, 2, 2),
-                        dims=[
-                            plate_prefix + x
-                            for x in ("phi", "x", "delta_phi", "delta_x")
-                        ],
+                        dims=dims,
                     )
                     for a in corrs
                 ]
