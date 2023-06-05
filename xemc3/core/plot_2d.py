@@ -24,6 +24,13 @@ def plot_rz(
     **kwargs,
 ):
     phis = ds["phi_bounds"]
+    phimax = np.max(phis)
+    phi %= 2 * phimax
+    if phi > phimax:
+        phi = 2 * phimax - phi
+        sign = -1
+    else:
+        sign = 1
     if phi < np.min(phis.data) or phi > np.max(phis.data):
         raise RuntimeError(
             f"{phi} outside of bounds in dataset {np.min(phis)}:{np.max(phis)}"
@@ -37,6 +44,8 @@ def plot_rz(
     p = ((phi - phib[0]) / (phib[1] - phib[0])).data
     ds = ds.isel(phi=phi_i)
     das = [ds[k] for k in ["R_bounds", "z_bounds"]]
+    if sign == -1:
+        das[1] = das[1] * sign
     if key:
         das.append(ds[key])
     pp = xr.DataArray(data=[(1 - p), p], dims="delta_phi")
