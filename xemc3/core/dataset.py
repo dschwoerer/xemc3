@@ -61,12 +61,22 @@ class EMC3DatasetAccessor:
                 except KeyError:
                     yield None
 
-    def _get(self, var):
-        """Load a single var."""
+    def _get(self, var, crop=True, resolve=True):
+        """
+        Load a single var.
+
+        crop : bool
+            Remove nan data
+        resolve : bool
+            Check alternative names to get data
+        """
+        docrop = crop
         transform = identity
         try:
             dims = self.data[var].dims
         except KeyError as e:
+            if not resolve:
+                raise e
             if var.endswith("_corners"):
                 var_ = var[: -len("_corners")] + "_bounds"
                 try:
@@ -90,7 +100,7 @@ class EMC3DatasetAccessor:
                 transform = utils.to_interval
             else:
                 raise
-        if "plate_ind" in dims:
+        if docrop and "plate_ind" in dims:
             crop = list(self._get_crop(dims, skip=["plate_ind"]))
             ret = []
             for i in range(len(self.data["plate_ind"])):
@@ -112,8 +122,11 @@ class EMC3DatasetAccessor:
                 )
                 ret.append(transform(data))
             return ret
-        crop = [slice(None, x) for x in self._get_crop(dims)]
-        data = self.data[var][tuple(crop)]
+        if docrop:
+            crop = [slice(None, x) for x in self._get_crop(dims)]
+            data = self.data[var][tuple(crop)]
+        else:
+            data = self.data[var]
         return transform(data)
 
     def _set(self, var, data):
