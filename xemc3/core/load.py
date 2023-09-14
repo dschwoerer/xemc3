@@ -279,7 +279,7 @@ def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
                 if not slice1d.any():
                     continue
                 if slice1d.all():
-                    ab = [0, len(slice1d)]
+                    ab = [0, len(slice1d) - 1]
                 else:
                     last = False
                     ab = []
