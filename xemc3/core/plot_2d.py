@@ -21,6 +21,7 @@ def plot_rz(
     target=False,
     log=False,
     robust=False,
+    colorbar=True,
     **kwargs,
 ):
     phis = ds["phi_bounds"]
@@ -98,12 +99,14 @@ def plot_rz(
         ax.set_aspect(1)
     ax.set_xlabel("R [m]")
     ax.set_ylabel("z [m]")
-    plt.colorbar(p, ax=ax)
+    if colorbar:
+        plt.colorbar(p, ax=ax)
     if Rmin is not None or Rmax is not None:
         ax.set_xlim(Rmin, Rmax)
     if zmin is not None or zmax is not None:
         ax.set_ylim(zmin, zmax)
-    p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[-1]))
+    if colorbar:
+        p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[-1]))
     if target:
         plot_target(ds, phi, ax=ax, fmt="r-" if key is None else "k-", aspect=aspect)
     return p
