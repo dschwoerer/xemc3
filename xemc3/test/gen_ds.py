@@ -101,7 +101,11 @@ def gen_rand(shape, files):
 
     ds["_plasma_map"] = gen_mapping(shape)
     ds.emc3["bf_corners"] = gen_bf(shape)
-    ds["bf_bounds"].attrs = {"units": "T", "long_name": "Magnetic field strength"}
+    ds["bf_bounds"].attrs = {
+        "units": "T",
+        "long_name": "Magnetic field strength",
+        "parallel_flux": 0,
+    }
     ds.emc3["R_corners"] = gen_bf(shape)
     ds.emc3["z_corners"] = gen_bf(shape)
     for k in "R_bounds", "z_bounds":
@@ -116,6 +120,9 @@ def gen_rand(shape, files):
         for attr in "long_name", "units", "notes":
             if attr in vsv:
                 out[attr] = vs[v][attr]
+        if not v in ["_plasma_map", "bf_bounds", "R_bounds", "phi_bounds", "z_bounds"]:
+            k = "parallel_flux"
+            out[k] = vs[v].get(k, 0)
         return out
 
     for f in load.files:
