@@ -19,6 +19,7 @@ fort.33:
   vars:
     M:
       long_name: Mach number
+      parallel_flux: true
 fort.30:
   type: mapped
   vars:

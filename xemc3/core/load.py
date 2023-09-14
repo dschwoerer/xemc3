@@ -1543,6 +1543,8 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         for k in "long_name", "units", "notes", "description":
             if k in varopts:
                 attrs[k] = varopts.pop(k)
+        k = "parallel_flux"
+        attrs[k] = varopts.pop(k, False)
 
         ds[var].attrs.update(attrs)
         assert (
