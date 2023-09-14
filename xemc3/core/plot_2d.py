@@ -45,9 +45,13 @@ def plot_rz(
     ds = ds.isel(phi=phi_i)
     das = [ds[k] for k in ["R_bounds", "z_bounds"]]
     if sign == -1:
-        das[1] = das[1] * sign
+        das[1] *= sign
     if key:
         das.append(ds[key])
+        if sign:
+            if das[2].attrs.get("parallel_flux", key == "M"):
+                das[2] *= sign
+
     pp = xr.DataArray(data=[(1 - p), p], dims="delta_phi")
     das = [
         (da * pp).sum(dim="delta_phi") if "delta_phi" in da.dims else da for da in das
