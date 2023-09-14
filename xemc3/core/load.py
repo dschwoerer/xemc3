@@ -82,12 +82,21 @@ def _fromfile(
     return ret
 
 
-def _block_write(f: typing.TextIO, d: np.ndarray, fmt: str, bs: int = 10) -> None:
+def _block_write(
+    f: typing.TextIO, d: np.ndarray, fmt: str, bs: int = 10, kinetic_fix: bool = False
+) -> None:
     d = d.flatten()
     asblock = (len(d) // bs) * bs
-    np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt)
+    if kinetic_fix:
+        if fmt.startswith(" ") or fmt.endswith(" "):
+            fmt1 = fmt * 6
+            fmt2 = fmt * len(d[asblock:])
+    else:
+        fmt2 = fmt1 = fmt
+    np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt1)
     if asblock != len(d):
-        np.savetxt(f, d[asblock:], fmt=fmt)
+        print(d[asblock:], fmt2)
+        np.savetxt(f, d[asblock:].reshape(1, -1), fmt=fmt2)
 
 
 def write_locations(ds: xr.Dataset, fn: str) -> None:
@@ -1364,9 +1373,12 @@ def write_mapped(
                 f.write(da.attrs["print_before"])
             if fmt is None:
                 tfmt = "%.4e" if dtype != int else "%d"
+                if kinetic:
+                    assert dtype != int
+                    tfmt = " %11.4E"
             else:
                 tfmt = fmt
-            _block_write(f, i, fmt=tfmt, bs=6)
+            _block_write(f, i, fmt=tfmt, bs=6, kinetic_fix=kinetic)
 
 
 def read_info_file(
