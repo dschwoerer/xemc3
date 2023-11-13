@@ -53,11 +53,12 @@ DENSITY_M:
       long_name: D_2 density
 DENSITY_I:
   kinetic: true
+  type: mapped
   vars:
-    nH2+:
+    nI%d:
       scale: 1000000.0
       units: m$^{-3}$
-      long_name: D_2^+ density
+      long_name: Ion density
 TEMPERATURE_A:
   kinetic: true
   vars:
@@ -67,9 +68,9 @@ TEMPERATURE_A:
 TEMPERATURE_M:
   kinetic: true
   vars:
-    TH:
+    TH2:
       units: eV
-      long_name: Atomic hydrogen temperature
+      long_name: D_2 temperature
 BFIELD_STRENGTH:
   type: full
   vars:
@@ -85,22 +86,33 @@ TEMPERATURE_I:
   type: mapped
   kinetic: true
   vars:
-    TEMPERATURE_I_%d: {}
+    Ti%d:
+      units: eV
+      description: read from TEMPERATURE_I
 DENSITY_E_A:
   type: mapped
   kinetic: true
   vars:
-    DENSITY_E_A_%d: {}
+    DENSITY_E_A_%d:
+      scale: 1000000.0 
+      units: eV.m$^{-3}$
+      description: Atom energy density
 DENSITY_E_I:
   type: mapped
   kinetic: true
   vars:
-    DENSITY_E_I_%d: {}
+    DENSITY_E_I_%d:
+      scale: 1000000.0
+      units: eV.m$^{-3}$
+      description: Ion energy density
 DENSITY_E_M:
   type: mapped
   kinetic: true
   vars:
-    DENSITY_E_M_%d: {}
+    DENSITY_E_M_%d:
+      scale: 1000000.0
+      units: m$^{-3}$
+      description: Molecule energy density
 NEUTRAL_DENSITY:
   type: mapped
   skip_first:
@@ -111,10 +123,10 @@ NEUTRAL_DENSITY:
     NEUTRAL_DENSITY_%d: {}
 fort.1:
   type: raw
-  vars:
+  vars:	
     fort.1:
       long_name: Geometry input file
-fort.2:
+fort.2: 
   type: raw
   vars:
     fort.2:
@@ -132,23 +144,45 @@ fort.4:
 fort.40:
   type: mapped
   vars:
-    fort.40_%d: {}
+    SOURCE_P_%d:
+      units: m$^{-3}$
+      scale: 1000000.0
+      description: Particles sources normalised by the recycling flux
 fort.42:
   type: mapped
   vars:
-    fort.42_%d: {}
+    SOURCE_E_E:
+      units: W.m$^{-3}$
+      scale: 1000000.0
+      long_name: Energy sources for electrons due to ionisation of neutrals
 fort.43:
   type: mapped
   vars:
-    fort.43_%d: {}
+    SOURCE_E_I:
+      units: W.m$^{-3}$
+      scale: 1000000.0
+      long_name: Energy sources for ions due to ionisation of neutrals
+fort.44:
+  type: mapped
+  vars:
+    SOURCE_RAD_E:
+      units: W.m$^{-3}$
+      scale: 1000000.0
+      long_name: Energy sources for electrons from impurities
 fort.46:
   type: mapped
   vars:
-    fort.46_%d: {}
+    ALFA_SOURCE:
+      units: A.g.s$^{-1}$.m$^{-2}$
+      scale: 10000.0
+      long_name: Momentum loss from transport
 fort.47:
   type: mapped
   vars:
-    fort.47_%d: {}
+    SOURCE_M:
+      units: A.g.s$^{-1}$.m$^{-2}$
+      scale: 10000.0
+      long_name: Momentum loss from neutral-plasma interaction
 IMPURITY_IONIZATION_SOURCE:
   type: mapped
   vars:
@@ -160,11 +194,20 @@ IMPURITY_NEUTRAL:
 IMP_RADIATION:
   type: mapped
   vars:
-    IMP_RADIATION_%d: {}
+    IMP_RADIATION:
+      units: W.m$^{-3}$
+      scale: 1000000.0
+      long_name: Impurity radiation
+RECYC_FLUX:
+  type: mapped
+  vars:
+    RECYC_FLUX:
+      units: A
+      long_name: Recycling Flux
 FLUX_CONSERVATION:
   type: mapped
   vars:
-    FLUX_CONSERVATION_%d: {}
+    FLUX_CONSERVATION: {}
 LG_CELL:
   type: mapped
   dtype: int
