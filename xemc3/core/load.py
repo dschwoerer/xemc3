@@ -1487,7 +1487,7 @@ def read_fort_file_pub(
         if not isinstance(ds, xr.Dataset):
             ds = xr.Dataset()
         return read_fort_file(ds, fn, **defaults)
-    if type == "target_flux":
+    if type in ["target_flux", "mapping"]:
         ds = ds or xr.Dataset()
     else:
         ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
@@ -1502,6 +1502,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     """
     datas = None
     vars = opts.pop("vars")
+    _ = opts.pop("fmt", None)
     if type == "mapping":
         ds["_plasma_map"] = read_mappings(
             fn, tuple([len(ds[k]) for k in ("r", "theta", "phi")])
@@ -1521,11 +1522,8 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     elif type == "geom":
         ds_ = read_locations(_dir_of(fn))
         ds = ds.assign_coords(ds_.coords)
-        assert opts == {}, "Unexpected arguments: " + ", ".join(
-            [f"{k}={v}" for k, v in opts.items()]
-        )
     elif type == "info":
-        opts.pop("fmt")
+        opts.pop("ignore_broken", None)
         if "iteration" in ds.dims and "length" not in opts:
             opts["length"] = len(ds["iteration"])
         datas = read_info_file(fn, vars, **opts)
@@ -1548,6 +1546,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         datas = read_depo_raw(ds, fn)
     else:
         raise RuntimeError(f"Unexpected type {type}")
+    opts.pop("ignore_broken", None)
     assert opts == {}, "Unexpected arguments: " + ", ".join(
         [f"{k}={v}" for k, v in opts.items()]
     )
@@ -1669,7 +1668,11 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
     print(f"done with {fn}")
 
 
-def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Dataset:
+def load_all(
+    path: str,
+    ignore_missing: typing.Optional[bool] = None,
+    ignore_broken: typing.Optional[bool] = None,
+) -> xr.Dataset:
     """
     Load all data from a path and return as dataset
 
@@ -1680,6 +1683,10 @@ def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Data
     ignore_missing : None or bool
          True: ignore missing files.
          False: raise exceptions if a file is not found.
+         None: use default option for that file.
+    ignore_broken : None or bool
+         True: ignore if files are incomplete.
+         False: raise exceptions if a file is incomplete.
          None: use default option for that file.
 
     Returns
@@ -1696,7 +1703,7 @@ def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Data
     for fn, opts in files.items():
         opts = opts.copy()
         try:
-            ds = read_fort_file(ds, f"{path}/{fn}", **opts)
+            ds = read_fort_file(ds, f"{path}/{fn}", ignore_broken=ignore_broken, **opts)
         except FileNotFoundError as e:
             if e.args[0] == 33:
                 raise
