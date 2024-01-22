@@ -510,7 +510,7 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
             assert float(zero) == 0.0, (
                 "A shifted divertor is currently not supported in xemc3." + raise_issue
             )
-        nx, ny, nz = [int(i) for i in setup[:3]]
+        nx, ny, _ = [int(i) for i in setup[:3]]
         r = np.empty((nx, ny))
         z = np.empty((nx, ny))
         phi = np.empty(nx)
