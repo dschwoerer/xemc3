@@ -79,10 +79,10 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
 
     shape = tuple([x + 1 for x in [len(ds.r), len(ds.theta), len(ds.phi)]])
     dims = tuple([x + "_plus1" for x in ["r", "theta", "phi"]])
-    haszone = "zone" in ds.dims
+    haszone = "zone_ind" in ds.dims
     if haszone:
-        shape = len(ds.zone), *shape
-        dims = "zone", *dims
+        shape = len(ds.zone_ind), *shape
+        dims = "zone_ind", *dims
 
     with open(fn) as f:
         line = f.readline().split()
@@ -196,7 +196,7 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
 def write_depo_raw_part(datas, f, i):
     surf = datas[0].data
     dats = [d.data for d in datas[1:]]
-    zone = [] if "zone" in datas[0].dims else [0]
+    zone = [] if "zone_ind" in datas[0].dims else [0]
     off = 1 if i == 0 else 0
     # print(keys(dats[0]))
     for ijk in keys(dats[0]):

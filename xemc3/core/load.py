@@ -144,22 +144,24 @@ def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     xr.Dataset
         The magnetic field strength
     """
-    if "R_bounds" in ds:
-        shape = ds.R_bounds.shape
-        assert len(shape) == 6
-        shape = [i + 1 for i in shape[:3]]
-        dims = ds.R_bounds.dims[:3]
-    else:
-        shape = ds._plasma_map.shape
-        shape = [i + 1 for i in shape]
-        dims = ds._plasma_map.dims
-    nx, ny, nz = shape
+    dimss = np.array(get_dimss(ds))
+    dimss += 1
+    cells = sum([prod(d) for d in dimss])
     with open(fn) as f:
-        raw = _fromfile(f, dtype=float, count=nx * ny * nz, sep=" ")
-        _assert_eof(f, fn)
-    raw = raw.reshape(shape[::-1])
-    raw = np.swapaxes(raw, 0, 2)
-    return to_interval(dims, raw)
+        raw = _fromfile(f, dtype=float, count=cells, sep=" ")
+        # _assert_eof(f, fn)
+    i = 0
+    raws = []
+    for dims in dimss:
+        this = raw[i : i + prod(dims)]
+        i += prod(dims)
+        this.shape = dims[::-1]
+        this = np.swapaxes(this, 0, 2)
+        raws.append(this)
+    # assert i == len(raw)
+    return merge_blocks(
+        [to_interval(("r", "theta", "phi"), raw) for raw in raws], "zone_ind"
+    )
 
 
 def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
@@ -197,11 +199,8 @@ def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarr
     np.array
         z position
     """
+    blocks = [[] for _ in range(3)]
     with open(fn) as f:
-        nx, ny, nz = [int(i) for i in f.readline().split()]
-        phidata = np.empty(nz)
-        rdata = np.empty((nx, ny, nz))
-        zdata = np.empty((nx, ny, nz))
 
         def read(f, nx, ny):
             t = _fromfile(f, dtype=float, count=nx * ny, sep=" ")
@@ -209,15 +208,25 @@ def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarr
             t = t.transpose()
             return t
 
-        # Read and directly convert to SI units
-        for i in range(nz):
-            phidata[i] = float(f.readline()) * np.pi / 180.0
-            rdata[:, :, i] = read(f, nx, ny) / 100
-            zdata[:, :, i] = read(f, nx, ny) / 100
+        while True:
+            nxyz = _fromfile(f, dtype=int, count=3, sep=" ")
+            if len(nxyz) == 0:
+                break
+            nx, ny, nz = nxyz
+            phidata = np.empty(nz)
+            rdata = np.empty((nx, ny, nz))
+            zdata = np.empty((nx, ny, nz))
 
-        _assert_eof(f, fn)
+            # Read and directly convert to SI units
+            for i in range(nz):
+                phidata[i] = float(f.readline()) * np.pi / 180.0
+                rdata[:, :, i] = read(f, nx, ny) / 100
+                zdata[:, :, i] = read(f, nx, ny) / 100
 
-    return phidata, rdata, zdata
+            for i, d in enumerate((phidata, rdata, zdata)):
+                blocks[i].append(d)
+
+    return blocks
 
 
 def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
@@ -237,6 +246,10 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
         The magnetic plates
     """
     shape = [x.shape[0] for x in [ds.r, ds.theta, ds.phi]]
+    if "zone_ind" in ds.dims:
+        shape = len(ds.zone_ind), *shape
+    else:
+        shape = 1, *shape
     ret = np.zeros(shape, dtype=bool)
     with open(fn) as f:
         last = None
@@ -245,10 +258,6 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             if last:
                 lines = last + lines
             zone, r, theta, num = lines[:4]
-            if zone != 0:
-                raise ValueError(
-                    "Multiple zones are currently not supported." + raise_issue
-                )
             assert num % 2 == 0, f"Unexpected input in {fn}:{i} `line`" + raise_issue
             if num + 4 > len(lines):
                 last = lines
@@ -260,8 +269,12 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             last = None
             for t in range(num // 2):
                 a, b = lines[4 + 2 * t : 6 + 2 * t]
-                ret[r, theta, a : b + 1] = True
-    return xr.DataArray(data=ret, dims=("r", "theta", "phi"))
+                ret[zone, r, theta, a : b + 1] = True
+    dims = ("zone_id", "r", "theta", "phi")
+    if shape[0] == 1:
+        dims = dims[1:]
+        ret = ret[0]
+    return xr.DataArray(data=ret, dims=dims)
 
 
 def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
@@ -309,7 +322,22 @@ def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
     return
 
 
-def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
+def _get_dim(ds, k):
+    kk = f"_{k}_dims"
+    if kk in ds:
+        return ds[kk]
+    return [len(ds[k]) for _ in ds.zone_ind]
+
+
+def get_dimss(ds):
+    if "zone_ind" in ds.dims:
+        dimss = np.array([_get_dim(ds, k) for k in ("r", "theta", "phi")]).T
+    else:
+        dimss = [tuple([len(ds[k]) for k in ("r", "theta", "phi")])]
+    return dimss
+
+
+def read_mappings(fn: str, ds: xr.Dataset) -> xr.DataArray:
     """
     Read the mappings data
 
@@ -325,15 +353,24 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     xr.DataArray
         The mapping information
     """
+    dimss = get_dimss(ds)
+    ts = []
     with open(fn) as f:
-        dat = f.readline()
-        infos = [int(i) for i in dat.split()]
-        t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
+        infos = _fromfile(f, dtype=int, count=3, sep=" ")
+        count = sum([prod(dims) for dims in dimss])
+        tall = _fromfile(f, dtype=int, count=count, sep=" ")
+        i = 0
         # fortran indexing
-        t -= 1
-        t = t.reshape(dims, order="F")
+        tall -= 1
+        for dims in dimss:
+            j = prod(dims)
+            t = tall[i : i + j]
+            i += j
+            t = t.reshape(dims, order="F")
+            ts.append(t)
         _assert_eof(f, fn)
-    da = xr.DataArray(dims=("r", "theta", "phi"), data=t)
+    da = [xr.DataArray(dims=("r", "theta", "phi"), data=t) for t in ts]
+    da = merge_blocks(da, axes="zone_ind")
     da.attrs = dict(numcells=infos[0], plasmacells=infos[1], other=infos[2])
     return da
 
@@ -412,16 +449,25 @@ def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Data
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
-    phi, r, z = read_locations_raw(get_file_name(path, "geom"))
-    ds = ds.assign_coords(
-        {
-            "R_bounds": to_interval(("r", "theta", "phi"), r),
-            "z_bounds": to_interval(("r", "theta", "phi"), z),
-            "phi_bounds": to_interval(("phi",), phi),
-        }
-    )
+    phis, rs, zs = read_locations_raw(get_file_name(path, "geom"))
+    dss = [
+        xr.Dataset().assign_coords(
+            {
+                "R_bounds": to_interval(("r", "theta", "phi"), r),
+                "z_bounds": to_interval(("r", "theta", "phi"), z),
+                "phi_bounds": to_interval(("phi",), phi),
+            }
+        )
+        for r, z, phi in zip(rs, zs, phis)
+    ]
+    ds_ = merge_blocks(dss, axes="zone_ind")
+    for v in ds_:
+        ds[v] = ds_[v]
+    ds = ds.assign_coords({v: ds_[v] for v in ds_.coords})
+
     for x in ds.coords:
         ds[x].attrs["xemc3_type"] = "geom"
+
     ds.emc3.unit("R_bounds", "m")
     ds.emc3.unit("z_bounds", "m")
     ds.emc3.unit("phi_bounds", "radian")
@@ -838,7 +884,7 @@ def merge_blocks(
     """
     dims = {d: 0 for d in dss[0].dims}
     for plate in dss:
-        for k, v in plate.dims.items():
+        for k, v in plate.sizes.items():
             if dims[k] < v:
                 dims[k] = v
     ds = xr.Dataset()
@@ -848,8 +894,8 @@ def merge_blocks(
         matching[k] = True
         org_dims = []
         for plate in dss:
-            org_dims.append(plate.dims[k])
-            if plate.dims[k] != v:
+            org_dims.append(plate.sizes[k])
+            if plate.sizes[k] != v:
                 matching[k] = False
         if not matching[k]:
             assert isinstance(k, str)
@@ -857,21 +903,29 @@ def merge_blocks(
 
     dims[axes] = len(dss)
 
-    def merge(var):
-        shape = [dims[axes]] + [dims[d] for d in dss[0][var].dims]
-        data = np.empty(shape)
-        data[...] = np.nan
+    def merge(dss):
+        shape = [dims[axes]] + [dims[d] for d in dss[0].dims]
+        dtype = dss[0].dtype
+        data = np.empty(shape, dtype=dtype)
+        if dtype == int:
+            data[...] = -1
+        else:
+            data[...] = np.nan
         for i, plate in enumerate(dss):
-            tmp = plate[var]
-            data[tuple([i] + [slice(None, i) for i in tmp.shape])] = tmp
-        return (axes, *dss[0][var].dims), data
+            data[tuple([i] + [slice(None, i) for i in plate.shape])] = plate
+        return (axes, *dss[0].dims), data
+
+    if isinstance(dss[0], xr.Dataset):
+        for var in dss[0]:
+            ds[var] = merge([ds[var] for ds in dss])
+            ds[var].attrs = dss[0][var].attrs
+    else:
+        dims, dat = merge(dss)
+        ds = xr.DataArray(dat, dims=dims)
+        ds.attrs = dss[0].attrs
 
     for coord in dss[0].coords.keys():
-        ds = ds.assign_coords({coord: merge(coord)})
-
-    for var in dss[0]:
-        ds[var] = merge(var)
-        ds[var].attrs = dss[0][var].attrs
+        ds = ds.assign_coords({coord: merge([ds[coord] for ds in dss])})
 
     return ds
 
@@ -1110,7 +1164,7 @@ def read_mapped(
         mapping = mapping["_plasma_map"]
     if kinetic:
         assert unmapped is False
-        max = np.max(mapping.data) + 1
+        max = np.nanmax(mapping.data) + 1
     elif unmapped:
         max = mapping.attrs["numcells"]
     else:
@@ -1140,7 +1194,6 @@ def read_mapped(
                 if ignore_broken:
                     print(f"Ignoring {len(raw)} data points, {max} required")
                     break
-                print(raw)
                 raise RuntimeError(
                     f"Incomplete dataset found ({len(raw)} out of {max}) after reading {len(raws)} datasets of file {fn}"
                 )
@@ -1490,7 +1543,7 @@ def read_fort_file_pub(
     if type in ["target_flux", "mapping"]:
         ds = ds or xr.Dataset()
     else:
-        ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
+        ds = ensure_mapping(_dir_of(fn), ds, type == "mapped", fn=fn)
     assert isinstance(ds, xr.Dataset)
     return read_fort_file(ds, fn, **defaults)
 
@@ -1504,9 +1557,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     vars = opts.pop("vars")
     _ = opts.pop("fmt", None)
     if type == "mapping":
-        ds["_plasma_map"] = read_mappings(
-            fn, tuple([len(ds[k]) for k in ("r", "theta", "phi")])
-        )
+        ds["_plasma_map"] = read_mappings(fn, ds)
     elif type == "mapped":
         # Ensure file is present before we try to read mapping
         # This is because missing mapping is handled differently.
