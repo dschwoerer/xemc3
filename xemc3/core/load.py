@@ -1427,10 +1427,9 @@ def read_info_file(
                 }
                 return [xr.DataArray(d, dims=index, coords=coords) for d in dat.T]
             if not len(dat) == block:
-                print(dat)
-                print(len(dat), block)
-                print(fn)
-                raise RuntimeError("Error reading file")
+                raise RuntimeError(
+                    f"Error while reading `{fn}` - expected {block} items, but got {len(dat)}"
+                )
             ret.append(dat)
 
 
