@@ -530,6 +530,28 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
         return (r, z, phi)
 
 
+def write_plate(data: typing.Tuple[np.ndarray, ...], filename: str) -> None:
+    shape = data[0].shape
+    assert shape == data[1].shape
+    assert shape[:1] == data[2].shape
+    try:
+        data[0].attrs
+    except AttributeError:
+        pass
+    else:
+        data = [d.values for d in data]
+    data = [data[0] * 100, data[1] * 100, data[2] * 180 / np.pi]
+    with open(filename, "w") as f:
+        f.write("# Written by xemc3\n")
+        f.write(
+            f"           {shape[0]}           {shape[1]}           5  0.0000000E+00  0.0000000E+00\n"
+        )
+        for Rs, Zs, phi in zip(*data):
+            f.write(f"  {phi}\n")
+            for R, Z in zip(Rs, Zs):
+                f.write(f"      {R}  {Z}\n")
+
+
 def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dataset:
     """
     Read Target structures from a file that is in the Kisslinger
