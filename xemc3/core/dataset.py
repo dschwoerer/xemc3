@@ -447,7 +447,7 @@ class EMC3DatasetAccessor:
         xr.Dataset
             The xemc3 dataset with the simulation data
         """
-        return load(path)
+        return load.read_fort_file_pub(path, self)
 
     def mean_time(self) -> xr.Dataset:
         """
