@@ -55,7 +55,8 @@ def plot_rz(
 
     pp = xr.DataArray(data=[(1 - p), p], dims="delta_phi")
     das = [
-        (da * pp).sum(dim="delta_phi") if "delta_phi" in da.dims else da for da in das
+        (da * pp).sum(dim="delta_phi", skipna=False) if "delta_phi" in da.dims else da
+        for da in das
     ]
     norm = None
     if key:

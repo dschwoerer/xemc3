@@ -492,7 +492,7 @@ class EMC3DatasetAccessor:
                 vi = int(v)
                 fac = v - vi
                 ds_ = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
-                    dim=dk
+                    dim=dk, skipna=False
                 )
                 for co in ds.coords:
                     if dk in ds.coords[co].dims:
