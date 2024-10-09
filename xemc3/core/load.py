@@ -1325,6 +1325,7 @@ def get_vars_for_file(
             raise KeyError(f"Key {k} not present in Dataset, only have {ds.keys()}")
     return keys
 
+
 @jit
 def to_mapped_core_4d(
     datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
@@ -1334,9 +1335,9 @@ def to_mapped_core_4d(
             for j in range(mapdat.shape[1]):
                 for k in range(mapdat.shape[2]):
                     for l in range(mapdat.shape[3]):
-                        mapid = mapdat[i, j, k,l]
+                        mapid = mapdat[i, j, k, l]
                         if mapid < max:
-                            cdat = datdat[(..., i, j, k,l)]
+                            cdat = datdat[(..., i, j, k, l)]
                             if not (np.isnan((cdat))):
                                 out[..., mapid] += cdat
                                 count[mapid] += 1
@@ -1345,13 +1346,14 @@ def to_mapped_core_4d(
             for j in range(mapdat.shape[1]):
                 for k in range(mapdat.shape[2]):
                     for l in range(mapdat.shape[3]):
-                        mapid = mapdat[i, j, k,l]
+                        mapid = mapdat[i, j, k, l]
                         if mapid < max:
-                            cdat = datdat[(..., i, j, k,l)]
+                            cdat = datdat[(..., i, j, k, l)]
                             if not (np.isnan((cdat))):
                                 out[..., mapid] += cdat
                                 count[mapid] += 1
     return out, count
+
 
 @jit
 def to_mapped_core_3d(
