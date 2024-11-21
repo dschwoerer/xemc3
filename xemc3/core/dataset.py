@@ -212,6 +212,16 @@ class EMC3DatasetAccessor:
                     return cur
         assert False, f"Didn't find variable for {var_name} coordinate!"
 
+    def iter_zones(self):
+        """
+        Iterate over all zones
+        """
+        if not "zone" in self.data.dims:
+            yield self.data
+        else:
+            for i in range(len(self.data.zone)):
+                yield self.isel(zone=i)
+
     def iter_plates(self, *, symmetry=False, segments=1):
         """
         Iterate over all plates.
