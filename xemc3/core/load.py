@@ -128,7 +128,7 @@ def write_locations(ds: xr.Dataset, fn: str) -> None:
             write(f, zs.isel(phi=i).data * 100)
 
 
-def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
+def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray | xr.Dataset:
     """
     Read magnetic field strength from grid
 
@@ -201,7 +201,7 @@ def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
         _block_write(f, bf, "%7.4f")
 
 
-def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_locations_raw(fn: str) -> typing.List[typing.Any]:
     """
     Read spatial positions of grid points
 
@@ -219,7 +219,7 @@ def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarr
     np.array
         z position
     """
-    blocks = [[] for _ in range(3)]
+    blocks: typing.List[typing.Any] = [[] for _ in range(3)]
     with open(fn) as f:
 
         def read(f, nx, ny):
@@ -266,6 +266,7 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
         The magnetic plates
     """
     haszone = "zone" in ds.dims
+    dims: tuple[str, str, str, str] | tuple[str, str, str]
     if haszone:
         shape = [x.shape[0] for x in [ds.zone, ds.r, ds.theta, ds.phi]]
         dims = ("zone", "r", "theta", "phi")
@@ -293,6 +294,7 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             last = None
             for t in range(num // 2):
                 a, b = lines[4 + 2 * t : 6 + 2 * t]
+                ind: tuple[int, int, int, slice] | tuple[int, int, slice]
                 ind = r, theta, slice(a, b + 1)
                 if haszone:
                     ind = zone, *ind
@@ -345,7 +347,7 @@ def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
     return
 
 
-def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
+def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray | xr.Dataset:
     """
     Read the mappings data
 
@@ -602,11 +604,11 @@ def write_plate(data: typing.Tuple[np.ndarray, ...], filename: str) -> None:
     assert shape == data[1].shape
     assert shape[:1] == data[2].shape
     try:
-        data[0].attrs
+        data[0].attrs  # type: ignore
     except AttributeError:
         pass
     else:
-        data = [d.values for d in data]
+        data = [d.values for d in data]  # type: ignore
     data = [data[0] * 100, data[1] * 100, data[2] * 180 / np.pi]
     with open(filename, "w") as f:
         f.write("# Written by xemc3\n")
@@ -637,7 +639,9 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
     if isinstance(filename, str):
         return read_plate_ds(filename)
     dss = [read_plate_ds(fn) for fn in filename]
-    return merge_blocks(dss)
+    ds = merge_blocks(dss)
+    assert isinstance(ds, xr.Dataset)
+    return ds
 
 
 def read_add_sf_n0(filename: str) -> xr.Dataset:
@@ -973,8 +977,11 @@ def load_plates(dir: str, fn: typing.Optional[str] = None) -> xr.Dataset:
         fn = get_file_name(None, "target_flux")
     if dir[-1] != "/":
         dir += "/"
+
     plates = read_plates_raw(dir, fn)
-    return merge_blocks(plates)
+    mplates = merge_blocks(plates)
+    assert isinstance(mplates, xr.Dataset)
+    return mplates
 
 
 def write_plates(dir: str, plates: xr.Dataset) -> None:
@@ -1580,7 +1587,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     vars = opts.pop("vars")
     _ = opts.pop("fmt", None)
     if type == "mapping":
-        dims = ("r", "theta", "phi")
+        dims: typing.Any = ("r", "theta", "phi")
         if "_r_dims" in ds:
             dims = tuple([ds[f"_{k}_dims"] for k in dims])
         else:
@@ -1595,7 +1602,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
-        datas = [read_magnetic_field(fn, ds)]
+        tmp = read_magnetic_field(fn, ds)
+        assert isinstance(tmp, xr.DataArray)
+        datas = [tmp]
     elif type == "plates_mag":
         datas = [read_plates_mag(fn, ds)]
     elif type == "geom":
