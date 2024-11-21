@@ -100,14 +100,16 @@ class EMC3DatasetAccessor:
                 transform = utils.to_interval
             else:
                 raise
-        if docrop and "plate_ind" in dims:
-            crop = list(self._get_crop(dims, skip=["plate_ind"]))
+        if docrop and ("plate_ind" in dims or "zone" in dims):
+            ind = "plate_ind"
+            ind = ind if ind in dims else "zone"
+            crop = list(self._get_crop(dims, skip=[ind]))
             ret = []
-            for i in range(len(self.data["plate_ind"])):
+            for i in range(len(self.data[ind])):
                 slcr = tuple(
                     [slice(None) if j is None else slice(None, j[i]) for j in crop]
                 )
-                data = self.data.isel(plate_ind=i)
+                data = self.data.isel(**{ind: i})
                 # coords = {
                 #     k: xr.DataArray(
                 #         coord.data[slcr], dims=coord.dims, attrs=coord.attrs
@@ -502,6 +504,13 @@ class EMC3DatasetAccessor:
                     else:
                         ds_[co] = ds[co]
                 ds = ds_
+        xas = {}
+        for k in ds.dims:
+            key = f"_{k}_dims"
+            if key in ds and ds[key].dims == ():
+                xas[k] = slice(None, ds[key].values)
+        if xas:
+            ds = ds.isel(**xas)
         return ds
 
     def sel(
