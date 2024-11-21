@@ -24,18 +24,99 @@ def plot_rz(
     colorbar=True,
     **kwargs,
 ):
-    phis = ds["phi_bounds"]
-    phimax = np.max(phis)
+    phimax = np.nanmax(ds["phi_bounds"])
     phi %= 2 * phimax
     if phi > phimax:
         phi = 2 * phimax - phi
         sign = -1
     else:
         sign = 1
-    if phi < np.min(phis.data) or phi > np.max(phis.data):
+
+    rzds = [_get_data_zone(di, key, phi, sign) for di in ds.emc3.iter_zones()]
+    if not any(rzds):
+        phis = ds["phi_bounds"]
         raise RuntimeError(
-            f"{phi} outside of bounds in dataset {np.min(phis)}:{np.max(phis)}"
+            f"{phi} outside of bounds in dataset {np.nanmin(phis)}:{np.nanmax(phis)}"
         )
+    if key:
+        alldata = np.concatenate([x[2].values.flatten() for x in rzds if x])
+        if robust:
+            vmin, vmax = np.nanpercentile(alldata, [1, 99])
+        else:
+            vmin = np.nanmin(alldata)
+            vmax = np.nanmax(alldata)
+        vmin = kwargs.pop("vmin", vmin)
+        vmax = kwargs.pop("vmax", vmax)
+        if log and vmin <= 0:
+            raise ValueError(f"vmin ({vmin}) is not positive but log plot requested!")
+        assert vmin < vmax, f"vmin ({vmin}) is not smaller than vmax ({vmax})"
+        norm = (mpl.colors.LogNorm if log else mpl.colors.Normalize)(
+            vmin=vmin, vmax=vmax
+        )
+    else:
+        if "edgecolors" not in kwargs:
+            kwargs["edgecolors"] = "k"
+        norm = None
+
+    ax = _get_ax(figsize, ax)
+    for rzd in rzds:
+        if rzd is None:
+            continue
+        # print([x.shape for x in rzd])
+        p = ax.pcolormesh(*rzd, norm=norm, **kwargs)
+
+    # plt.xlabel(xr.plot.utils.label_from_attrs(r))
+    if aspect:
+        ax.set_aspect(1)
+    ax.set_xlabel("R [m]")
+    ax.set_ylabel("z [m]")
+    if colorbar:
+        plt.colorbar(p, ax=ax)
+    if Rmin is not None or Rmax is not None:
+        ax.set_xlim(Rmin, Rmax)
+    if zmin is not None or zmax is not None:
+        ax.set_ylim(zmin, zmax)
+    if colorbar and key:
+        p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(ds[key]))
+    if target:
+        plot_target(ds, phi, ax=ax, fmt="r-" if key is None else "k-", aspect=aspect)
+    return p
+
+
+def plot_target(ds, phi, fmt=None, ax=None, figsize=None, aspect=True):
+    ax = _get_ax(figsize, ax)
+    if aspect:
+        ax.set_aspect(1)
+    das = xr.Dataset()
+    for k in "R", "phi", "z":
+        k1 = f"{plate_prefix}{k}"
+        das[k] = ds[k1]
+    for k in ds:
+        if k.endswith("_dims") and k.startswith(f"_{plate_prefix}"):
+            das[k] = ds[k]
+    for p in das.emc3.iter_plates(symmetry=True, segments=5):
+        assert len(p.plate_phi.shape) == 1
+        if not (p.plate_phi.min() <= phi <= p.plate_phi.max()):
+            continue
+        p["plate_phi_plus1"] = p.plate_phi
+        p = p.interp(
+            plate_phi_plus1=phi, assume_sorted=False, kwargs=dict(bounds_error=True)
+        )
+        # except ValueError as e:
+        #    assert "value in x_new is" in e.args[0]
+        #    continue
+
+        assert np.isclose(p.plate_phi, phi), f"{phi} expected but got {p.plate_phi}"
+        ax.plot(p.plate_R, p.plate_z, fmt or "k-")
+
+    ax.set_xlabel("R [m]")
+    ax.set_ylabel("z [m]")
+
+
+def _get_data_zone(ds, key, phi, sign):
+    phis = ds["phi_bounds"]
+    if phi < np.min(phis.data) or phi > np.max(phis.data):
+        return None
     for phi_i, phib in enumerate(phis):
         if phib[0] <= phi <= phib[1]:
             break
@@ -74,73 +155,9 @@ def plot_rz(
                 raise ValueError(
                     f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
                 )
-        if robust:
-            vmin, vmax = np.nanpercentile(data, [1, 99])
-        else:
-            vmin = np.nanmin(data)
-            vmax = np.nanmax(data)
-        vmin = kwargs.pop("vmin", vmin)
-        vmax = kwargs.pop("vmax", vmax)
-        if log and vmin <= 0:
-            raise ValueError(f"vmin ({vmin}) is not positive but log plot requested!")
-        assert vmin < vmax, f"vmin ({vmin}) is not smaller than vmax ({vmax})"
-        norm = (mpl.colors.LogNorm if log else mpl.colors.Normalize)(
-            vmin=vmin, vmax=vmax
-        )
     else:
-        data = np.zeros(das[0].shape[:2]) * np.nan
-        if "edgecolors" not in kwargs:
-            kwargs["edgecolors"] = "k"
-    r = utils.from_interval(das[0])
-    z = utils.from_interval(das[1])
-    ax = _get_ax(figsize, ax)
-    p = ax.pcolormesh(r, z, data, norm=norm, **kwargs)
-    # plt.xlabel(xr.plot.utils.label_from_attrs(r))
-    if aspect:
-        ax.set_aspect(1)
-    ax.set_xlabel("R [m]")
-    ax.set_ylabel("z [m]")
-    if colorbar:
-        plt.colorbar(p, ax=ax)
-    if Rmin is not None or Rmax is not None:
-        ax.set_xlim(Rmin, Rmax)
-    if zmin is not None or zmax is not None:
-        ax.set_ylim(zmin, zmax)
-    if colorbar:
-        p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[-1]))
-    if target:
-        plot_target(ds, phi, ax=ax, fmt="r-" if key is None else "k-", aspect=aspect)
-    return p
-
-
-def plot_target(ds, phi, fmt=None, ax=None, figsize=None, aspect=True):
-    ax = _get_ax(figsize, ax)
-    if aspect:
-        ax.set_aspect(1)
-    das = xr.Dataset()
-    for k in "R", "phi", "z":
-        k1 = f"{plate_prefix}{k}"
-        das[k] = ds[k1]
-    for k in ds:
-        if k.endswith("_dims") and k.startswith(f"_{plate_prefix}"):
-            das[k] = ds[k]
-    for p in das.emc3.iter_plates(symmetry=True, segments=5):
-        assert len(p.plate_phi.shape) == 1
-        if not (p.plate_phi.min() <= phi <= p.plate_phi.max()):
-            continue
-        p["plate_phi_plus1"] = p.plate_phi
-        p = p.interp(
-            plate_phi_plus1=phi, assume_sorted=False, kwargs=dict(bounds_error=True)
-        )
-        # except ValueError as e:
-        #    assert "value in x_new is" in e.args[0]
-        #    continue
-
-        assert np.isclose(p.plate_phi, phi), f"{phi} expected but got {p.plate_phi}"
-        ax.plot(p.plate_R, p.plate_z, fmt or "k-")
-
-    ax.set_xlabel("R [m]")
-    ax.set_ylabel("z [m]")
+        das.append(np.zeros(das[0].shape[:2]) * np.nan)
+    return utils.from_interval(das[0]), utils.from_interval(das[1]), das[2]
 
 
 def _get_ax(figsize, ax):
