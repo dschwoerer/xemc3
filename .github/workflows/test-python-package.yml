@@ -63,7 +63,10 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y libhdf5-dev
+        sudo apt install -y libhdf5-dev \
+                 libnetcdf-dev \
+                 libnetcdf-c++4-dev \
+                 netcdf-bin
         python -m pip install flake8 pytest mypy
         pip install -r requirements.txt
         if test "${{ matrix.extra-install }}" ; then pip install ${{ matrix.extra-install}} ; fi
