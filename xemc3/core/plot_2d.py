@@ -32,7 +32,7 @@ def plot_rz(
     else:
         sign = 1
 
-    rzds = [_get_data_zone(di, key, phi, sign) for di in ds.emc3.iter_zones()]
+    rzds = [_get_data_zone(di, key, phi, sign, kwargs) for di in ds.emc3.iter_zones()]
     if not any(rzds):
         phis = ds["phi_bounds"]
         raise RuntimeError(
@@ -113,7 +113,7 @@ def plot_target(ds, phi, fmt=None, ax=None, figsize=None, aspect=True):
     ax.set_ylabel("z [m]")
 
 
-def _get_data_zone(ds, key, phi, sign):
+def _get_data_zone(ds, key, phi, sign, kwargs):
     phis = ds["phi_bounds"]
     if phi < np.min(phis.data) or phi > np.max(phis.data):
         return None
