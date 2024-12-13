@@ -3,11 +3,12 @@ build:
   tools:
     python: "3.12"
 
+sphinx:
+  configuration: docs/conf.py
+
 python:
-  version: 3.12
-  pip_install: true
-  extra_requirements:
-    - docs
+  install:
+    - requirements: docs/requirements.txt
 
 # No PDF (nbsphinx issue)
 formats:
