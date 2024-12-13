@@ -1,5 +1,4 @@
 build:
-  image: latest
   os: ubuntu-lts-latest
   tools:
     python: "3.12"
