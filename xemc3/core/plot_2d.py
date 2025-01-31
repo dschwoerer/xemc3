@@ -141,16 +141,16 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
     ]
     norm = None
     if key:
-        data = das[2].data
+        das[2] = das[2].data
         if "time" in das[2].dims:
             raise ValueError(
                 "Unexpected dimension `time` - animation is not yet supported!"
             )
         if len(das[2].dims) != 2:
             if das[2].dims == das[0].dims:
-                data = utils.from_interval(das[2])
                 if "shading" not in kwargs:
                     kwargs["shading"] = "gouraud"
+                das[2] = utils.from_interval(das[2])
             else:
                 raise ValueError(
                     f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
