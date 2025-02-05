@@ -70,7 +70,7 @@ def plot_rz(
         if rzd is None:
             continue
         # print([x.shape for x in rzd])
-        p = ax.pcolormesh(*rzd, norm=norm, **kwargs)
+        p = ax.pcolormesh(*rzd[:3], norm=norm, **kwargs)
 
     # plt.xlabel(xr.plot.utils.label_from_attrs(r))
     if aspect:
