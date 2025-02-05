@@ -6,7 +6,7 @@ fort.31:
   type: mapped
   skip_first: 1
   kinetic: false
-  fmt: " %11.4"
+  fmt: " %11.4f"
   vars:
     ne:
       scale: 1000000.0
