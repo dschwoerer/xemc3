@@ -87,10 +87,9 @@ def _block_write(
 ) -> None:
     d = d.flatten()
     asblock = (len(d) // bs) * bs
-    if kinetic_fix:
-        if fmt.startswith(" ") or fmt.endswith(" "):
-            fmt1 = fmt * 6
-            fmt2 = fmt * len(d[asblock:])
+    if kinetic_fix and fmt.startswith(" ") or fmt.endswith(" "):
+        fmt1 = fmt * 6
+        fmt2 = fmt * len(d[asblock:])
     else:
         fmt2 = fmt1 = fmt
     np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt1)
