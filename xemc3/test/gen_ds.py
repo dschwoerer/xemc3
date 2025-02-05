@@ -82,7 +82,7 @@ def gen_ds(shape):
     ds.emc3["R_corners"] = gen_bf(shape)
     ds.emc3["z_corners"] = gen_bf(shape)
     ds.emc3["phi_corners"] = ("phi",), np.random.random(shape[2] + 1)
-    ds["ne"] = gen_mapped(ds)
+    ds["ne"] = gen_mapped(ds, scale=1e6)
     ds["ne"].attrs["print_before"] = "   1\n"
     # ds["nZ1"] = gen_mapped(ds)
     ds["Te"] = gen_mapped(ds)
@@ -160,6 +160,7 @@ def gen_rand(shape, files):
                 assert genf == gen_mapped
                 genf = gen_kinetic
             pre = load.files[f].get("skip_first", 0)
+            scale = load.files[f].get("scale", None)
             dtype = load.files[f].get("dtype", float)
 
             def add_pre(ds, k, pre, i):
@@ -173,7 +174,8 @@ def gen_rand(shape, files):
 
             if "%" in v:
                 for i in range(i, i + ids):
-                    ds[v % i] = genf(ds, index=i)
+                    dat = genf(ds, index=i, scale=scale)
+                    ds[v % i] = dat
                     if dtype != float and genf != gen_depo:
                         ds[v % i] = genf(ds)[0], np.round(genf(ds)[1] * 20)
                     ds[v % i].attrs.update(get_attrs(vs[v]))
@@ -189,28 +191,30 @@ def gen_rand(shape, files):
     return ds
 
 
-def gen_bf(shape, index=None):
+def gen_bf(shape, index=None, scale=None):
     if isinstance(shape, xr.Dataset):
         shape = shape["_plasma_map"].data.shape
     return dims, 0.5 + 2 * np.random.random([i + 1 for i in shape])
 
 
-def gen_plates_mag(shape, index=None):
+def gen_plates_mag(shape, index=None, scale=None):
     if isinstance(shape, xr.Dataset):
         shape = shape["_plasma_map"].data.shape
     return dims, (0.5 + 1 * np.random.random(shape) > 1)
 
 
-def gen_kinetic(ds, index=None):
-    return gen_mapped(ds, True)
+def gen_kinetic(ds, index=None, scale=None):
+    return gen_mapped(ds, True, scale)
 
 
-def gen_mapped(ds, kinetic=False, index=None):
+def gen_mapped(ds, kinetic=False, index=None, scale=None):
     key = "other" if kinetic else "plasmacells"
     map = ds["_plasma_map"]
     shape = map.shape
     max = map.attrs[key]
     dat = np.random.random(max)
+    if scale:
+        dat *= scale
     ret = np.zeros(shape) * np.nan
     mapdat = map.values
     for ijk in utils.rrange(shape):
@@ -237,7 +241,7 @@ def gen_updated(org: xr.Dataset, var) -> xr.Dataset:
     return d2
 
 
-def gen_mapping(shape, index=None):
+def gen_mapping(shape, index=None, scale=None):
     dat = np.zeros(shape, dtype=int)
     i = 0
     for ijk in utils.rrange(shape):
@@ -251,7 +255,7 @@ def gen_mapping(shape, index=None):
     return da
 
 
-def gen_info(ds: xr.Dataset, index=None) -> xr.DataArray:
+def gen_info(ds: xr.Dataset, index=None, scale=None) -> xr.DataArray:
     index = "iteration"
     length = np.random.randint(2, 6)
     dat = np.empty(1000)
@@ -272,7 +276,7 @@ With linebreaks 🎉
 gen_depo_map = None
 
 
-def gen_depo(ds: xr.Dataset, index=None):
+def gen_depo(ds: xr.Dataset, index=None, scale=None):
     shape = ds["_plasma_map"].data.shape
     shape = [x + 1 for x in shape]
     dtype = bool if index in (0, 6) else float
