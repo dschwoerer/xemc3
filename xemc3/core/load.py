@@ -419,7 +419,7 @@ def get_default_metadata() -> dict:
         title="EMC3-EIRENE Simulation data",
         software_name="xemc3",
         software_version=__version__,
-        date_created=datetime.datetime.utcnow().isoformat(),
+        date_created=datetime.datetime.now(datetime.UTC).isoformat(),
         id=str(uuid.uuid1()),
         references="https://doi.org/10.5281/zenodo.5562265",
     )
