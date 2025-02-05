@@ -220,7 +220,7 @@ class EMC3DatasetAccessor:
             yield self.data
         else:
             for i in range(len(self.data.zone)):
-                yield self.isel(zone=i)
+                yield self.isel(zone=i, drop=True)
 
     def iter_plates(self, *, symmetry=False, segments=1):
         """
@@ -503,16 +503,23 @@ class EMC3DatasetAccessor:
             else:
                 vi = int(v)
                 fac = v - vi
-                ds_ = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
-                    dim=dk, skipna=False
-                )
+                dsa = xr.Dataset({c: ds[c] for c in ds if dk in ds[c].dims})
+                if len(list(dsa)):
+                    ds_ = (
+                        dsa.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
+                    ).sum(dim=dk, skipna=False)
+                else:
+                    ds_ = dsa
+                for co in ds:
+                    if dk not in ds[co].dims:
+                        ds_[co] = ds[co].isel({k: vi}, missing_dims="ignore")
                 for co in ds.coords:
                     if dk in ds.coords[co].dims:
                         ds_[co] = (
                             ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
                         ).sum(dim=dk)
                     else:
-                        ds_[co] = ds[co]
+                        ds_[co] = ds[co].isel({k: vi}, missing_dims="ignore")
                 ds = ds_
         xas = {}
         for k in ds.dims:
