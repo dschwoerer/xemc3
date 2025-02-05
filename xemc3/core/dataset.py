@@ -520,7 +520,7 @@ class EMC3DatasetAccessor:
             if key in ds and ds[key].dims == ():
                 xas[k] = slice(None, ds[key].values)
         if xas:
-            ds = ds.isel(**xas)
+            ds = ds.isel(xas)
         return ds
 
     def sel(

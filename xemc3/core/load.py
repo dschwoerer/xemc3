@@ -776,6 +776,8 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 mode = 1
 
             assert items == nx * ny
+            corrs: typing.List[np.ndarray[tuple[int, ...], typing.Any]]
+            coordinates: typing.List[np.ndarray[tuple[int, ...], typing.Any]]
             if mode == 2:
                 data = _fromfile(f, dtype=float, count=nx * ny * 12, sep=" ")
 
