@@ -38,6 +38,13 @@ def plot_rz(
         raise RuntimeError(
             f"{phi} outside of bounds in dataset {np.nanmin(phis)}:{np.nanmax(phis)}"
         )
+    if any([x[3] for x in rzds if x]):
+        assert all(
+            [x[3] for x in rzds if x]
+        ), f"Expected either all or no shading to be required, but got {[x[3] for x in rzds if x]}"
+        if "shading" not in kwargs:
+            kwargs["shading"] = "gouraud"
+
     if key:
         alldata = np.concatenate([x[2].values.flatten() for x in rzds if x])
         if robust:
@@ -140,6 +147,7 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
         for da in das
     ]
     norm = None
+    shading = False
     if key:
         das[2] = das[2].data
         if "time" in das[2].dims:
@@ -148,16 +156,15 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
             )
         if len(das[2].dims) != 2:
             if das[2].dims == das[0].dims:
-                if "shading" not in kwargs:
-                    kwargs["shading"] = "gouraud"
                 das[2] = utils.from_interval(das[2])
+                shading = True
             else:
                 raise ValueError(
                     f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
                 )
     else:
         das.append(np.zeros(das[0].shape[:2]) * np.nan)
-    return utils.from_interval(das[0]), utils.from_interval(das[1]), das[2]
+    return utils.from_interval(das[0]), utils.from_interval(das[1]), das[2], shading
 
 
 def _get_ax(figsize, ax):
