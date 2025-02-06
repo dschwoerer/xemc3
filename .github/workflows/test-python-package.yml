@@ -16,7 +16,7 @@ jobs:
     - name: Get Remote SHA
       id: get-sha
       run: |
-        echo "sha=$(git ls-remote https://oauth2:uQ7_vw_m5fo4UFQrenUs@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
+        echo "sha=$(git ls-remote https://oauth2:glpat-ku4xK45bcEKMDKbpUDz4@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
     - name: Cache example data
       id: cache-example
       uses: actions/cache@v3
@@ -37,11 +37,11 @@ jobs:
     timeout-minutes: 15
     strategy:
       matrix:
-        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+        python-version: ['3.10', '3.11', '3.12', '3.13']
         extra-install: ["", "numba"]
-        exclude:
-          - python-version: '3.11'
-            extra-install: 'numba'
+        #exclude:
+        #  - python-version: '3.11'
+        #    extra-install: 'numba'
       fail-fast: false
 
     steps:
@@ -49,7 +49,7 @@ jobs:
     - name: Get Remote SHA
       id: get-sha
       run: |
-        echo "sha=$(git ls-remote https://oauth2:uQ7_vw_m5fo4UFQrenUs@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
+        echo "sha=$(git ls-remote https://oauth2:glpat-ku4xK45bcEKMDKbpUDz4@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
     - name: Cache example data
       id: cache-example
       uses: actions/cache@v2
@@ -62,6 +62,11 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies
       run: |
+        sudo apt update
+        sudo apt install -y libhdf5-dev \
+                 libnetcdf-dev \
+                 libnetcdf-c++4-dev \
+                 netcdf-bin
         python -m pip install flake8 pytest mypy
         pip install -r requirements.txt
         if test "${{ matrix.extra-install }}" ; then pip install ${{ matrix.extra-install}} ; fi

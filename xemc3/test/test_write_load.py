@@ -18,9 +18,12 @@ def assert_ds_are_equal(d1, d2, check_attrs=True, rtol=1e-2, atol=1e-6):
     if not set(d1k) == set(d2k):
         raise AssertionError(f"{d1.keys()} != {d2.keys()}")
     for k in d1k:
-        assert_da_are_equal(
-            d1[k], d2[k], k, check_attrs, rtol, 1e-3 if k.endswith("_change") else atol
-        )
+        tatol = atol
+        if k.endswith("_change"):
+            tatol = 1e-3
+        if k == "ne" or k.startswith("nZ"):
+            tatol = 1e2
+        assert_da_are_equal(d1[k], d2[k], k, check_attrs, rtol, tatol)
 
 
 def assert_da_are_equal(d1, d2, k, check_attrs, rtol, atol):

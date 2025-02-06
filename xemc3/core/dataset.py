@@ -100,14 +100,16 @@ class EMC3DatasetAccessor:
                 transform = utils.to_interval
             else:
                 raise
-        if docrop and "plate_ind" in dims:
-            crop = list(self._get_crop(dims, skip=["plate_ind"]))
+        if docrop and ("plate_ind" in dims or "zone" in dims):
+            ind = "plate_ind"
+            ind = ind if ind in dims else "zone"
+            crop = list(self._get_crop(dims, skip=[ind]))
             ret = []
-            for i in range(len(self.data["plate_ind"])):
+            for i in range(len(self.data[ind])):
                 slcr = tuple(
                     [slice(None) if j is None else slice(None, j[i]) for j in crop]
                 )
-                data = self.data.isel(plate_ind=i)
+                data = self.data.isel(**{ind: i})
                 # coords = {
                 #     k: xr.DataArray(
                 #         coord.data[slcr], dims=coord.dims, attrs=coord.attrs
@@ -209,6 +211,16 @@ class EMC3DatasetAccessor:
                 if cur in self.data:
                     return cur
         assert False, f"Didn't find variable for {var_name} coordinate!"
+
+    def iter_zones(self):
+        """
+        Iterate over all zones
+        """
+        if not "zone" in self.data.dims:
+            yield self.data
+        else:
+            for i in range(len(self.data.zone)):
+                yield self.isel(zone=i, drop=True)
 
     def iter_plates(self, *, symmetry=False, segments=1):
         """
@@ -447,7 +459,7 @@ class EMC3DatasetAccessor:
         xr.Dataset
             The xemc3 dataset with the simulation data
         """
-        return load(path)
+        return load.read_fort_file_pub(path, self)
 
     def mean_time(self) -> xr.Dataset:
         """
@@ -491,17 +503,31 @@ class EMC3DatasetAccessor:
             else:
                 vi = int(v)
                 fac = v - vi
-                ds_ = (ds.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)).sum(
-                    dim=dk
-                )
+                dsa = xr.Dataset({c: ds[c] for c in ds if dk in ds[c].dims})
+                if len(list(dsa)):
+                    ds_ = (
+                        dsa.isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
+                    ).sum(dim=dk, skipna=False)
+                else:
+                    ds_ = dsa
+                for co in ds:
+                    if dk not in ds[co].dims:
+                        ds_[co] = ds[co].isel({k: vi}, missing_dims="ignore")
                 for co in ds.coords:
                     if dk in ds.coords[co].dims:
                         ds_[co] = (
                             ds[co].isel({k: vi}) * xr.DataArray([1 - fac, fac], dims=dk)
                         ).sum(dim=dk)
                     else:
-                        ds_[co] = ds[co]
+                        ds_[co] = ds[co].isel({k: vi}, missing_dims="ignore")
                 ds = ds_
+        xas = {}
+        for k in ds.dims:
+            key = f"_{k}_dims"
+            if key in ds and ds[key].dims == ():
+                xas[k] = slice(None, ds[key].values)
+        if xas:
+            ds = ds.isel(xas)
         return ds
 
     def sel(

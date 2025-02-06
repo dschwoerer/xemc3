@@ -87,10 +87,9 @@ def _block_write(
 ) -> None:
     d = d.flatten()
     asblock = (len(d) // bs) * bs
-    if kinetic_fix:
-        if fmt.startswith(" ") or fmt.endswith(" "):
-            fmt1 = fmt * 6
-            fmt2 = fmt * len(d[asblock:])
+    if kinetic_fix and fmt.startswith(" ") or fmt.endswith(" "):
+        fmt1 = fmt * 6
+        fmt2 = fmt * len(d[asblock:])
     else:
         fmt2 = fmt1 = fmt
     np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt1)
@@ -128,7 +127,7 @@ def write_locations(ds: xr.Dataset, fn: str) -> None:
             write(f, zs.isel(phi=i).data * 100)
 
 
-def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
+def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray | xr.Dataset:
     """
     Read magnetic field strength from grid
 
@@ -144,22 +143,44 @@ def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray:
     xr.Dataset
         The magnetic field strength
     """
-    if "R_bounds" in ds:
-        shape = ds.R_bounds.shape
-        assert len(shape) == 6
-        shape = [i + 1 for i in shape[:3]]
-        dims = ds.R_bounds.dims[:3]
-    else:
-        shape = ds._plasma_map.shape
+
+    def readblock(f, shape):
         shape = [i + 1 for i in shape]
-        dims = ds._plasma_map.dims
-    nx, ny, nz = shape
-    with open(fn) as f:
+        nx, ny, nz = shape
         raw = _fromfile(f, dtype=float, count=nx * ny * nz, sep=" ")
-        _assert_eof(f, fn)
-    raw = raw.reshape(shape[::-1])
-    raw = np.swapaxes(raw, 0, 2)
-    return to_interval(dims, raw)
+        raw = raw.reshape(shape[::-1])
+        raw = np.swapaxes(raw, 0, 2)
+        return raw
+
+    if "_r_dims" in ds:
+        if "R_bounds" in ds:
+            dims = ds.R_bounds.dims[:4]
+        else:
+            dims = ds._plasma_map.dims
+        zone, *dims = dims
+        shapes = np.array([ds[f"_{k}_dims"] for k in dims]).T
+
+        with open(fn) as f:
+            raws = [readblock(f, s) for s in shapes]
+            _assert_eof(f, fn)
+        dss = [to_interval(dims, raw) for raw in raws]
+        return merge_blocks(dss, zone)
+    else:
+        if "R_bounds" in ds:
+            shape = ds.R_bounds.shape
+            assert (
+                len(shape) == 6
+            ), f"R_bounds have length {len(ds.R_bounds.shape)} with dims {ds.R_bounds.dims}={ds.R_bounds.shape} but expected 6"
+            shape = shape[:3]
+            dims = ds.R_bounds.dims[:3]
+        else:
+            shape = ds._plasma_map.shape
+            dims = ds._plasma_map.dims
+
+        with open(fn) as f:
+            raw = readblock(f, shape)
+            _assert_eof(f, fn)
+        return to_interval(dims, raw)
 
 
 def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
@@ -179,7 +200,7 @@ def write_magnetic_field(path: str, ds: xr.Dataset) -> None:
         _block_write(f, bf, "%7.4f")
 
 
-def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def read_locations_raw(fn: str) -> typing.List[typing.Any]:
     """
     Read spatial positions of grid points
 
@@ -197,11 +218,8 @@ def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarr
     np.array
         z position
     """
+    blocks: typing.List[typing.Any] = [[] for _ in range(3)]
     with open(fn) as f:
-        nx, ny, nz = [int(i) for i in f.readline().split()]
-        phidata = np.empty(nz)
-        rdata = np.empty((nx, ny, nz))
-        zdata = np.empty((nx, ny, nz))
 
         def read(f, nx, ny):
             t = _fromfile(f, dtype=float, count=nx * ny, sep=" ")
@@ -209,15 +227,25 @@ def read_locations_raw(fn: str) -> typing.Tuple[np.ndarray, np.ndarray, np.ndarr
             t = t.transpose()
             return t
 
-        # Read and directly convert to SI units
-        for i in range(nz):
-            phidata[i] = float(f.readline()) * np.pi / 180.0
-            rdata[:, :, i] = read(f, nx, ny) / 100
-            zdata[:, :, i] = read(f, nx, ny) / 100
+        while True:
+            nxyz = _fromfile(f, dtype=int, count=3, sep=" ")
+            if len(nxyz) == 0:
+                break
+            nx, ny, nz = nxyz
+            phidata = np.empty(nz)
+            rdata = np.empty((nx, ny, nz))
+            zdata = np.empty((nx, ny, nz))
 
-        _assert_eof(f, fn)
+            # Read and directly convert to SI units
+            for i in range(nz):
+                phidata[i] = float(f.readline()) * np.pi / 180.0
+                rdata[:, :, i] = read(f, nx, ny) / 100
+                zdata[:, :, i] = read(f, nx, ny) / 100
 
-    return phidata, rdata, zdata
+            for i, d in enumerate((phidata, rdata, zdata)):
+                blocks[i].append(d)
+
+    return blocks
 
 
 def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
@@ -236,7 +264,14 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
     xr.DataArray
         The magnetic plates
     """
-    shape = [x.shape[0] for x in [ds.r, ds.theta, ds.phi]]
+    haszone = "zone" in ds.dims
+    dims: tuple[str, str, str, str] | tuple[str, str, str]
+    if haszone:
+        shape = [x.shape[0] for x in [ds.zone, ds.r, ds.theta, ds.phi]]
+        dims = ("zone", "r", "theta", "phi")
+    else:
+        shape = [x.shape[0] for x in [ds.r, ds.theta, ds.phi]]
+        dims = ("r", "theta", "phi")
     ret = np.zeros(shape, dtype=bool)
     with open(fn) as f:
         last = None
@@ -245,10 +280,8 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             if last:
                 lines = last + lines
             zone, r, theta, num = lines[:4]
-            if zone != 0:
-                raise ValueError(
-                    "Multiple zones are currently not supported." + raise_issue
-                )
+            if zone != 0 and not haszone:
+                raise ValueError("Multiple zones not expected." + raise_issue)
             assert num % 2 == 0, f"Unexpected input in {fn}:{i} `line`" + raise_issue
             if num + 4 > len(lines):
                 last = lines
@@ -260,8 +293,12 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
             last = None
             for t in range(num // 2):
                 a, b = lines[4 + 2 * t : 6 + 2 * t]
-                ret[r, theta, a : b + 1] = True
-    return xr.DataArray(data=ret, dims=("r", "theta", "phi"))
+                ind: tuple[int, int, int, slice] | tuple[int, int, slice]
+                ind = r, theta, slice(a, b + 1)
+                if haszone:
+                    ind = zone, *ind
+                ret[ind] = True
+    return xr.DataArray(data=ret, dims=dims)
 
 
 def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
@@ -309,7 +346,7 @@ def write_plates_mag(fn: str, ds: xr.Dataset) -> None:
     return
 
 
-def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
+def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray | xr.Dataset:
     """
     Read the mappings data
 
@@ -325,15 +362,35 @@ def read_mappings(fn: str, dims: typing.Sequence[int]) -> xr.DataArray:
     xr.DataArray
         The mapping information
     """
+    haszones = hasattr(dims[0], "__len__")
+    if haszones:
+        toread = sum([prod(d) for d in zip(*dims)]).values
+    else:
+        toread = prod(dims)
     with open(fn) as f:
         dat = f.readline()
         infos = [int(i) for i in dat.split()]
-        t = _fromfile(f, dtype=int, count=prod(dims), sep=" ")
+        t = _fromfile(f, dtype=int, count=toread, sep=" ")
         # fortran indexing
         t -= 1
-        t = t.reshape(dims, order="F")
+        if haszones:
+            ts = []
+            i = 0
+            for d in zip(*dims):
+                d = [int(x) for x in d]
+                inext = i + prod(d)
+                ti = t[i:inext]
+                ti = ti.reshape(d, order="F")
+                ts.append(ti)
+                i = inext
+        else:
+            t = t.reshape(dims, order="F")
         _assert_eof(f, fn)
-    da = xr.DataArray(dims=("r", "theta", "phi"), data=t)
+    if haszones:
+        das = [xr.DataArray(dims=("r", "theta", "phi"), data=t) for t in ts]
+        da = merge_blocks(das, "zone")
+    else:
+        da = xr.DataArray(dims=("r", "theta", "phi"), data=t)
     da.attrs = dict(numcells=infos[0], plasmacells=infos[1], other=infos[2])
     return da
 
@@ -412,14 +469,25 @@ def read_locations(path: str, ds: typing.Optional[xr.Dataset] = None) -> xr.Data
     if ds is None:
         ds = xr.Dataset()
     assert isinstance(ds, xr.Dataset)
-    phi, r, z = read_locations_raw(get_file_name(path, "geom"))
-    ds = ds.assign_coords(
-        {
-            "R_bounds": to_interval(("r", "theta", "phi"), r),
-            "z_bounds": to_interval(("r", "theta", "phi"), z),
-            "phi_bounds": to_interval(("phi",), phi),
-        }
-    )
+    phis, rs, zs = read_locations_raw(get_file_name(path, "geom"))
+    dss = [
+        xr.Dataset().assign_coords(
+            {
+                "R_bounds": to_interval(("r", "theta", "phi"), r),
+                "z_bounds": to_interval(("r", "theta", "phi"), z),
+                "phi_bounds": to_interval(("phi",), phi),
+            }
+        )
+        for r, z, phi in zip(rs, zs, phis)
+    ]
+    if len(dss) > 1:
+        ds_ = merge_blocks(dss, "zone")
+    else:
+        ds_ = dss[0]
+    for v in ds_:
+        ds[v] = ds_[v]
+    ds = ds.assign_coords(coords=ds_.coords)
+
     for x in ds.coords:
         ds[x].attrs["xemc3_type"] = "geom"
     ds.emc3.unit("R_bounds", "m")
@@ -510,7 +578,7 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
             assert float(zero) == 0.0, (
                 "A shifted divertor is currently not supported in xemc3." + raise_issue
             )
-        nx, ny, nz = [int(i) for i in setup[:3]]
+        nx, ny, _ = [int(i) for i in setup[:3]]
         r = np.empty((nx, ny))
         z = np.empty((nx, ny))
         phi = np.empty(nx)
@@ -528,6 +596,28 @@ def read_plate(filename: str) -> typing.Tuple[np.ndarray, ...]:
                     raise ValueError(f"Error with {s} in {filename}")
         _assert_eof(f, filename)
         return (r, z, phi)
+
+
+def write_plate(data: typing.Tuple[np.ndarray, ...], filename: str) -> None:
+    shape = data[0].shape
+    assert shape == data[1].shape
+    assert shape[:1] == data[2].shape
+    try:
+        data[0].attrs  # type: ignore
+    except AttributeError:
+        pass
+    else:
+        data = [d.values for d in data]  # type: ignore
+    data = [data[0] * 100, data[1] * 100, data[2] * 180 / np.pi]
+    with open(filename, "w") as f:
+        f.write("# Written by xemc3\n")
+        f.write(
+            f"           {shape[0]}           {shape[1]}           5  0.0000000E+00  0.0000000E+00\n"
+        )
+        for Rs, Zs, phi in zip(*data):
+            f.write(f"  {phi}\n")
+            for R, Z in zip(Rs, Zs):
+                f.write(f"      {R}  {Z}\n")
 
 
 def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dataset:
@@ -548,7 +638,9 @@ def read_plate_nice(filename: typing.Union[str, typing.Sequence[str]]) -> xr.Dat
     if isinstance(filename, str):
         return read_plate_ds(filename)
     dss = [read_plate_ds(fn) for fn in filename]
-    return merge_blocks(dss)
+    ds = merge_blocks(dss)
+    assert isinstance(ds, xr.Dataset)
+    return ds
 
 
 def read_add_sf_n0(filename: str) -> xr.Dataset:
@@ -683,6 +775,8 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
                 mode = 1
 
             assert items == nx * ny
+            corrs: typing.List[np.ndarray[tuple[int, ...], typing.Any]]
+            coordinates: typing.List[np.ndarray[tuple[int, ...], typing.Any]]
             if mode == 2:
                 data = _fromfile(f, dtype=float, count=nx * ny * 12, sep=" ")
 
@@ -794,8 +888,8 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
 
 
 def merge_blocks(
-    dss: typing.Sequence[xr.Dataset], axes=plate_prefix + "ind"
-) -> xr.Dataset:
+    dss: typing.Sequence[xr.Dataset | xr.DataArray], axes=plate_prefix + "ind"
+) -> xr.Dataset | xr.DataArray:
     """
     Convert a list of datasets to one dataset
 
@@ -814,9 +908,9 @@ def merge_blocks(
     xr.Dataset
         The merged dataset with the new axes
     """
-    dims = {d: 0 for d in dss[0].dims}
+    dims = {d: 0 for d in dss[0].sizes}
     for plate in dss:
-        for k, v in plate.dims.items():
+        for k, v in plate.sizes.items():
             if dims[k] < v:
                 dims[k] = v
     ds = xr.Dataset()
@@ -826,12 +920,11 @@ def merge_blocks(
         matching[k] = True
         org_dims = []
         for plate in dss:
-            org_dims.append(plate.dims[k])
-            if plate.dims[k] != v:
+            org_dims.append(plate.sizes[k])
+            if plate.sizes[k] != v:
                 matching[k] = False
-        if not matching[k]:
-            assert isinstance(k, str)
-            ds[f"_{k}_dims"] = (axes, org_dims)
+        assert isinstance(k, str)
+        ds[f"_{k}_dims"] = (axes, org_dims)
 
     dims[axes] = len(dss)
 
@@ -843,6 +936,16 @@ def merge_blocks(
             tmp = plate[var]
             data[tuple([i] + [slice(None, i) for i in tmp.shape])] = tmp
         return (axes, *dss[0][var].dims), data
+
+    if isinstance(dss[0], xr.DataArray):
+        shape = [dims[axes]] + [dims[d] for d in dss[0].dims]
+        data = np.empty(shape, dtype=dss[0].dtype)
+        data[...] = -1 if data.dtype == int else np.nan
+        for i, plate in enumerate(dss):
+            tmp = plate
+            data[tuple([i] + [slice(None, i) for i in tmp.shape])] = tmp
+        coords = {c: merge(c) for c in dss[0].coords.keys()}
+        return xr.DataArray(data=data, coords=coords, dims=(axes, *dss[0].dims))
 
     for coord in dss[0].coords.keys():
         ds = ds.assign_coords({coord: merge(coord)})
@@ -875,8 +978,11 @@ def load_plates(dir: str, fn: typing.Optional[str] = None) -> xr.Dataset:
         fn = get_file_name(None, "target_flux")
     if dir[-1] != "/":
         dir += "/"
+
     plates = read_plates_raw(dir, fn)
-    return merge_blocks(plates)
+    mplates = merge_blocks(plates)
+    assert isinstance(mplates, xr.Dataset)
+    return mplates
 
 
 def write_plates(dir: str, plates: xr.Dataset) -> None:
@@ -1082,7 +1188,6 @@ def read_mapped(
         returned.
 
     """
-
     if isinstance(mapping, xr.Dataset):
         mapping = ensure_mapping(_dir_of(fn), mapping, fn=fn)
         mapping = mapping["_plasma_map"]
@@ -1192,6 +1297,7 @@ def write_mapped_nice(
                 at = datas[i].attrs
                 datas[i] = datas[i] / ops["scale"]
                 datas[i].attrs = at
+                datas[i].attrs["scaled_by"] = ops["scale"]
         assert (
             datas != []
         ), f"Requested to write file {dir}/{fn} but required data not found."
@@ -1405,10 +1511,9 @@ def read_info_file(
                 }
                 return [xr.DataArray(d, dims=index, coords=coords) for d in dat.T]
             if not len(dat) == block:
-                print(dat)
-                print(len(dat), block)
-                print(fn)
-                raise RuntimeError("Error reading file")
+                raise RuntimeError(
+                    f"Error while reading `{fn}` - expected {block} items, but got {len(dat)}"
+                )
             ret.append(dat)
 
 
@@ -1466,7 +1571,7 @@ def read_fort_file_pub(
         if not isinstance(ds, xr.Dataset):
             ds = xr.Dataset()
         return read_fort_file(ds, fn, **defaults)
-    if type == "target_flux":
+    if type in ["target_flux", "mapping"]:
         ds = ds or xr.Dataset()
     else:
         ds = ensure_mapping("/".join(fn.split("/")[:-1]), ds, type == "mapped", fn=fn)
@@ -1481,10 +1586,14 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
     """
     datas = None
     vars = opts.pop("vars")
+    _ = opts.pop("fmt", None)
     if type == "mapping":
-        ds["_plasma_map"] = read_mappings(
-            fn, tuple([len(ds[k]) for k in ("r", "theta", "phi")])
-        )
+        dims: typing.Any = ("r", "theta", "phi")
+        if "_r_dims" in ds:
+            dims = tuple([ds[f"_{k}_dims"] for k in dims])
+        else:
+            dims = tuple([len(ds[k]) for k in dims])
+        ds["_plasma_map"] = read_mappings(fn, dims)
     elif type == "mapped":
         # Ensure file is present before we try to read mapping
         # This is because missing mapping is handled differently.
@@ -1494,17 +1603,16 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         datas = read_mapped(fn, ds["_plasma_map"], **opts, squeeze=False)
         opts = {}
     elif type == "full":
-        datas = [read_magnetic_field(fn, ds)]
+        tmp = read_magnetic_field(fn, ds)
+        assert isinstance(tmp, xr.DataArray)
+        datas = [tmp]
     elif type == "plates_mag":
         datas = [read_plates_mag(fn, ds)]
     elif type == "geom":
         ds_ = read_locations(_dir_of(fn))
         ds = ds.assign_coords(ds_.coords)
-        assert opts == {}, "Unexpected arguments: " + ", ".join(
-            [f"{k}={v}" for k, v in opts.items()]
-        )
     elif type == "info":
-        opts.pop("fmt")
+        opts.pop("ignore_broken", None)
         if "iteration" in ds.dims and "length" not in opts:
             opts["length"] = len(ds["iteration"])
         datas = read_info_file(fn, vars, **opts)
@@ -1527,6 +1635,7 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         datas = read_depo_raw(ds, fn)
     else:
         raise RuntimeError(f"Unexpected type {type}")
+    opts.pop("ignore_broken", None)
     assert opts == {}, "Unexpected arguments: " + ", ".join(
         [f"{k}={v}" for k, v in opts.items()]
     )
@@ -1648,7 +1757,11 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
     print(f"done with {fn}")
 
 
-def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Dataset:
+def load_all(
+    path: str,
+    ignore_missing: typing.Optional[bool] = None,
+    ignore_broken: typing.Optional[bool] = None,
+) -> xr.Dataset:
     """
     Load all data from a path and return as dataset
 
@@ -1659,6 +1772,10 @@ def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Data
     ignore_missing : None or bool
          True: ignore missing files.
          False: raise exceptions if a file is not found.
+         None: use default option for that file.
+    ignore_broken : None or bool
+         True: ignore if files are incomplete.
+         False: raise exceptions if a file is incomplete.
          None: use default option for that file.
 
     Returns
@@ -1675,7 +1792,7 @@ def load_all(path: str, ignore_missing: typing.Optional[bool] = None) -> xr.Data
     for fn, opts in files.items():
         opts = opts.copy()
         try:
-            ds = read_fort_file(ds, f"{path}/{fn}", **opts)
+            ds = read_fort_file(ds, f"{path}/{fn}", ignore_broken=ignore_broken, **opts)
         except FileNotFoundError as e:
             if e.args[0] == 33:
                 raise
