@@ -188,7 +188,7 @@ class timeit2:
     def __exit__(self, *args):
         t0 = self.t0
         t1 = time.time()
-        global T0, last
+        global last
         print(self.info % (t0 - T0, t1 - T0, t1 - t0, t0 - last))
         last = t1
 
