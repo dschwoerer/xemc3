@@ -21,49 +21,37 @@ def plot_rz(
     target=False,
     log=False,
     robust=False,
+    colorbar=True,
     **kwargs,
 ):
-    phis = ds["phi_bounds"]
-    if phi < np.min(phis.data) or phi > np.max(phis.data):
-        raise RuntimeError(
-            f"{phi} outside of bounds in dataset {np.min(phis)}:{np.max(phis)}"
-        )
-    for phi_i, phib in enumerate(phis):
-        if phib[0] <= phi <= phib[1]:
-            break
+    phimax = np.nanmax(ds["phi_bounds"])
+    phi %= 2 * phimax
+    if phi > phimax:
+        phi = 2 * phimax - phi
+        sign = -1
     else:
-        raise RuntimeError(f"no suitable phi slice found for {phi} in {phis}")
+        sign = 1
 
-    p = ((phi - phib[0]) / (phib[1] - phib[0])).data
-    ds = ds.isel(phi=phi_i)
-    das = [ds[k] for k in ["R_bounds", "z_bounds"]]
+    rzds = [_get_data_zone(di, key, phi, sign, kwargs) for di in ds.emc3.iter_zones()]
+    if not any(rzds):
+        phis = ds["phi_bounds"]
+        raise RuntimeError(
+            f"{phi} outside of bounds in dataset {np.nanmin(phis)}:{np.nanmax(phis)}"
+        )
+    if any([x[3] for x in rzds if x]):
+        assert all(
+            [x[3] for x in rzds if x]
+        ), f"Expected either all or no shading to be required, but got {[x[3] for x in rzds if x]}"
+        if "shading" not in kwargs:
+            kwargs["shading"] = "gouraud"
+
     if key:
-        das.append(ds[key])
-    pp = xr.DataArray(data=[(1 - p), p], dims="delta_phi")
-    das = [
-        (da * pp).sum(dim="delta_phi") if "delta_phi" in da.dims else da for da in das
-    ]
-    norm = None
-    if key:
-        data = das[2].data
-        if "time" in das[2].dims:
-            raise ValueError(
-                "Unexpected dimension `time` - animation is not yet supported!"
-            )
-        if len(das[2].dims) != 2:
-            if das[2].dims == das[0].dims:
-                data = utils.from_interval(das[2])
-                if "shading" not in kwargs:
-                    kwargs["shading"] = "gouraud"
-            else:
-                raise ValueError(
-                    f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
-                )
+        alldata = np.concatenate([x[2].values.flatten() for x in rzds if x])
         if robust:
-            vmin, vmax = np.nanpercentile(data, [1, 99])
+            vmin, vmax = np.nanpercentile(alldata, [1, 99])
         else:
-            vmin = np.nanmin(data)
-            vmax = np.nanmax(data)
+            vmin = np.nanmin(alldata)
+            vmax = np.nanmax(alldata)
         vmin = kwargs.pop("vmin", vmin)
         vmax = kwargs.pop("vmax", vmax)
         if log and vmin <= 0:
@@ -73,24 +61,30 @@ def plot_rz(
             vmin=vmin, vmax=vmax
         )
     else:
-        data = np.zeros(das[0].shape[:2]) * np.nan
         if "edgecolors" not in kwargs:
             kwargs["edgecolors"] = "k"
-    r = utils.from_interval(das[0])
-    z = utils.from_interval(das[1])
+        norm = None
+
     ax = _get_ax(figsize, ax)
-    p = ax.pcolormesh(r, z, data, norm=norm, **kwargs)
+    for rzd in rzds:
+        if rzd is None:
+            continue
+        # print([x.shape for x in rzd])
+        p = ax.pcolormesh(*rzd[:3], norm=norm, **kwargs)
+
     # plt.xlabel(xr.plot.utils.label_from_attrs(r))
     if aspect:
         ax.set_aspect(1)
     ax.set_xlabel("R [m]")
     ax.set_ylabel("z [m]")
-    plt.colorbar(p, ax=ax)
+    if colorbar:
+        plt.colorbar(p, ax=ax)
     if Rmin is not None or Rmax is not None:
         ax.set_xlim(Rmin, Rmax)
     if zmin is not None or zmax is not None:
         ax.set_ylim(zmin, zmax)
-    p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(das[-1]))
+    if colorbar and key:
+        p.colorbar.set_label(label=xr.plot.utils.label_from_attrs(ds[key]))
     if target:
         plot_target(ds, phi, ax=ax, fmt="r-" if key is None else "k-", aspect=aspect)
     return p
@@ -124,6 +118,53 @@ def plot_target(ds, phi, fmt=None, ax=None, figsize=None, aspect=True):
 
     ax.set_xlabel("R [m]")
     ax.set_ylabel("z [m]")
+
+
+def _get_data_zone(ds, key, phi, sign, kwargs):
+    phis = ds["phi_bounds"]
+    if phi < np.min(phis.data) or phi > np.max(phis.data):
+        return None
+    for phi_i, phib in enumerate(phis):
+        if phib[0] <= phi <= phib[1]:
+            break
+    else:
+        raise RuntimeError(f"no suitable phi slice found for {phi} in {phis}")
+
+    p = ((phi - phib[0]) / (phib[1] - phib[0])).data
+    ds = ds.isel(phi=phi_i)
+    das = [ds[k] for k in ["R_bounds", "z_bounds"]]
+    if sign == -1:
+        das[1] *= sign
+    if key:
+        das.append(ds[key])
+        if sign:
+            if das[2].attrs.get("parallel_flux", key == "M"):
+                das[2] *= sign
+
+    pp = xr.DataArray(data=[(1 - p), p], dims="delta_phi")
+    das = [
+        (da * pp).sum(dim="delta_phi", skipna=False) if "delta_phi" in da.dims else da
+        for da in das
+    ]
+    norm = None
+    shading = False
+    if key:
+        das[2] = das[2].data
+        if "time" in das[2].dims:
+            raise ValueError(
+                "Unexpected dimension `time` - animation is not yet supported!"
+            )
+        if len(das[2].dims) != 2:
+            if das[2].dims == das[0].dims:
+                das[2] = utils.from_interval(das[2])
+                shading = True
+            else:
+                raise ValueError(
+                    f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
+                )
+    else:
+        das.append(np.zeros(das[0].shape[:2]) * np.nan)
+    return utils.from_interval(das[0]), utils.from_interval(das[1]), das[2], shading
 
 
 def _get_ax(figsize, ax):

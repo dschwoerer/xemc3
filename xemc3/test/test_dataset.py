@@ -11,7 +11,7 @@ from . import gen_ds
 try:
     import matplotlib  # type: ignore
 except ImportError:
-    matplotlib = None
+    matplotlib = None  # type: ignore
 
 
 def test_sel():
