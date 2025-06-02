@@ -43,7 +43,6 @@ class context:
         config = self.old
 
     def set(self, *args, **kwargs):
-        global config
         if len(args) % 2 == 0:
             for key, value in zip(args[::2], args[1::2]):
                 self.state[key] = value

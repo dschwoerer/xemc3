@@ -8,7 +8,7 @@ def get_data(force=False):
         return
     if not os.path.isdir(basedir + ".git"):
         os.system(
-            f"git clone https://oauth2:glpat-ku4xK45bcEKMDKbpUDz4@gitlab.mpcdf.mpg.de/dave/xemc3-data/ {basedir} --depth 1"
+            f"git clone https://oauth2:glpat-gS1qiEX7Ncoys5xH3CfS@gitlab.mpcdf.mpg.de/dave/xemc3-data/ {basedir} --depth 1"
         )
     else:
         os.system(f"cd {basedir}; git fetch origin main --depth 1")

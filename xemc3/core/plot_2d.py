@@ -46,7 +46,7 @@ def plot_rz(
             kwargs["shading"] = "gouraud"
 
     if key:
-        alldata = np.concatenate([x[2].values.flatten() for x in rzds if x])
+        alldata = np.concatenate([x[2].flatten() for x in rzds if x])
         if robust:
             vmin, vmax = np.nanpercentile(alldata, [1, 99])
         else:
@@ -149,7 +149,6 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
     norm = None
     shading = False
     if key:
-        das[2] = das[2].data
         if "time" in das[2].dims:
             raise ValueError(
                 "Unexpected dimension `time` - animation is not yet supported!"
@@ -162,6 +161,7 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
                 raise ValueError(
                     f"Expected 2 dimensions for R-z plot, but found {len(das[2].dims)}: {das[2].dims}!"
                 )
+        das[2] = das[2].data
     else:
         das.append(np.zeros(das[0].shape[:2]) * np.nan)
     return utils.from_interval(das[0]), utils.from_interval(das[1]), das[2], shading

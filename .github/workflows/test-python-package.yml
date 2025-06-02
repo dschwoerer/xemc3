@@ -16,10 +16,10 @@ jobs:
     - name: Get Remote SHA
       id: get-sha
       run: |
-        echo "sha=$(git ls-remote https://oauth2:glpat-ku4xK45bcEKMDKbpUDz4@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
+        echo "sha=$(git ls-remote https://oauth2:glpat-gS1qiEX7Ncoys5xH3CfS@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
     - name: Cache example data
       id: cache-example
-      uses: actions/cache@v3
+      uses: actions/cache@v4
       with:
         path: example-data/
         key: example-data-${{ steps.get-sha.outputs.sha }}
@@ -49,10 +49,10 @@ jobs:
     - name: Get Remote SHA
       id: get-sha
       run: |
-        echo "sha=$(git ls-remote https://oauth2:glpat-ku4xK45bcEKMDKbpUDz4@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
+        echo "sha=$(git ls-remote https://oauth2:glpat-gS1qiEX7Ncoys5xH3CfS@gitlab.mpcdf.mpg.de/dave/xemc3-data.git HEAD|cut -c -20)" >> $GITHUB_OUTPUT
     - name: Cache example data
       id: cache-example
-      uses: actions/cache@v2
+      uses: actions/cache@v4
       with:
         path: example-data/
         key: example-data-${{ steps.get-sha.outputs.sha }}
