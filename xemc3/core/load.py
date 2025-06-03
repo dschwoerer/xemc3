@@ -1358,7 +1358,7 @@ def get_vars_for_file(
 
 
 @jit
-def to_mapped_core(
+def to_mapped_core_3d(
     datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
 ) -> typing.Tuple[np.ndarray, np.ndarray]:
     if len(datdat.shape) == 3:
@@ -1381,6 +1381,35 @@ def to_mapped_core(
                         if not (np.isnan((cdat))):
                             out[..., mapid] += cdat
                             count[mapid] += 1
+    return out, count
+
+
+@jit
+def to_mapped_core_4d(
+    datdat: np.ndarray, mapdat: np.ndarray, out: np.ndarray, count: np.ndarray, max: int
+) -> typing.Tuple[np.ndarray, np.ndarray]:
+    if len(datdat.shape) == 4:
+        for i in range(mapdat.shape[0]):
+            for j in range(mapdat.shape[1]):
+                for k in range(mapdat.shape[2]):
+                    for l in range(mapdat.shape[3]):
+                        mapid = mapdat[i, j, k, l]
+                        if mapid < max:
+                            cdat = datdat[(..., i, j, k, l)]
+                            if not (np.isnan((cdat))):
+                                out[..., mapid] += cdat
+                                count[mapid] += 1
+    else:
+        for i in range(mapdat.shape[0]):
+            for j in range(mapdat.shape[1]):
+                for k in range(mapdat.shape[2]):
+                    for l in range(mapdat.shape[3]):
+                        mapid = mapdat[i, j, k, l]
+                        if mapid < max:
+                            cdat = datdat[(..., i, j, k, l)]
+                            if not (np.isnan((cdat))):
+                                out[..., mapid] += cdat
+                                count[mapid] += 1
     return out, count
 
 
@@ -1410,6 +1439,7 @@ def to_mapped(
         assert isinstance(
             arg, np.ndarray
         ), f"Expected to write np.ndarray, but got {type(arg)}."
+    to_mapped_core = to_mapped_core_4d if "zone" in mapping.dims else to_mapped_core_3d
     out, count = to_mapped_core(*args, max)
     if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
         out //= count
