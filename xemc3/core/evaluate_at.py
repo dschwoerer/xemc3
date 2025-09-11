@@ -31,9 +31,11 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
     cache: Dict[int, PolyMesh] = {}
     scache: Dict[int, xr.Dataset] = {}
 
-    n = len(pln.theta)
     outs = [np.empty(shape, dtype=pln[k].data.dtype) for k in keys]
+    if "zone" in pln.dims:
+        outs.append(np.empty(shape, dtype=int))
     cid = -1
+    mi = 0
     assert "delta_phi" in pln.phi_bounds.dims
     assert "phi" in pln.phi_bounds.dims
 
@@ -73,22 +75,39 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
                 if updownsym and phic > np.pi / periodicity:
                     zc = -zc
                     phic = (np.pi * 2 / periodicity) - phi[ijk]
-            s = pln.emc3.sel(phi=phic)
-            mesh = PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data)
+            print(pln)
+            ss = [plni.emc3.sel(phi=phic) for plni in pln.emc3.iter_zones()]
+            ns = [len(plni.theta) for plni in pln.emc3.iter_zones()]
+            meshs = [
+                PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data) for s in ss
+            ]
             if delta_phi:
-                cache[j] = mesh
+                cache[j] = meshs
                 scache[j] = s
-        cid = mesh.find_cell(np.array([r[ijk], zc]), cid)
+
+        def getIndices(ms, me):
+            for x in range(ms, me):
+                yield x
+            for x in range(ms):
+                yield x
+
+        for mi in getIndices(mi, len(ss)):
+            mesh = meshs[mi]
+            cid = mesh.find_cell(np.array([r[ijk], zc]), cid)
+            if cid != -1:
+                break
         if cid == -1:
             for i in range(len(keys)):
                 outs[i][ijk] = -1
         else:
-            ij = cid // n, cid % n
+            ij = cid // ns[mi], cid % ns[mi]
+            s = ss[mi]
             for out, key in zip(outs, keys):
                 if len(s[key].dims):
                     out[ijk] = s[key].data[ij]
                 else:
                     out[ijk] = s[key].data
+            outs[len(keys)][ijk] = mi
     keyout = [k.split("_")[0] for k in keys]
 
     ret = xr.Dataset(coords=coords)
@@ -100,7 +119,8 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
         if dims[i] != d0 and d0 in ret:
             ret = ret.rename({d0: dims[i]})
     for out, k, ko in zip(outs, keys, keyout):
-        ret[k.split("_")[0]] = xr.DataArray(out, dims=dims, attrs=pln[k].attrs)
+        ret[ko] = xr.DataArray(out, dims=dims, attrs=pln[k].attrs)
+    ret["zone"] = xr.DataArray(outs[len(keys)], dims=dims)
     return ret
 
 
