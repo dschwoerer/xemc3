@@ -26,6 +26,9 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
     pln["theta_index"] = ("r", "theta"), np.zeros((lr, lt), dtype=int) + np.arange(
         lt, dtype=int
     )
+    for k in ds:
+        if k.startswith("_") and k.endswith("_dims"):
+            pln[k] = ds[k]
     keys = ["phi_index", "r_index", "theta_index"]
 
     cache: Dict[int, PolyMesh] = {}
@@ -65,7 +68,7 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
 
         try:
             mesh = cache[j]
-            s = scache[j]
+            ss = scache[j]
         except KeyError:
             if delta_phi:
                 phic = (
@@ -75,15 +78,15 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
                 if updownsym and phic > np.pi / periodicity:
                     zc = -zc
                     phic = (np.pi * 2 / periodicity) - phi[ijk]
-            print(pln)
             ss = [plni.emc3.sel(phi=phic) for plni in pln.emc3.iter_zones()]
             ns = [len(plni.theta) for plni in pln.emc3.iter_zones()]
+            meshs_grids = [(s.emc3["R_corners"], s.emc3["z_corners"]) for s in ss]
             meshs = [
                 PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data) for s in ss
             ]
             if delta_phi:
                 cache[j] = meshs
-                scache[j] = s
+                scache[j] = ss
 
         def getIndices(ms, me):
             for x in range(ms, me):
@@ -99,6 +102,7 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
         if cid == -1:
             for i in range(len(keys)):
                 outs[i][ijk] = -1
+            outs[-1][ijk] = -1
         else:
             ij = cid // ns[mi], cid % ns[mi]
             s = ss[mi]
