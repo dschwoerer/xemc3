@@ -1,20 +1,16 @@
 import numpy as np
-import eudist
-import xemc3  # needed for ds.emc3
+import eudist  # type: ignore
 
 try:
-    from tqdm.auto import tqdm
+    from tqdm.auto import tqdm  # type: ignore
 except ImportError:
-    tqdm = None
+    tqdm = None  # type: ignore
 
 
 def _rz_to_ab(rz, grid, ij):
     _, nz, _ = grid.shape
     nz -= 1
-    # print(grid.shape)
-    # print(nz)
     i, j = ij // nz, ij % nz
-    # print(i, j)
     ABCD = grid[i : i + 2, j : j + 2]
     A = ABCD[0, 0]
     a = ABCD[0, 1] - A
