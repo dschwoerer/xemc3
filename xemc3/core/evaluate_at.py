@@ -123,7 +123,8 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
             ret = ret.rename({d0: dims[i]})
     for out, k, ko in zip(outs, keys, keyout):
         ret[ko] = xr.DataArray(out, dims=dims, attrs=pln[k].attrs)
-    ret["zone"] = xr.DataArray(outs[len(keys)], dims=dims)
+    if "zone" in pln.dims:
+        ret["zone"] = xr.DataArray(outs[len(keys)], dims=dims)
     return ret
 
 
