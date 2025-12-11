@@ -35,8 +35,7 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
     scache: Dict[int, xr.Dataset] = {}
 
     outs = [np.empty(shape, dtype=pln[k].data.dtype) for k in keys]
-    if "zone" in pln.dims:
-        outs.append(np.empty(shape, dtype=int))
+    outs.append(np.empty(shape, dtype=int))
     cid = -1
     mi = 0
     assert "delta_phi" in pln.phi_bounds.dims
@@ -124,8 +123,7 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
             ret = ret.rename({d0: dims[i]})
     for out, k, ko in zip(outs, keys, keyout):
         ret[ko] = xr.DataArray(out, dims=dims, attrs=pln[k].attrs)
-    if "zone" in pln.dims:
-        ret["zone"] = xr.DataArray(outs[len(keys)], dims=dims)
+    ret["zone"] = xr.DataArray(outs[len(keys)], dims=dims)
     return ret
 
 
