@@ -1,6 +1,7 @@
 import warnings
 from typing import Any, Mapping, Union, Optional
 import sys
+import functools
 
 if sys.version_info >= (3, 8):
     from typing import Literal
@@ -140,6 +141,12 @@ class EMC3DatasetAccessor:
         # Maybe also do the cropping? See merge code somewhere
         self.data[var] = transform(data)
         return self
+
+    @functools.cached_property
+    def tracer(self):
+        from .flt_emc_like import Tracer
+
+        return Tracer(self.data)
 
     def get(self, *args):
         """
