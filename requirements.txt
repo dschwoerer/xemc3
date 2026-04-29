@@ -11,7 +11,7 @@ setuptools>=42
 setuptools_scm[toml]>=3.4
 
 # for tests
-pytest>=3.3.0
+pytest>=9.0.3
 hypothesis>=5.29
 coverage
 # not installable via pip
