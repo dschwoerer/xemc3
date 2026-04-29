@@ -5,7 +5,6 @@ import typing
 
 from .utils import rrange, raise_issue
 
-
 if 0:
     import sparse  # type: ignore
 else:
@@ -114,7 +113,7 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
             ints = [int(x) for x in line[:7]]
             floats = [float(x) for x in line[7:]]
             assert ints[0] == i + 1, (
-                f"Expected first index to be contigous, thus expected {i+1} but got {ints[0]} while reading {fn}"
+                f"Expected first index to be contigous, thus expected {i + 1} but got {ints[0]} while reading {fn}"
                 + raise_issue
             )
             assert ints[1] == 3, (
@@ -181,13 +180,16 @@ def read_depo_raw(ds: xr.Dataset, fn: str) -> typing.List[xr.DataArray]:
     assert not hasother2, raise_issue
     out2["other"] = []
 
-    ret = [
-        xr.DataArray(data=tocoo(d), dims=dims)
-        for d in [out["surftype"], out["flux"], *out["other"]]
-    ], [
-        xr.DataArray(data=tocoo(d), dims=dims)
-        for d in [out2["surftype"], out2["flux"], *out2["other"]]
-    ]
+    ret = (
+        [
+            xr.DataArray(data=tocoo(d), dims=dims)
+            for d in [out["surftype"], out["flux"], *out["other"]]
+        ],
+        [
+            xr.DataArray(data=tocoo(d), dims=dims)
+            for d in [out2["surftype"], out2["flux"], *out2["other"]]
+        ],
+    )
     assert len(ret[0]) == 6, f"Expected 6 items but got {len(ret[0])}." + raise_issue
     assert len(ret[1]) == 2, raise_issue
     return ret[0] + ret[1]
@@ -219,7 +221,7 @@ def write_depo_raw_part(datas, f, i):
 
 def write_depo_raw(datas, fn):
     assert len(datas) == 8, (
-        f"Expected 8 data entries, but got { len(datas) }" + raise_issue
+        f"Expected 8 data entries, but got {len(datas)}" + raise_issue
     )
     datas = datas[:6], datas[6:]
     i = 0

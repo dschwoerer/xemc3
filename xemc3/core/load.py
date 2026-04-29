@@ -168,9 +168,9 @@ def read_magnetic_field(fn: str, ds: xr.Dataset) -> xr.DataArray | xr.Dataset:
     else:
         if "R_bounds" in ds:
             shape = ds.R_bounds.shape
-            assert (
-                len(shape) == 6
-            ), f"R_bounds have length {len(ds.R_bounds.shape)} with dims {ds.R_bounds.dims}={ds.R_bounds.shape} but expected 6"
+            assert len(shape) == 6, (
+                f"R_bounds have length {len(ds.R_bounds.shape)} with dims {ds.R_bounds.dims}={ds.R_bounds.shape} but expected 6"
+            )
             shape = shape[:3]
             dims = ds.R_bounds.dims[:3]
         else:
@@ -287,7 +287,7 @@ def read_plates_mag(fn: str, ds: xr.Dataset) -> xr.DataArray:
                 last = lines
                 continue
             assert num + 4 == len(lines), (
-                f"failed to parse line {i+1}{' (continued from previous incomplete line)' if last else ''}"
+                f"failed to parse line {i + 1}{' (continued from previous incomplete line)' if last else ''}"
                 f" from {fn}: {' '.join([str(x) for x in lines])}" + raise_issue
             )
             last = None
@@ -872,14 +872,15 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
             ds.coords[plate_prefix + "phi_bounds"].attrs["units"] = "radian"
 
             vars = files[get_file_name(None, "target_flux")]["vars"].copy()
-            for i, (l, meta) in enumerate(vars.items()):
-                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
-                    "scale", 1
+            for i, (lbl, meta) in enumerate(vars.items()):
+                ds[lbl] = (
+                    (plate_prefix + "phi", plate_prefix + "x"),
+                    data[i] * meta.get("scale", 1),
                 )
                 for k in meta:
-                    ds[l].attrs[k] = meta[k]
-            for i, l in enumerate(["tot_n", "tot_P"]):
-                ds[l] = total[i]
+                    ds[lbl].attrs[k] = meta[k]
+            for i, lbl in enumerate(["tot_n", "tot_P"]):
+                ds[lbl] = total[i]
             plates.append(ds)
 
         # Make sure we have read everything
@@ -1078,7 +1079,7 @@ def ensure_mapping(
     FileNotFoundError
         If the required info could not be read
     """
-    error = f"""Reading {fn+ ' ' if fn is not None else ''}mapped requires mapping information, but the required
+    error = f"""Reading {fn + " " if fn is not None else ""}mapped requires mapping information, but the required
 information in '{dir}' could not be found.  Ensure all files are present
 in the folder or pass in a dataset that contains the mapping
 information. Failed to open `%s`."""
@@ -1298,9 +1299,9 @@ def write_mapped_nice(
                 datas[i] = datas[i] / ops["scale"]
                 datas[i].attrs = at
                 datas[i].attrs["scaled_by"] = ops["scale"]
-        assert (
-            datas != []
-        ), f"Requested to write file {dir}/{fn} but required data not found."
+        assert datas != [], (
+            f"Requested to write file {dir}/{fn} but required data not found."
+        )
         write_mapped(datas, ds["_plasma_map"], f"{dir}/{fn}", **meta)
 
 
@@ -1392,10 +1393,10 @@ def to_mapped_core_4d(
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
                 for k in range(mapdat.shape[2]):
-                    for l in range(mapdat.shape[3]):
-                        mapid = mapdat[i, j, k, l]
+                    for m in range(mapdat.shape[3]):
+                        mapid = mapdat[i, j, k, m]
                         if mapid < max:
-                            cdat = datdat[(..., i, j, k, l)]
+                            cdat = datdat[(..., i, j, k, m)]
                             if not (np.isnan((cdat))):
                                 out[..., mapid] += cdat
                                 count[mapid] += 1
@@ -1403,10 +1404,10 @@ def to_mapped_core_4d(
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
                 for k in range(mapdat.shape[2]):
-                    for l in range(mapdat.shape[3]):
-                        mapid = mapdat[i, j, k, l]
+                    for m in range(mapdat.shape[3]):
+                        mapid = mapdat[i, j, k, m]
                         if mapid < max:
-                            cdat = datdat[(..., i, j, k, l)]
+                            cdat = datdat[(..., i, j, k, m)]
                             if not (np.isnan((cdat))):
                                 out[..., mapid] += cdat
                                 count[mapid] += 1
@@ -1436,9 +1437,9 @@ def to_mapped(
     count = np.zeros(max, dtype=int)
     args = datdat, mapdat, out, count
     for arg in args:
-        assert isinstance(
-            arg, np.ndarray
-        ), f"Expected to write np.ndarray, but got {type(arg)}."
+        assert isinstance(arg, np.ndarray), (
+            f"Expected to write np.ndarray, but got {type(arg)}."
+        )
     to_mapped_core = to_mapped_core_4d if "zone" in mapping.dims else to_mapped_core_3d
     out, count = to_mapped_core(*args, max)
     if out.dtype in [np.dtype(x) for x in [int, np.int32, np.int64]]:
@@ -1558,9 +1559,9 @@ def write_info_file(fn: str, ds: xr.Dataset) -> None:
             dats[-1] = dats[-1] / i["scale"]
     dat = np.array(dats)
     fmtc = fmt.count("%")
-    assert fmtc == len(
-        dat
-    ), f"Found {fmtc} format specifiers but data has {len(dat)} values. Format is {fmt}."
+    assert fmtc == len(dat), (
+        f"Found {fmtc} format specifiers but data has {len(dat)} values. Format is {fmt}."
+    )
     # dat.shape == x, 1000
     valid_entries = np.sum(np.isfinite(dat), axis=1)
     assert len(valid_entries) == fmtc
@@ -1679,9 +1680,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         flexi = vars.pop(key)
         for i in range(len(vars), len(datas)):
             vars[key % i] = flexi
-    assert len(vars) == len(
-        datas
-    ), f"in file {fn} we found {len(datas)} fields but only {len(vars)} vars are given!"
+    assert len(vars) == len(datas), (
+        f"in file {fn} we found {len(datas)} fields but only {len(vars)} vars are given!"
+    )
     for (var, varopts), data in zip(vars.items(), datas):
         ds[var] = data
         varopts = varopts.copy()
@@ -1698,9 +1699,9 @@ def read_fort_file(ds: xr.Dataset, fn: str, type: str = "mapped", **opts) -> xr.
         attrs[k] = varopts.pop(k, 0)
 
         ds[var].attrs.update(attrs)
-        assert (
-            varopts == {}
-        ), f"variable {var} has options {varopts} but didn't expect anything"
+        assert varopts == {}, (
+            f"variable {var} has options {varopts} but didn't expect anything"
+        )
     return ensure_metadata(ds)
 
 
@@ -1751,9 +1752,12 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
         if type == "mapped":
             kinetic = guess_kinetic(ds, k)
             arch[k] = (
-                *ds[k].dims[:-3],
-                "kinetic_map" if kinetic else "plasma_map",
-            ), to_mapped(ds[k], ds._plasma_map, guess_kinetic(ds, k))
+                (
+                    *ds[k].dims[:-3],
+                    "kinetic_map" if kinetic else "plasma_map",
+                ),
+                to_mapped(ds[k], ds._plasma_map, guess_kinetic(ds, k)),
+            )
         elif type in ("geom", "full"):
             if not geom:
                 continue

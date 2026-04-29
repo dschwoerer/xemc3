@@ -45,7 +45,7 @@ Before: {d1.shape}: {d1.data.flatten()}
 
 After: {d2.shape}: {d2.data.flatten()}
 
-np.isclose: {np.isclose(d1, d2 ,rtol=rtol).flatten()}"""
+np.isclose: {np.isclose(d1, d2, rtol=rtol).flatten()}"""
         )
     if check_attrs:
         d1a = d1.attrs.copy()

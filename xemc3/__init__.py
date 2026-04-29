@@ -11,7 +11,6 @@ __all__ = ["load", "write", "config"]
 from . import load, write, config
 from .core.dataset import EMC3DatasetAccessor
 
-
 try:
     from importlib.metadata import (  # type: ignore
         PackageNotFoundError as _PackageNotFoundError,

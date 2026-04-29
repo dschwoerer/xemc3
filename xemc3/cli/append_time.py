@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 import xarray as xr
 
-from ..core import dataset
+from ..core import dataset  # noqa: F401
 from ..core.load import load_all
 from ._common import commonparser, iter_dir
 
@@ -38,13 +38,11 @@ def append_time(read: str, name: str, verbose: bool = False) -> None:
 
 
 def parser() -> ArgumentParser:
-    return commonparser(
-        """
+    return commonparser("""
         Load the data from EMC3 simulations and store as netcdf file. The
         data is appended for each simulation to the netcdf file, which
         will be created if it does not yet exists.
-        """
-    )
+        """)
 
 
 def main() -> None:
