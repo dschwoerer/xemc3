@@ -6,3 +6,4 @@
 "xemc3/test/gen_ds.py" = ["E721"]
 "xemc3/core/load.py" = ["E721"]
 "xemc3/core/depo.py" = ["E721"]
+"docs/*/*ipynb" = ["F401"]
