@@ -39,9 +39,9 @@ def plot_rz(
             f"{phi} outside of bounds in dataset {np.nanmin(phis)}:{np.nanmax(phis)}"
         )
     if any([x[3] for x in rzds if x]):
-        assert all(
-            [x[3] for x in rzds if x]
-        ), f"Expected either all or no shading to be required, but got {[x[3] for x in rzds if x]}"
+        assert all([x[3] for x in rzds if x]), (
+            f"Expected either all or no shading to be required, but got {[x[3] for x in rzds if x]}"
+        )
         if "shading" not in kwargs:
             kwargs["shading"] = "gouraud"
 
@@ -146,7 +146,6 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
         (da * pp).sum(dim="delta_phi", skipna=False) if "delta_phi" in da.dims else da
         for da in das
     ]
-    norm = None
     shading = False
     if key:
         if "time" in das[2].dims:
@@ -169,9 +168,9 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
 
 def _get_ax(figsize, ax):
     if figsize is not None:
-        assert (
-            ax is None
-        ), "Passing in an axes object and specifing the figure size cannot be combined"
+        assert ax is None, (
+            "Passing in an axes object and specifing the figure size cannot be combined"
+        )
         plt.figure(figsize=figsize)
     if ax is None:
         ax = plt.axes(label=np.random.bytes(20))

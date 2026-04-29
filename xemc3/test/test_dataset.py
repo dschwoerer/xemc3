@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from ..core import dataset
+from ..core import dataset  # noqa: F401
 from . import gen_ds
 
 try:
@@ -252,7 +252,7 @@ class Test_eval_at_rpz(object):
         for r, p, t in [self.rand_rpt(a) for _ in range(b)]:
             # No test within phi, as then we need to calculate where we end up, which is non-trivial
             p = np.zeros_like(p)
-            exp = (np.round(((t)) / dt) % self.shape[1]) * dt
+            exp = (np.round((t) / dt) % self.shape[1]) * dt
             R, p, z = self.geom.rpt_to_rpz(r, p, t)
             got = self.ds.emc3.evaluate_at_rpz(R, p, z, "var", updownsym=self.geom.sym)[
                 "var"
@@ -348,9 +348,9 @@ class Test_eval_at_rpz(object):
             got = self.ds.emc3.evaluate_at_rpz(
                 r, p, z, updownsym=self.geom.sym, delta_phi=dphi
             )["phi"]
-            assert np.allclose(
-                exp, got
-            ), f"Expected \n{exp} but got \n{got.data} \n{p/dphi} % {self.shape[2]}"
+            assert np.allclose(exp, got), (
+                f"Expected \n{exp} but got \n{got.data} \n{p / dphi} % {self.shape[2]}"
+            )
             assert got.dims == ("dim_0",)
 
     def test_cached_eval_perf(self):
@@ -374,9 +374,9 @@ class Test_eval_at_rpz(object):
             globals=locals(),
         )
         print(slow, cached, slow / cached)
-        assert (
-            slow > cached
-        ), f"Expected the cached version to be faster then the non-cached {slow} vs {cached}. Note that this might sometimes fail. Increase the number of samples to avoid that."
+        assert slow > cached, (
+            f"Expected the cached version to be faster then the non-cached {slow} vs {cached}. Note that this might sometimes fail. Increase the number of samples to avoid that."
+        )
 
     def test_nan_value(self):
         self.setup()
@@ -386,7 +386,7 @@ class Test_eval_at_rpz(object):
         r, p, t = self.rand_rpt(6)
         # No test within phi, as then we need to calculate where we end up, which is non-trivial
         p = np.zeros_like(p)
-        exp = (np.round(((t)) / dt) % self.shape[1]) * dt
+        exp = (np.round((t) / dt) % self.shape[1]) * dt
         dat = np.array([r, p, t, exp])
         dat[:, [0, 2, 5]] = np.nan
         r, p, t, exp = dat
@@ -409,7 +409,7 @@ class Test_eval_at_rpz(object):
         r, p, t = self.rand_rpt(6)
         # No test within phi, as then we need to calculate where we end up, which is non-trivial
         p = np.zeros_like(p)
-        exp = (np.round(((t)) / dt) % self.shape[1]) * dt
+        exp = (np.round((t) / dt) % self.shape[1]) * dt
         Rpz = self.geom.rpt_to_rpz(r, p, t)
         xyz = self.geom.rpz_to_xyz(*Rpz)
         got = self.ds.emc3.evaluate_at_xyz(*xyz, "var", updownsym=self.geom.sym)[

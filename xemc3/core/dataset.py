@@ -223,7 +223,7 @@ class EMC3DatasetAccessor:
         """
         Iterate over all zones
         """
-        if not "zone" in self.data.dims:
+        if "zone" not in self.data.dims:
             yield self.data
         else:
             for i in range(len(self.data.zone)):
@@ -550,12 +550,12 @@ class EMC3DatasetAccessor:
         for k in indexers.keys():
             val = indexers[k]
             if "delta_" + k in ds.dims and k + "_bounds" in ds:
-                assert (
-                    k in ds.dims
-                ), f"Expected {k} in {ds.dims} - maybe you already selected in {k} dim?"
-                assert (
-                    len(ds[k + "_bounds"].dims) == 2
-                ), "Only 1D bounds are currently supported. Maybe try isel."
+                assert k in ds.dims, (
+                    f"Expected {k} in {ds.dims} - maybe you already selected in {k} dim?"
+                )
+                assert len(ds[k + "_bounds"].dims) == 2, (
+                    "Only 1D bounds are currently supported. Maybe try isel."
+                )
                 dat = ds[k + "_bounds"]
                 if dat.dims == (k, "delta_" + k):
                     pass
@@ -576,9 +576,9 @@ class EMC3DatasetAccessor:
             else:
                 forisel[k] = val
         ds = ds.emc3.isel(forisel)
-        assert isinstance(
-            ds, xr.Dataset
-        ), f"Expected to have an xr.Dataset, but instead got {type(ds)}"
+        assert isinstance(ds, xr.Dataset), (
+            f"Expected to have an xr.Dataset, but instead got {type(ds)}"
+        )
         return ds
 
     def evaluate_at_xyz(self, x, y, z, *args, **kwargs):
@@ -663,9 +663,9 @@ class EMC3DatasetAccessor:
             ret[k] = self.data[k].isel(**at)
             if dofill:
                 # fillthis = fill if filldims == ret[k].dims else ret[k].data
-                assert (
-                    ret[k].dims == filldims
-                ), f"Got dimensions {ret[k].dims} but expected {filldims} for key {k}"
+                assert ret[k].dims == filldims, (
+                    f"Got dimensions {ret[k].dims} but expected {filldims} for key {k}"
+                )
                 if fill_value is None:
                     try:
                         ret[k].data[fill] = np.nan

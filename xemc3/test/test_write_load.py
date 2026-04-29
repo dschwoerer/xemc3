@@ -38,13 +38,15 @@ def assert_da_are_equal(d1, d2, k, check_attrs, rtol, atol):
             or not np.isclose(d1.data[slc], d2.data[slc], rtol=rtol, atol=atol).all()
         )
     ) or (d1.dtype != float and (d1.shape != d2.shape or np.any(d1.data != d2.data))):
-        raise AssertionError(f"""var {k} is changed.
+        raise AssertionError(
+            f"""var {k} is changed.
 
 Before: {d1.shape}: {d1.data.flatten()}
 
 After: {d2.shape}: {d2.data.flatten()}
 
-np.isclose: {np.isclose(d1, d2 ,rtol=rtol).flatten()}""")
+np.isclose: {np.isclose(d1, d2, rtol=rtol).flatten()}"""
+        )
     if check_attrs:
         d1a = d1.attrs.copy()
         key = "xemc3_type"

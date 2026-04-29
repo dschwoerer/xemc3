@@ -15,17 +15,17 @@ path += ["..", "setup.cfg"]
 rec = False
 found = []
 with open("/".join(path)) as f:
-    for l in f:
+    for line in f:
         if rec:
-            if l:
-                found.append(l)
+            if line:
+                found.append(line)
             else:
                 rec = False
-        if l.startswith("console_scripts"):
+        if line.startswith("console_scripts"):
             rec = True
 
-for l in found:
-    name, ref = [x.strip() for x in l.split("=")]
+for line in found:
+    name, ref = [x.strip() for x in line.split("=")]
     ref = ref.split(":")[0]
     print(f"""
 

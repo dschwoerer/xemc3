@@ -20,11 +20,13 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
     lt = len(ds.theta)
     lp = len(ds.phi)
     pln["phi_index"] = "phi", np.arange(lp, dtype=int)
-    pln["r_index"] = ("r", "theta"), np.zeros((lr, lt), dtype=int) + np.arange(
-        lr, dtype=int
-    )[:, None]
-    pln["theta_index"] = ("r", "theta"), np.zeros((lr, lt), dtype=int) + np.arange(
-        lt, dtype=int
+    pln["r_index"] = (
+        ("r", "theta"),
+        np.zeros((lr, lt), dtype=int) + np.arange(lr, dtype=int)[:, None],
+    )
+    pln["theta_index"] = (
+        ("r", "theta"),
+        np.zeros((lr, lt), dtype=int) + np.arange(lt, dtype=int),
     )
     for k in ds:
         if k.startswith("_") and k.endswith("_dims"):
@@ -79,7 +81,6 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
                     phic = (np.pi * 2 / periodicity) - phi[ijk]
             ss = [plni.emc3.sel(phi=phic) for plni in pln.emc3.iter_zones()]
             ns = [len(plni.theta) for plni in pln.emc3.iter_zones()]
-            meshs_grids = [(s.emc3["R_corners"], s.emc3["z_corners"]) for s in ss]
             meshs = [
                 PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data) for s in ss
             ]
@@ -148,9 +149,9 @@ def get_out_shape(*data):
                         shape.append(len(d[dim]))
                         coords[dim] = d.coords[dim]
             else:
-                assert (
-                    utils.prod(np.shape(d)) == 1
-                ), "Cannot mix `xr.DataArray`s and `np.ndarray`s"
+                assert utils.prod(np.shape(d)) == 1, (
+                    "Cannot mix `xr.DataArray`s and `np.ndarray`s"
+                )
         outzero = xr.DataArray(np.zeros(shape), dims=dims, coords=coords)
         out = [outzero + d for d in data]
         # for o in out:

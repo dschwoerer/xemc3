@@ -14,6 +14,8 @@
 #
 import os
 
+import xemc3
+
 # import sys
 # sys.path.insert(0, os.path.abspath('.'))
 
@@ -23,7 +25,6 @@ on_rtd = os.environ.get("READTHEDOCS") == "True"
 
 # -- Project information -----------------------------------------------------
 
-import xemc3
 
 project = "xemc3"
 copyright = "2018, Tom Nicholas, 2021, David Bold, IPP"
