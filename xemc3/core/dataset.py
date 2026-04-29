@@ -223,7 +223,7 @@ class EMC3DatasetAccessor:
         """
         Iterate over all zones
         """
-        if not "zone" in self.data.dims:
+        if "zone" not in self.data.dims:
             yield self.data
         else:
             for i in range(len(self.data.zone)):

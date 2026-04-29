@@ -872,14 +872,14 @@ def read_plates_raw(cwd: str, fn: str) -> typing.Sequence[xr.Dataset]:
             ds.coords[plate_prefix + "phi_bounds"].attrs["units"] = "radian"
 
             vars = files[get_file_name(None, "target_flux")]["vars"].copy()
-            for i, (l, meta) in enumerate(vars.items()):
-                ds[l] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
+            for i, (lbl, meta) in enumerate(vars.items()):
+                ds[lbl] = (plate_prefix + "phi", plate_prefix + "x"), data[i] * meta.get(
                     "scale", 1
                 )
                 for k in meta:
-                    ds[l].attrs[k] = meta[k]
-            for i, l in enumerate(["tot_n", "tot_P"]):
-                ds[l] = total[i]
+                    ds[lbl].attrs[k] = meta[k]
+            for i, lbl in enumerate(["tot_n", "tot_P"]):
+                ds[lbl] = total[i]
             plates.append(ds)
 
         # Make sure we have read everything
@@ -1392,10 +1392,10 @@ def to_mapped_core_4d(
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
                 for k in range(mapdat.shape[2]):
-                    for l in range(mapdat.shape[3]):
-                        mapid = mapdat[i, j, k, l]
+                    for m in range(mapdat.shape[3]):
+                        mapid = mapdat[i, j, k, m]
                         if mapid < max:
-                            cdat = datdat[(..., i, j, k, l)]
+                            cdat = datdat[(..., i, j, k, m)]
                             if not (np.isnan((cdat))):
                                 out[..., mapid] += cdat
                                 count[mapid] += 1
@@ -1403,10 +1403,10 @@ def to_mapped_core_4d(
         for i in range(mapdat.shape[0]):
             for j in range(mapdat.shape[1]):
                 for k in range(mapdat.shape[2]):
-                    for l in range(mapdat.shape[3]):
-                        mapid = mapdat[i, j, k, l]
+                    for m in range(mapdat.shape[3]):
+                        mapid = mapdat[i, j, k, m]
                         if mapid < max:
-                            cdat = datdat[(..., i, j, k, l)]
+                            cdat = datdat[(..., i, j, k, m)]
                             if not (np.isnan((cdat))):
                                 out[..., mapid] += cdat
                                 count[mapid] += 1

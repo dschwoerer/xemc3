@@ -79,7 +79,6 @@ def _evaluate_get_keys(ds, r, phi, z, periodicity, updownsym, delta_phi, progres
                     phic = (np.pi * 2 / periodicity) - phi[ijk]
             ss = [plni.emc3.sel(phi=phic) for plni in pln.emc3.iter_zones()]
             ns = [len(plni.theta) for plni in pln.emc3.iter_zones()]
-            meshs_grids = [(s.emc3["R_corners"], s.emc3["z_corners"]) for s in ss]
             meshs = [
                 PolyMesh(s.emc3["R_corners"].data, s.emc3["z_corners"].data) for s in ss
             ]

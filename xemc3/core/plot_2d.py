@@ -146,7 +146,6 @@ def _get_data_zone(ds, key, phi, sign, kwargs):
         (da * pp).sum(dim="delta_phi", skipna=False) if "delta_phi" in da.dims else da
         for da in das
     ]
-    norm = None
     shading = False
     if key:
         if "time" in das[2].dims:

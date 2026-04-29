@@ -121,7 +121,7 @@ def gen_rand(shape, files):
         for attr in "long_name", "units", "notes":
             if attr in vsv:
                 out[attr] = vs[v][attr]
-        if not v in ["_plasma_map", "bf_bounds", "R_bounds", "phi_bounds", "z_bounds"]:
+        if v not in ["_plasma_map", "bf_bounds", "R_bounds", "phi_bounds", "z_bounds"]:
             k = "parallel_flux"
             out[k] = vs[v].get(k, 0)
         return out
