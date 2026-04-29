@@ -5,7 +5,6 @@ import typing
 
 from .utils import rrange, raise_issue
 
-
 if 0:
     import sparse  # type: ignore
 else:
