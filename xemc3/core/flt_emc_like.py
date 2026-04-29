@@ -210,9 +210,9 @@ class Tracer:
             return mymesh(self.R.isel(phi=phi).data, self.Z.isel(phi=phi).data)
 
         pnts = np.array(pnts)
-        assert (len(pnts.shape) == 2) and (
-            pnts.shape[1] == 2
-        ), f"Expected shape (n, 2) but got {pnts.shape}"
+        assert (len(pnts.shape) == 2) and (pnts.shape[1] == 2), (
+            f"Expected shape (n, 2) but got {pnts.shape}"
+        )
         mesh0 = getmesh(self, phi0)
         meshes = [getmesh(self, phi) for phi in phis]
         mytrace2 = trace2

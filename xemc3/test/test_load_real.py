@@ -6,6 +6,7 @@ import xemc3
 
 from .get_real_data import get_data
 
+
 # simple regression test
 def test_load_all():
     bd = get_data()

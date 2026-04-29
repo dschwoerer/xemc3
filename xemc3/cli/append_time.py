@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 
 import xarray as xr
 
-from ..core import dataset # noqa: F401
+from ..core import dataset  # noqa: F401
 from ..core.load import load_all
 from ._common import commonparser, iter_dir
 

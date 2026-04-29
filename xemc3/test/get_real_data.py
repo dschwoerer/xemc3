@@ -1,9 +1,11 @@
 import os
 
+
 def get_data(force=False):
     basedir = "./example-data/"
     if not os.path.isdir(basedir) and not force:
         import pytest
+
         pytest.skip("create {basedir} to enable testing on real data")
         return
     if not os.path.isdir(basedir + ".git"):
