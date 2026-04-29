@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 import xarray as xr
 
-from ..core import dataset
+from ..core import dataset # noqa: F401
 from . import gen_ds
 
 try:

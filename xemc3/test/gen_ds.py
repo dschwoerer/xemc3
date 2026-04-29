@@ -6,7 +6,8 @@ import xarray as xr
 from hypothesis import assume
 from hypothesis import strategies as st
 
-from ..core import dataset, load, utils
+from ..core import dataset # noqa: F401
+from ..core import load, utils
 
 dims = "r", "theta", "phi"
 
