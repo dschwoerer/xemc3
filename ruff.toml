@@ -1,0 +1,8 @@
+[lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"xemc3/write/*.py" = ["F401"]
+"xemc3/config.py" = ["F401"]
+"*/test/*" = ["E722"]
+"xemc3/test/gen_ds.py" = ["E721"]
+"xemc3/core/load.py" = ["E721"]
+"xemc3/core/depo.py" = ["E721"]
