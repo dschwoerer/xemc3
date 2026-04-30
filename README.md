@@ -8,7 +8,7 @@
 A library for working with EMC3 simulations using the xarray framework.
 
 ## Examples
-Examples can be found under [docs/examples](docs/examples) and you can try them [online on binder](https://mybinder.org/v2/gh/dschwoerer/xemc3/next?filepath=docs%2Fexamples)
+Examples can be found under [docs/examples](docs/examples) and you can try them [online on binder](https://mybinder.org/v2/gh/dschwoerer/xemc3/devel?filepath=docs%2Fexamples)
 
 ## Documentation
 The documentation can be found on [read the docs](https://xemc3.rtfd.io)
