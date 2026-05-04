@@ -188,7 +188,7 @@ class Tracer:
         result = [trace(rz, self.meshes, n=n) for rz in pnts]
         try:
             return np.array(result)
-        except ValueError: # Inhomogenious data
+        except ValueError:  # Inhomogenious data
             return result
 
     def trace_to_phi_index(self, pnts, phis, phi0=0, progress=False):
