@@ -253,7 +253,7 @@ class Tracer:
             start[1][0] += dx
             start[2][1] += dx
 
-            out = self.trace4(start, periodicity)
+            out = self.trace4(start, periodicity, ood=False)
 
             fun = out[0] - xy
 
@@ -281,7 +281,7 @@ class Tracer:
             if res < eps:
                 return xy
 
-    def trace4(self, pnts, num):
+    def trace4(self, pnts, num, ood=False):
         """
         Trace one or more point for a given number of iterations through the mesh
 
@@ -292,5 +292,5 @@ class Tracer:
         if isinstance(pnts, (list, tuple)):
             pnts = np.array(pnts)
         if len(pnts.shape) == 1:
-            return trace4(pnts, self.meshes, num)
+            return trace4(pnts, self.meshes, num, ood=ood)
         return np.array([trace4(p, self.meshes, num) for p in pnts])
