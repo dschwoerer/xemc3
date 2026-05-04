@@ -58,7 +58,6 @@ class FixPointConvergenceError(ValueError):
 def rz_to_ab(rz, mesh, plot=False):
     ij = mesh.find_cell(rz)
     if ij < 0:
-        print(ij)
         if plot:
             import matplotlib.pyplot as plt
 
@@ -66,13 +65,11 @@ def rz_to_ab(rz, mesh, plot=False):
             plt.plot(*rz, "xr")
             plt.figure()
             rz1 = np.array([mesh.r, mesh.z])
-            print(rz1.shape)
             pr, pz = np.unravel_index(
                 np.argmin(np.sqrt(np.sum((rz1 - rz[:, None, None]) ** 2, axis=0))),
                 rz1.shape[1:],
             )
             i = 0
-            print(pr, pz)
             for nx in range(max(pr - 1, 0), min(pr + 2, rz1.shape[1] - 1)):
                 nx = np.array([nx, nx + 2])
                 r1 = mesh.r[nx]
@@ -188,7 +185,11 @@ class Tracer:
         Always at phi=0
         """
         pnts = np.atleast_2d(pnts)
-        return np.array([trace(rz, self.meshes, n=n) for rz in pnts])
+        result = [trace(rz, self.meshes, n=n) for rz in pnts]
+        try:
+            return np.array(result)
+        except ValueError:  # Inhomogenious data
+            return result
 
     def trace_to_phi_index(self, pnts, phis, phi0=0, progress=False):
         """
@@ -252,7 +253,7 @@ class Tracer:
             start[1][0] += dx
             start[2][1] += dx
 
-            out = self.trace4(start, periodicity)
+            out = self.trace4(start, periodicity, ood=False)
 
             fun = out[0] - xy
 
@@ -280,7 +281,7 @@ class Tracer:
             if res < eps:
                 return xy
 
-    def trace4(self, pnts, num):
+    def trace4(self, pnts, num, ood=False):
         """
         Trace one or more point for a given number of iterations through the mesh
 
@@ -291,5 +292,5 @@ class Tracer:
         if isinstance(pnts, (list, tuple)):
             pnts = np.array(pnts)
         if len(pnts.shape) == 1:
-            return trace4(pnts, self.meshes, num)
+            return trace4(pnts, self.meshes, num, ood=ood)
         return np.array([trace4(p, self.meshes, num) for p in pnts])
