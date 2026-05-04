@@ -58,7 +58,6 @@ class FixPointConvergenceError(ValueError):
 def rz_to_ab(rz, mesh, plot=False):
     ij = mesh.find_cell(rz)
     if ij < 0:
-        print(ij)
         if plot:
             import matplotlib.pyplot as plt
 
@@ -66,13 +65,11 @@ def rz_to_ab(rz, mesh, plot=False):
             plt.plot(*rz, "xr")
             plt.figure()
             rz1 = np.array([mesh.r, mesh.z])
-            print(rz1.shape)
             pr, pz = np.unravel_index(
                 np.argmin(np.sqrt(np.sum((rz1 - rz[:, None, None]) ** 2, axis=0))),
                 rz1.shape[1:],
             )
             i = 0
-            print(pr, pz)
             for nx in range(max(pr - 1, 0), min(pr + 2, rz1.shape[1] - 1)):
                 nx = np.array([nx, nx + 2])
                 r1 = mesh.r[nx]
