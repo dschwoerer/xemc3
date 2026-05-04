@@ -188,7 +188,11 @@ class Tracer:
         Always at phi=0
         """
         pnts = np.atleast_2d(pnts)
-        return np.array([trace(rz, self.meshes, n=n) for rz in pnts])
+        result = [trace(rz, self.meshes, n=n) for rz in pnts]
+        try:
+            return np.array(result)
+        except ValueError: # Inhomogenious data
+            return result
 
     def trace_to_phi_index(self, pnts, phis, phi0=0, progress=False):
         """
