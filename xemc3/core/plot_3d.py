@@ -76,11 +76,16 @@ class divertor:
 
         if verbose:
             _pprint("\nplotting")
+        for prefix in ["plate_", "_plate_", ""]:
+            if f"{prefix}z_bounds" in ds:
+                break
+        else:
+            raise ValueError("Did not found coordinates in dataset")
         for plate in ds.emc3.iter_plates(symmetry=symmetry, segments=segments):
             if power_cutoff and power_cutoff > plate.tot_P:
                 continue
 
-            z = plate.emc3["z_corners"].data
+            z = plate.emc3[f"{prefix}z_corners"].data
             if only_lower:
                 doit = False
                 data = plate.emc3[index].data.copy()
@@ -93,8 +98,8 @@ class divertor:
                     continue
             else:
                 data = plate.emc3[index].data
-            r = plate.emc3["R_corners"].data
-            phi = plate.emc3["phi_corners"].data
+            r = plate.emc3[f"{prefix}R_corners"].data
+            phi = plate.emc3[f"{prefix}phi_corners"].data
             if phi.shape != r.shape:
                 phi = phi.reshape((z.shape[0], 1)) * np.ones((1, z.shape[1]))
             x = r * np.cos(phi)
