@@ -293,4 +293,4 @@ class Tracer:
             pnts = np.array(pnts)
         if len(pnts.shape) == 1:
             return trace4(pnts, self.meshes, num, ood=ood)
-        return np.array([trace4(p, self.meshes, num) for p in pnts])
+        return np.array([trace4(p, self.meshes, num, ood=ood) for p in pnts])
