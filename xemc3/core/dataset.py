@@ -285,7 +285,7 @@ class EMC3DatasetAccessor:
                     f"Expected phi.shape = {phid.shape} == x.shape = {xd.shape} to match."
                     + utils.raise_issue
                 )
-                for j in range(ds.dims["plate_ind"]):
+                for j in range(ds.sizes["plate_ind"]):
                     yield ds.isel(
                         plate_ind=j, **{k: slice(None, v[j]) for k, v in crop.items()}
                     )

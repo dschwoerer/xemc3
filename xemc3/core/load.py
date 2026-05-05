@@ -516,6 +516,8 @@ def scrape(f: typing.TextIO, *, ignore="!", verbose=False) -> str:
     """
     while True:
         s = f.readline()
+        if not s:
+            raise ValueError(f"Reached EOF on {f}")
         if s.startswith("*"):
             if verbose:
                 if s.startswith("***"):
