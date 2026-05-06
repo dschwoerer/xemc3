@@ -226,7 +226,7 @@ _org_open = open
 
 def open(fn, mode="rt", *args):
     if fn[0] == "~":
-        fn = os.environ["HOME"] + fn[1:]
+        fn = os.environ.get("HOME", "") + fn[1:]
     if mode in ["r", "rb", "rt"]:
         try:
             return _org_open(fn, mode, *args)
