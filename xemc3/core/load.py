@@ -67,10 +67,9 @@ def _fromfile(
         try:
             ret[pos : pos + ln] = new
         except Exception as e:
-            print(e)
             if pos + ln >= count:
                 ret = np.append(ret[:pos], new)
-                print(f"Returning {pos + ln} rather then {count} elements")
+                print(f"Returning {pos + ln} rather then {count} elements ({e})")
             else:
                 raise
         pos += ln
@@ -94,7 +93,6 @@ def _block_write(
         fmt2 = fmt1 = fmt
     np.savetxt(f, d[:asblock].reshape(-1, bs), fmt=fmt1)
     if asblock != len(d):
-        print(d[asblock:], fmt2)
         np.savetxt(f, d[asblock:].reshape(1, -1), fmt=fmt2)
 
 
@@ -1790,7 +1788,6 @@ def archive(ds: xr.Dataset, fn: str, geom: bool = False, mapping: bool = True) -
             i: {"zlib": True, "complevel": 9} for i in list(arch) + list(arch.coords)
         },
     )
-    print(f"done with {fn}")
 
 
 def load_all(
