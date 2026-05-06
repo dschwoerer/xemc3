@@ -68,9 +68,9 @@ TEMPERATURE_A:
 TEMPERATURE_M:
   kinetic: true
   vars:
-    TH:
+    TH2:
       units: eV
-      long_name: Atomic hydrogen temperature
+      long_name: Molecular hydrogen temperature
 BFIELD_STRENGTH:
   type: full
   vars:
