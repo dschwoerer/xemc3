@@ -530,6 +530,7 @@ class EMC3DatasetAccessor:
                 ds = ds_
         xas = {}
         for k in ds.dims:
+            assert isinstance(k, str)
             key = f"_{k}_dims"
             if key in ds and ds[key].dims == ():
                 xas[k] = slice(None, ds[key].values)
