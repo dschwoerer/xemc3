@@ -1,12 +1,6 @@
 import warnings
-from typing import Any, Mapping, Union, Optional
-import sys
+from typing import Literal, Any, Mapping, Union, Optional
 import functools
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
 
 
 import numpy as np
