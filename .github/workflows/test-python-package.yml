@@ -78,7 +78,7 @@ jobs:
         flake8 xemc3 --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Lint with mypy
       run: |
-        if test $(python -V | grep -Po '3.\K[0-9]*') -ge 8 ; then echo "Python new enough" && mypy xemc3 ; fi
+        mypy xemc3
     - name: Test with pytest
       run: |
         mkdir -p example-data
