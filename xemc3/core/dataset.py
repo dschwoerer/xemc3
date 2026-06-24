@@ -526,6 +526,7 @@ class EMC3DatasetAccessor:
         for k in ds.dims:
             key = f"_{k}_dims"
             if key in ds and ds[key].dims == ():
+                k = str(k)
                 xas[k] = slice(None, ds[key].values)
         if xas:
             ds = ds.isel(xas)
