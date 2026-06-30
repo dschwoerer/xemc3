@@ -1,12 +1,6 @@
 import warnings
-from typing import Any, Mapping, Union, Optional
-import sys
+from typing import Literal, Any, Mapping, Union, Optional
 import functools
-
-if sys.version_info >= (3, 8):
-    from typing import Literal
-else:
-    from typing_extensions import Literal
 
 
 import numpy as np
@@ -532,6 +526,7 @@ class EMC3DatasetAccessor:
         for k in ds.dims:
             key = f"_{k}_dims"
             if key in ds and ds[key].dims == ():
+                k = str(k)
                 xas[k] = slice(None, ds[key].values)
         if xas:
             ds = ds.isel(xas)

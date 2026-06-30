@@ -5,7 +5,7 @@ import xarray as xr
 
 def download_file():
     os.system(
-        "git clone https://oauth2:glpat-gS1qiEX7Ncoys5xH3CfS@gitlab.mpcdf.mpg.de/dave/xemc3-data/ ../../example-data/ --depth 1"
+        "git clone https://oauth2:glpat-8Xqp1-UMwqV4rVuoSb-QfG86MQp1OjZrYgk.01.0z0bc32ro@gitlab.mpcdf.mpg.de/dave/xemc3-data/ ../../example-data/ --depth 1"
     )
 
 
